@@ -1,0 +1,419 @@
+{
+  "common": {
+    "appName": "Silk Road Africa",
+    "tagline": "China-Africa B2B Trade Platform",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "signOut": "Sign out",
+    "dashboard": "Dashboard",
+    "marketplace": "Marketplace",
+    "suppliers": "Suppliers",
+    "products": "Products",
+    "orders": "Orders",
+    "messages": "Messages",
+    "settings": "Settings",
+    "analytics": "Analytics",
+    "search": "Search",
+    "filter": "Filter",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "noResults": "No results found",
+    "viewAll": "View all",
+    "learnMore": "Learn more"
+  },
+  "nav": {
+    "products": "Products",
+    "commodities": "Commodities",
+    "suppliers": "Suppliers",
+    "rfq": "RFQ",
+    "tradeAssurance": "Trade Assurance"
+  },
+  "home": {
+    "heroTitle": "The Silk Road, Reimagined for Africa",
+    "heroSubtitle": "Connect with verified manufacturers and suppliers across China and Africa. Trade assurance, mobile payments, and logistics built for cross-continental B2B commerce.",
+    "browseProducts": "Browse Products",
+    "becomeSupplier": "Become a Supplier",
+    "howItWorks": "How It Works",
+    "step1Title": "Find Products",
+    "step1Desc": "Browse verified suppliers and compare pricing from manufacturers across China and Africa.",
+    "step2Title": "Request Quotes",
+    "step2Desc": "Submit RFQs and receive competitive quotations from multiple verified suppliers.",
+    "step3Title": "Secure Payment",
+    "step3Desc": "Pay securely through our platform. Funds are held until you confirm delivery.",
+    "step4Title": "Track Delivery",
+    "step4Desc": "Monitor your shipment in real-time from factory to your doorstep.",
+    "trustedBy": "Trusted by businesses across",
+    "countries": "countries",
+    "verifiedSuppliers": "Verified Suppliers",
+    "languages": "Languages",
+    "localPayments": "Local Payments",
+    "realtimeMessaging": "Real-time Messaging",
+    "smartMatching": "Smart Matching"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "signInToAccount": "Sign in to your SilkRoad account",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "createAccount": "Create your account",
+    "fullName": "Full name",
+    "confirmPassword": "Confirm password",
+    "chooseRole": "How will you use SilkRoad Africa?",
+    "iAmBuyer": "I'm a Buyer",
+    "buyerDesc": "Source products from verified suppliers. Get bulk pricing, trade assurance, and logistics support.",
+    "iAmSupplier": "I'm a Supplier",
+    "supplierDesc": "List your products, reach African & Chinese buyers, and manage orders with integrated payments.",
+    "companyName": "Company name",
+    "country": "Country",
+    "checkEmail": "Check your email",
+    "verificationSent": "We've sent a verification link to your email.",
+    "resetPassword": "Reset password",
+    "resetPasswordDesc": "Enter your email and we'll send you a reset link",
+    "sendResetLink": "Send reset link",
+    "newPassword": "New password",
+    "updatePassword": "Update password"
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "searchPlaceholder": "Search products, suppliers...",
+    "categories": "Categories",
+    "priceRange": "Price Range",
+    "minOrder": "Minimum Order",
+    "supplierRegion": "Supplier Region",
+    "sortBy": "Sort by",
+    "newest": "Newest",
+    "priceLowHigh": "Price: Low to High",
+    "priceHighLow": "Price: High to Low",
+    "mostPopular": "Most Popular",
+    "moq": "MOQ",
+    "perUnit": "per unit",
+    "addToCart": "Add to Cart",
+    "contactSupplier": "Contact Supplier",
+    "requestQuote": "Request Quotation",
+    "tradeAssurance": "Trade Assurance",
+    "verifiedSupplier": "Verified Supplier",
+    "sampleAvailable": "Sample Available"
+  },
+  "rfq": {
+    "title": "Request for Quotation",
+    "createRFQ": "Create RFQ",
+    "myRFQs": "My RFQs",
+    "openRFQs": "Open RFQs",
+    "submitQuote": "Submit Quote",
+    "quotesReceived": "quotes received",
+    "deadline": "Deadline",
+    "budget": "Budget",
+    "quantity": "Quantity"
+  },
+  "orders": {
+    "title": "My Orders",
+    "orderNumber": "Order Number",
+    "total": "Total",
+    "status": "Status",
+    "date": "Date",
+    "trackOrder": "Track Order",
+    "confirmDelivery": "Confirm Delivery",
+    "leaveReview": "Leave a Review",
+    "openDispute": "Open Dispute",
+    "statuses": {
+      "pending_payment": "Pending Payment",
+      "paid": "Paid",
+      "confirmed": "Confirmed",
+      "in_production": "In Production",
+      "ready_to_ship": "Ready to Ship",
+      "dispatched": "Dispatched",
+      "in_transit": "In Transit",
+      "delivered": "Delivered",
+      "completed": "Completed"
+    }
+  },
+  "supplier": {
+    "portal": "Supplier Portal",
+    "addProduct": "Add Product",
+    "productName": "Product Name",
+    "description": "Description",
+    "basePrice": "Base Price",
+    "category": "Category",
+    "leadTime": "Lead Time",
+    "tradeTerm": "Trade Term",
+    "verification": "Verification",
+    "getVerified": "Get Verified",
+    "settlements": "Settlements & Payouts",
+    "totalRevenue": "Total Revenue",
+    "pendingPayout": "Pending Payout"
+  },
+  "cart": {
+    "title": "Shopping Cart",
+    "empty": "Your cart is empty",
+    "emptyDesc": "Browse the marketplace to find products from verified suppliers.",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping and taxes calculated at checkout",
+    "checkout": "Proceed to Checkout",
+    "continueShopping": "Continue Shopping"
+  },
+  "footer": {
+    "about": "About",
+    "contact": "Contact",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "copyright": "All rights reserved."
+  },
+  "resources": {
+    "nav": {
+      "metals": "Metals",
+      "minerals": "Minerals",
+      "food": "Food & Agri",
+      "timber": "Timber",
+      "energy": "Energy",
+      "rfqs": "RFQs",
+      "lc": "Letters of Credit",
+      "signIn": "Sign in",
+      "register": "Register",
+      "compliance": "Compliance"
+    },
+    "landing": {
+      "eyebrow": "AFRICA → CHINA · NATURAL RESOURCES PORTAL",
+      "headline": "Source African resources. Ship to China. One platform, LC-backed end-to-end.",
+      "subhead": "Metals, minerals, timber, agricultural commodities and raw materials from verified African producers. Letter-of-credit trade, third-party inspection, owned freight, USD/CNY settlement.",
+      "ctaBrowse": "Browse listings",
+      "ctaSell": "List a commodity",
+      "statCategories": "Categories",
+      "statPayment": "Payment",
+      "statFx": "Settlement",
+      "categoriesHeading": "Explore by category",
+      "explore": "Explore",
+      "pillarTrade": {
+        "title": "LC-backed trade",
+        "body": "Orders transact against letters of credit under UCP 600 with document-controlled release. No third-party escrow — funds move bank-to-bank against inspection-verified BLs."
+      },
+      "pillarFreight": {
+        "title": "Owned freight",
+        "body": "We hold carrier allocation with COSCO, Maersk and MSC and issue house BLs. Port-of-loading first-mile from mine or farm, marine insurance included."
+      },
+      "pillarFx": {
+        "title": "Integrated FX",
+        "body": "Lock USD/CNY or offshore CNH rates at quote stage. Onshore settlement via licensed partner bank; extended rate locks align with LC payment windows."
+      }
+    },
+    "groups": {
+      "metals": {
+        "tag": "BULK · CONCENTRATES",
+        "title": "Metals & Concentrates",
+        "desc": "Copper, cobalt, lithium, bauxite, iron ore, manganese, chrome, gold doré, 3TG metals with OECD due diligence."
+      },
+      "minerals": {
+        "tag": "HIGH VALUE",
+        "title": "Industrial & Precious Minerals",
+        "desc": "Industrial minerals and precious stones including Kimberley-certified rough diamonds."
+      },
+      "energy": {
+        "tag": "ENERGY",
+        "title": "Energy Materials",
+        "desc": "Coal, coke and energy-grade feedstocks for Chinese industrial and power markets."
+      },
+      "timber": {
+        "tag": "WOOD",
+        "title": "Timber & Wood",
+        "desc": "Hardwood and softwood logs, sawn timber, CITES-gated species with permit verification."
+      },
+      "food": {
+        "tag": "AGRI · GACC",
+        "title": "Food & Agri Products",
+        "desc": "Cocoa, green coffee, cashew, sesame, soybean. GACC-registered exporters, phytosanitary handled."
+      },
+      "raw_materials": {
+        "tag": "OTHER",
+        "title": "Other Raw Materials",
+        "desc": "Rubber, gum arabic, hides and other raw-material streams moving Africa → China."
+      }
+    },
+    "listings": {
+      "heading": "Resource Listings",
+      "allGroups": "All",
+      "results": "results",
+      "grade": "Grade",
+      "price": "Price",
+      "available": "Available",
+      "emptyTitle": "No listings match your filters",
+      "emptyBody": "Try clearing filters or browsing another category."
+    },
+    "detail": {
+      "breadcrumbHome": "Resources",
+      "breadcrumbListings": "Listings",
+      "price": "Price",
+      "incoterm": "Incoterm",
+      "available": "Available",
+      "moq": "MOQ",
+      "loadPort": "Port of loading",
+      "dischargePort": "Port of discharge",
+      "ctaRfq": "Submit RFQ",
+      "ctaRfqLocked": "Upgrade to request a quote",
+      "ctaContact": "Contact supplier",
+      "assay": "Assay & Specifications",
+      "compliance": "Compliance & Licenses",
+      "mineLicense": "Mine license",
+      "exportPermit": "Export permit",
+      "supplier": "Supplier",
+      "verified": "Verified"
+    },
+    "paywall": {
+      "sendQuoteTitle": "Sending quotes is a paid-tier feature",
+      "sendQuoteBody": "Your supplier company must be on the Standard or Gold plan to submit quotations on this platform. Upgrade to respond to RFQs.",
+      "requestQuoteTitle": "Requesting quotes is a paid-tier feature",
+      "requestQuoteBody": "Your buyer company must be on the Standard or Gold plan to publish RFQs and receive quotations from verified African producers.",
+      "cta": "View plans",
+      "signIn": "Sign in"
+    },
+    "upgrade": {
+      "eyebrow": "UPGRADE · SILK ROAD RESOURCES",
+      "heading": "Unlock RFQ and quotation trading",
+      "sub": "A paid tier is required to publish RFQs or submit quotations. Pick a plan that matches your trade volume. Cancel anytime.",
+      "popular": "Most popular",
+      "perMonth": "per company / month",
+      "ctaSelect": "Select plan",
+      "footnote": "Billed in USD. Invoicing in CNY available on Gold.",
+      "plans": {
+        "standard": {
+          "name": "Standard",
+          "f1": "Publish unlimited RFQs",
+          "f2": "Submit quotations",
+          "f3": "Access verified supplier directory",
+          "f4": "Letter-of-credit workflow (beta)"
+        },
+        "gold": {
+          "name": "Gold",
+          "f1": "Everything in Standard",
+          "f2": "Dedicated trade desk",
+          "f3": "Priority freight allocation (COSCO / Maersk)",
+          "f4": "Extended FX rate locks (up to 90 days)",
+          "f5": "CNY onshore settlement",
+          "f6": "Compliance pre-clearance (Kimberley, OECD, CITES, GACC)"
+        }
+      }
+    },
+    "rfqNew": {
+      "heading": "New Resource RFQ",
+      "sub": "Describe your requirement. Paid-tier buyers receive quotations from verified African suppliers within the deadline.",
+      "title": "Title",
+      "description": "Description & specifications",
+      "category": "Category",
+      "quantity": "Quantity",
+      "uom": "Unit of measure",
+      "targetPrice": "Target price (USD / unit)",
+      "incoterm": "Incoterm",
+      "loadPort": "Port of loading (UN/LOCODE)",
+      "dischargePort": "Port of discharge",
+      "windowStart": "Shipment window start",
+      "windowEnd": "Shipment window end",
+      "payment": "Payment instrument",
+      "buyer": "Buyer company",
+      "submit": "Publish RFQ",
+      "submitting": "Publishing…",
+      "success": "RFQ published"
+    },
+    "rfqsList": {
+      "heading": "Resource RFQs",
+      "sub": "Open requests for quotation from buyers on Silk Road Resources.",
+      "ctaNew": "New RFQ",
+      "empty": "No open RFQs yet."
+    },
+    "rfqDetail": {
+      "breadcrumb": "RFQs",
+      "quantity": "Quantity",
+      "incoterm": "Incoterm",
+      "loadPort": "Port of loading",
+      "dischargePort": "Port of discharge",
+      "window": "Shipment window",
+      "payment": "Payment instrument",
+      "target": "Target price",
+      "buyer": "Buyer",
+      "description": "Description",
+      "quotations": "Quotations",
+      "noQuotes": "No quotations submitted yet.",
+      "ctaQuote": "Submit a quotation",
+      "ctaAccept": "Accept & draft LC",
+      "ctaAccepting": "Accepting…",
+      "acceptedBadge": "Accepted",
+      "days": "days"
+    },
+    "quoteNew": {
+      "heading": "Submit Quotation",
+      "sub": "Respond to this RFQ with price, terms and inspection arrangements.",
+      "forRfq": "For RFQ",
+      "supplier": "Supplier company",
+      "unitPrice": "Unit price (USD)",
+      "quantity": "Quantity",
+      "uom": "Unit",
+      "incoterm": "Incoterm",
+      "loadPort": "Port of loading",
+      "dischargePort": "Port of discharge",
+      "leadTime": "Lead time (days)",
+      "validity": "Quote validity (days)",
+      "payment": "Payment instrument",
+      "inspection": "Preferred inspection agency",
+      "notes": "Notes",
+      "submit": "Submit quotation",
+      "submitting": "Submitting…",
+      "total": "Total",
+      "freeTierBlock": "Your supplier company must be on a paid tier to submit quotations."
+    },
+    "lc": {
+      "heading": "Letter of Credit",
+      "empty": "No LC has been issued for this RFQ yet.",
+      "issueDate": "Issued",
+      "expiry": "Expiry",
+      "latestShip": "Latest shipment",
+      "stage": {
+        "draft": "Draft / applied",
+        "issued": "Issued & advised",
+        "docs": "Docs presentation",
+        "settled": "Settled"
+      }
+    },
+    "lcList": {
+      "heading": "Letters of Credit",
+      "sub": "All LCs where your companies are applicant or beneficiary.",
+      "parties": "Applicant → Beneficiary",
+      "empty": "No letters of credit yet. One will be drafted automatically when a quotation is accepted."
+    },
+    "lcDetail": {
+      "breadcrumb": "Letters of Credit",
+      "applicant": "Applicant (buyer)",
+      "beneficiary": "Beneficiary (supplier)",
+      "tolerance": "Tolerance",
+      "issueDate": "Issue date",
+      "expiry": "Expiry",
+      "latestShip": "Latest shipment",
+      "issuingBank": "Issuing bank",
+      "advisingBank": "Advising bank",
+      "confirmingBank": "Confirming bank",
+      "actions": "Next action",
+      "noActions": "No available transitions for your role at this state.",
+      "documents": "Documents",
+      "notPresented": "Not presented",
+      "history": "State history",
+      "transitions": {
+        "apply": "Submit application to bank",
+        "issued": "Mark as issued",
+        "advised": "Mark as advised",
+        "confirmed": "Mark as confirmed",
+        "presentDocs": "Present documents",
+        "accept": "Accept documents",
+        "flagDiscrepancies": "Flag discrepancies",
+        "waive": "Waive discrepancies",
+        "settle": "Mark as settled",
+        "cancel": "Cancel LC"
+      }
+    }
+  }
+}

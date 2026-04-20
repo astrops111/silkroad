@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env*
+!.env.example
+node_modules
+.next
+.turbo
+*.log
+*.tsbuildinfo
+README.md
+_docs
+supabase/.temp
+.DS_Store
+Thumbs.db

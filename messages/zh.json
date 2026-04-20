@@ -1,0 +1,419 @@
+{
+  "common": {
+    "appName": "丝路非洲",
+    "tagline": "中非B2B贸易平台",
+    "signIn": "登录",
+    "signUp": "注册账号",
+    "signOut": "退出登录",
+    "dashboard": "仪表板",
+    "marketplace": "商城",
+    "suppliers": "供应商",
+    "products": "产品",
+    "orders": "订单",
+    "messages": "消息",
+    "settings": "设置",
+    "analytics": "数据分析",
+    "search": "搜索",
+    "filter": "筛选",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "view": "查看",
+    "back": "返回",
+    "next": "下一步",
+    "submit": "提交",
+    "loading": "加载中...",
+    "noResults": "未找到结果",
+    "viewAll": "查看全部",
+    "learnMore": "了解更多"
+  },
+  "nav": {
+    "products": "产品",
+    "commodities": "大宗商品",
+    "suppliers": "供应商",
+    "rfq": "询价",
+    "tradeAssurance": "贸易保障"
+  },
+  "home": {
+    "heroTitle": "丝绸之路，为非洲重新构想",
+    "heroSubtitle": "连接中国和非洲的认证制造商和供应商。贸易保障、移动支付和物流，专为跨洲B2B商务打造。",
+    "browseProducts": "浏览产品",
+    "becomeSupplier": "成为供应商",
+    "howItWorks": "如何运作",
+    "step1Title": "寻找产品",
+    "step1Desc": "浏览认证供应商，比较中国和非洲制造商的报价。",
+    "step2Title": "获取报价",
+    "step2Desc": "提交询价单，从多个认证供应商获得有竞争力的报价。",
+    "step3Title": "安全支付",
+    "step3Desc": "通过平台安全支付，资金在您确认收货前由平台托管。",
+    "step4Title": "跟踪配送",
+    "step4Desc": "实时追踪货物，从工厂到您的仓库。",
+    "trustedBy": "受到来自",
+    "countries": "个国家企业的信赖",
+    "verifiedSuppliers": "认证供应商",
+    "languages": "种语言",
+    "localPayments": "本地支付",
+    "realtimeMessaging": "实时通讯",
+    "smartMatching": "智能匹配"
+  },
+  "auth": {
+    "welcomeBack": "欢迎回来",
+    "signInToAccount": "登录您的丝路账号",
+    "email": "邮箱",
+    "password": "密码",
+    "forgotPassword": "忘记密码？",
+    "noAccount": "还没有账号？",
+    "hasAccount": "已有账号？",
+    "createAccount": "创建账号",
+    "fullName": "姓名",
+    "confirmPassword": "确认密码",
+    "chooseRole": "您将如何使用丝路非洲？",
+    "iAmBuyer": "我是买家",
+    "buyerDesc": "从认证供应商采购产品，获取批量价格、贸易保障和物流支持。",
+    "iAmSupplier": "我是供应商",
+    "supplierDesc": "上架产品，触达非洲和中国买家，使用集成支付管理订单。",
+    "companyName": "公司名称",
+    "country": "国家",
+    "checkEmail": "请查收邮件",
+    "verificationSent": "我们已发送验证链接到您的邮箱。",
+    "resetPassword": "重置密码",
+    "resetPasswordDesc": "输入邮箱，我们将发送重置链接",
+    "sendResetLink": "发送重置链接",
+    "newPassword": "新密码",
+    "updatePassword": "更新密码"
+  },
+  "marketplace": {
+    "title": "商城",
+    "searchPlaceholder": "搜索产品、供应商...",
+    "categories": "分类",
+    "priceRange": "价格区间",
+    "minOrder": "最小起订量",
+    "supplierRegion": "供应商地区",
+    "sortBy": "排序",
+    "newest": "最新",
+    "priceLowHigh": "价格从低到高",
+    "priceHighLow": "价格从高到低",
+    "mostPopular": "最受欢迎",
+    "moq": "起订量",
+    "perUnit": "每件",
+    "addToCart": "加入购物车",
+    "contactSupplier": "联系供应商",
+    "requestQuote": "请求报价",
+    "tradeAssurance": "贸易保障",
+    "verifiedSupplier": "认证供应商",
+    "sampleAvailable": "可提供样品"
+  },
+  "rfq": {
+    "title": "询价单",
+    "createRFQ": "创建询价",
+    "myRFQs": "我的询价",
+    "openRFQs": "公开询价",
+    "submitQuote": "提交报价",
+    "quotesReceived": "个报价已收",
+    "deadline": "截止日期",
+    "budget": "预算",
+    "quantity": "数量"
+  },
+  "orders": {
+    "title": "我的订单",
+    "orderNumber": "订单号",
+    "total": "总计",
+    "status": "状态",
+    "date": "日期",
+    "trackOrder": "追踪订单",
+    "confirmDelivery": "确认收货",
+    "leaveReview": "留下评价",
+    "openDispute": "发起纠纷",
+    "statuses": {
+      "pending_payment": "待付款",
+      "paid": "已付款",
+      "confirmed": "已确认",
+      "in_production": "生产中",
+      "ready_to_ship": "待发货",
+      "dispatched": "已发货",
+      "in_transit": "运输中",
+      "delivered": "已送达",
+      "completed": "已完成"
+    }
+  },
+  "supplier": {
+    "portal": "供应商中心",
+    "addProduct": "添加产品",
+    "productName": "产品名称",
+    "description": "描述",
+    "basePrice": "基础价格",
+    "category": "分类",
+    "leadTime": "交货时间",
+    "tradeTerm": "贸易条款",
+    "verification": "认证",
+    "getVerified": "申请认证",
+    "settlements": "结算与提现",
+    "totalRevenue": "总收入",
+    "pendingPayout": "待结算"
+  },
+  "cart": {
+    "title": "购物车",
+    "empty": "购物车为空",
+    "emptyDesc": "浏览商城寻找认证供应商的产品。",
+    "subtotal": "小计",
+    "shipping": "运费和税费将在结算时计算",
+    "checkout": "去结算",
+    "continueShopping": "继续购物"
+  },
+  "footer": {
+    "about": "关于我们",
+    "contact": "联系我们",
+    "terms": "服务条款",
+    "privacy": "隐私政策",
+    "copyright": "版权所有。"
+  },
+  "resources": {
+    "nav": {
+      "metals": "金属",
+      "minerals": "矿物",
+      "food": "食品与农产品",
+      "timber": "木材",
+      "energy": "能源",
+      "rfqs": "询价",
+      "lc": "信用证",
+      "signIn": "登录",
+      "register": "注册",
+      "compliance": "合规"
+    },
+    "landing": {
+      "eyebrow": "非洲 → 中国 · 自然资源平台",
+      "headline": "直采非洲资源，直运中国市场。信用证全流程保障。",
+      "subhead": "金属、矿物、木材、农产品、原材料，来自经认证的非洲生产商。信用证贸易、第三方检验、自营海运、美元/人民币结算。",
+      "ctaBrowse": "浏览货源",
+      "ctaSell": "发布商品",
+      "statCategories": "品类数",
+      "statPayment": "支付",
+      "statFx": "结算",
+      "categoriesHeading": "按品类浏览",
+      "explore": "查看",
+      "pillarTrade": {
+        "title": "信用证贸易",
+        "body": "基于 UCP 600 信用证交易，单据受控放款。不设第三方托管，资金凭经检验的提单在银行间直接结算。"
+      },
+      "pillarFreight": {
+        "title": "自营海运",
+        "body": "与中远、马士基、地中海航运签订舱位合同，签发 House BL 提单。矿场/农场到港口首程物流与海运保险一体化。"
+      },
+      "pillarFx": {
+        "title": "一体化外汇",
+        "body": "报价阶段即可锁定美元/人民币或离岸人民币汇率。在岸结算通过持牌合作银行完成，锁汇期限可覆盖信用证付款周期。"
+      }
+    },
+    "groups": {
+      "metals": {
+        "tag": "大宗 · 精矿",
+        "title": "金属与精矿",
+        "desc": "铜、钴、锂、铝土矿、铁矿石、锰、铬、金锭，以及经 OECD 尽职调查的 3TG 金属。"
+      },
+      "minerals": {
+        "tag": "高价值",
+        "title": "工业与贵重矿物",
+        "desc": "包括工业矿物及经金伯利进程认证的毛坯钻石等贵重矿物。"
+      },
+      "energy": {
+        "tag": "能源",
+        "title": "能源材料",
+        "desc": "煤炭、焦炭及能源级原料，服务中国工业与电力市场。"
+      },
+      "timber": {
+        "tag": "木材",
+        "title": "木材与木制品",
+        "desc": "硬木与软木原木、锯材，CITES 监管树种附许可证核验。"
+      },
+      "food": {
+        "tag": "农产品 · GACC",
+        "title": "食品与农产品",
+        "desc": "可可、生咖啡豆、腰果、芝麻、大豆，出口商完成 GACC 注册，植检证书一并办理。"
+      },
+      "raw_materials": {
+        "tag": "其他",
+        "title": "其他原材料",
+        "desc": "橡胶、阿拉伯胶、皮革等非洲出口中国的原材料品类。"
+      }
+    },
+    "listings": {
+      "heading": "资源货源",
+      "allGroups": "全部",
+      "results": "条结果",
+      "grade": "等级",
+      "price": "单价",
+      "available": "可供",
+      "emptyTitle": "暂无符合筛选条件的货源",
+      "emptyBody": "请清除筛选条件或浏览其他品类。"
+    },
+    "detail": {
+      "breadcrumbHome": "资源平台",
+      "breadcrumbListings": "货源列表",
+      "price": "单价",
+      "incoterm": "贸易条款",
+      "available": "可供数量",
+      "moq": "最小订货量",
+      "loadPort": "装货港",
+      "dischargePort": "卸货港",
+      "ctaRfq": "提交询价",
+      "ctaRfqLocked": "升级后可询价",
+      "ctaContact": "联系供应商",
+      "assay": "品质与化验",
+      "compliance": "合规与许可",
+      "mineLicense": "采矿许可证",
+      "exportPermit": "出口许可证",
+      "supplier": "供应商",
+      "verified": "已认证"
+    },
+    "paywall": {
+      "sendQuoteTitle": "发送报价需付费会员",
+      "sendQuoteBody": "您的供应商公司需升级为 Standard 或 Gold 套餐，方可提交报价。",
+      "requestQuoteTitle": "发起询价需付费会员",
+      "requestQuoteBody": "您的采购方公司需升级为 Standard 或 Gold 套餐，方可发布 RFQ 并接收报价。",
+      "cta": "查看套餐",
+      "signIn": "登录"
+    },
+    "upgrade": {
+      "eyebrow": "升级 · 丝路资源",
+      "heading": "解锁 RFQ 与报价交易",
+      "sub": "发布 RFQ 或提交报价需付费会员。可按贸易量选择套餐，随时取消。",
+      "popular": "热门",
+      "perMonth": "每公司 / 每月",
+      "ctaSelect": "选择套餐",
+      "footnote": "以美元计费。Gold 套餐支持人民币开票。",
+      "plans": {
+        "standard": {
+          "name": "标准版",
+          "f1": "无限发布 RFQ",
+          "f2": "提交报价",
+          "f3": "访问认证供应商目录",
+          "f4": "信用证流程（测试版）"
+        },
+        "gold": {
+          "name": "金牌版",
+          "f1": "包含标准版全部功能",
+          "f2": "专属贸易顾问",
+          "f3": "优先海运舱位（中远 / 马士基）",
+          "f4": "延长锁汇（至 90 天）",
+          "f5": "在岸人民币结算",
+          "f6": "合规预清关（金伯利、OECD、CITES、GACC）"
+        }
+      }
+    },
+    "rfqNew": {
+      "heading": "新建资源询价",
+      "sub": "请填写采购需求。付费会员可在截止日期内收到经认证的非洲供应商报价。",
+      "title": "标题",
+      "description": "详细说明与规格",
+      "category": "品类",
+      "quantity": "数量",
+      "uom": "计量单位",
+      "targetPrice": "目标价（美元 / 单位）",
+      "incoterm": "贸易条款",
+      "loadPort": "装货港（UN/LOCODE）",
+      "dischargePort": "卸货港",
+      "windowStart": "装船窗口起始",
+      "windowEnd": "装船窗口截止",
+      "payment": "支付工具",
+      "buyer": "采购方公司",
+      "submit": "发布 RFQ",
+      "submitting": "发布中…",
+      "success": "RFQ 已发布"
+    },
+    "rfqsList": {
+      "heading": "资源询价",
+      "sub": "丝路资源平台上公开的采购询价。",
+      "ctaNew": "新建 RFQ",
+      "empty": "暂无公开询价。"
+    },
+    "rfqDetail": {
+      "breadcrumb": "询价",
+      "quantity": "数量",
+      "incoterm": "贸易条款",
+      "loadPort": "装货港",
+      "dischargePort": "卸货港",
+      "window": "装船窗口",
+      "payment": "支付工具",
+      "target": "目标价",
+      "buyer": "采购方",
+      "description": "详细说明",
+      "quotations": "报价",
+      "noQuotes": "暂无报价。",
+      "ctaQuote": "提交报价",
+      "ctaAccept": "接受并草拟信用证",
+      "ctaAccepting": "处理中…",
+      "acceptedBadge": "已接受",
+      "days": "天"
+    },
+    "quoteNew": {
+      "heading": "提交报价",
+      "sub": "针对此询价提交价格、条款与检验安排。",
+      "forRfq": "询价编号",
+      "supplier": "供应商公司",
+      "unitPrice": "单价（美元）",
+      "quantity": "数量",
+      "uom": "计量单位",
+      "incoterm": "贸易条款",
+      "loadPort": "装货港",
+      "dischargePort": "卸货港",
+      "leadTime": "交货期（天）",
+      "validity": "报价有效期（天）",
+      "payment": "支付工具",
+      "inspection": "指定检验机构",
+      "notes": "备注",
+      "submit": "提交报价",
+      "submitting": "提交中…",
+      "total": "总价",
+      "freeTierBlock": "您的供应商公司需付费会员方可提交报价。"
+    },
+    "lc": {
+      "heading": "信用证",
+      "empty": "此询价尚未开立信用证。",
+      "issueDate": "开证日",
+      "expiry": "到期日",
+      "latestShip": "最晚装船日",
+      "stage": {
+        "draft": "草拟 / 申请",
+        "issued": "开证与通知",
+        "docs": "单据交单",
+        "settled": "结算完成"
+      }
+    },
+    "lcList": {
+      "heading": "信用证",
+      "sub": "您所在公司作为开证申请人或受益人的全部信用证。",
+      "parties": "开证申请人 → 受益人",
+      "empty": "暂无信用证。采购方接受报价后将自动草拟。"
+    },
+    "lcDetail": {
+      "breadcrumb": "信用证",
+      "applicant": "开证申请人（采购方）",
+      "beneficiary": "受益人（供应商）",
+      "tolerance": "数量/金额容差",
+      "issueDate": "开证日期",
+      "expiry": "到期日",
+      "latestShip": "最晚装船日",
+      "issuingBank": "开证行",
+      "advisingBank": "通知行",
+      "confirmingBank": "保兑行",
+      "actions": "下一步",
+      "noActions": "当前状态下您的角色无可用操作。",
+      "documents": "单据",
+      "notPresented": "尚未交单",
+      "history": "状态历史",
+      "transitions": {
+        "apply": "提交开证申请",
+        "issued": "标记为已开证",
+        "advised": "标记为已通知",
+        "confirmed": "标记为已保兑",
+        "presentDocs": "交单",
+        "accept": "接受单据",
+        "flagDiscrepancies": "标记不符点",
+        "waive": "豁免不符点",
+        "settle": "标记为已结算",
+        "cancel": "撤销信用证"
+      }
+    }
+  }
+}
