@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,19 +22,195 @@ import {
   Leaf,
   Zap,
   FileText,
+  Shirt,
+  Wrench,
+  Sprout,
+  ArrowRight,
+  type LucideIcon,
 } from "lucide-react";
 import { RegionPicker } from "@/components/ui/region-picker";
 
-const CATEGORY_GROUPS = [
+type Subgroup = { label: string; href: string };
+type CategoryGroup = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  subgroups?: Subgroup[];
+  featured?: { title: string; description: string; image: string; href: string };
+};
+
+const CATEGORY_GROUPS: CategoryGroup[] = [
   { label: "All", href: "/marketplace", icon: Package },
-  { label: "Electronics", href: "/marketplace?category=electronics", icon: Zap },
-  { label: "Machinery", href: "/marketplace?category=machinery", icon: Factory },
-  { label: "Textiles", href: "/marketplace?category=textiles", icon: Package },
-  { label: "Construction", href: "/marketplace?category=construction", icon: Truck },
-  { label: "Coffee", href: "/commodities?category=coffee", icon: Coffee },
-  { label: "Cocoa", href: "/commodities?category=cocoa", icon: Leaf },
-  { label: "Tea & Spices", href: "/commodities?category=tea", icon: Leaf },
-  { label: "Minerals", href: "/commodities?category=minerals", icon: Gem },
+  {
+    label: "Electronics",
+    href: "/marketplace?category=electronics",
+    icon: Zap,
+    subgroups: [
+      { label: "Smartphones & Tablets", href: "/marketplace?category=electronics&sub=phones" },
+      { label: "Laptops & PCs", href: "/marketplace?category=electronics&sub=computers" },
+      { label: "Components & Chips", href: "/marketplace?category=electronics&sub=components" },
+      { label: "LED Lighting", href: "/marketplace?category=electronics&sub=lighting" },
+      { label: "Audio & Headphones", href: "/marketplace?category=electronics&sub=audio" },
+      { label: "Cameras & Imaging", href: "/marketplace?category=electronics&sub=cameras" },
+      { label: "Networking Equipment", href: "/marketplace?category=electronics&sub=networking" },
+      { label: "Wearables & Smart Home", href: "/marketplace?category=electronics&sub=wearables" },
+    ],
+    featured: {
+      title: "5G smartphone OEM bulk",
+      description: "MOQ 100 units · From $85",
+      image:
+        "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=electronics&promo=oem",
+    },
+  },
+  {
+    label: "Machinery",
+    href: "/marketplace?category=machinery",
+    icon: Factory,
+    subgroups: [
+      { label: "CNC & Lathes", href: "/marketplace?category=machinery&sub=cnc" },
+      { label: "Hydraulic Equipment", href: "/marketplace?category=machinery&sub=hydraulic" },
+      { label: "Generators", href: "/marketplace?category=machinery&sub=generators" },
+      { label: "Pumps & Motors", href: "/marketplace?category=machinery&sub=pumps" },
+      { label: "Forklifts & Loaders", href: "/marketplace?category=machinery&sub=forklifts" },
+      { label: "Welders & Cutters", href: "/marketplace?category=machinery&sub=welders" },
+      { label: "Air Compressors", href: "/marketplace?category=machinery&sub=compressors" },
+      { label: "Food Processing", href: "/marketplace?category=machinery&sub=food" },
+    ],
+    featured: {
+      title: "Hydraulic excavator 21t",
+      description: "From $42,000 · Lead time 30d",
+      image:
+        "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=machinery&promo=excavator",
+    },
+  },
+  {
+    label: "Textiles",
+    href: "/marketplace?category=textiles",
+    icon: Shirt,
+    subgroups: [
+      { label: "Apparel & Garments", href: "/marketplace?category=textiles&sub=apparel" },
+      { label: "Fabrics & Rolls", href: "/marketplace?category=textiles&sub=fabrics" },
+      { label: "Yarn & Threads", href: "/marketplace?category=textiles&sub=yarn" },
+      { label: "Trims & Accessories", href: "/marketplace?category=textiles&sub=trims" },
+      { label: "Footwear", href: "/marketplace?category=textiles&sub=footwear" },
+      { label: "Bags & Luggage", href: "/marketplace?category=textiles&sub=bags" },
+      { label: "Home Linens", href: "/marketplace?category=textiles&sub=linens" },
+      { label: "Workwear & Uniforms", href: "/marketplace?category=textiles&sub=workwear" },
+    ],
+    featured: {
+      title: "Custom-print cotton tees",
+      description: "MOQ 500 pcs · From $2.80",
+      image:
+        "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=textiles&promo=tees",
+    },
+  },
+  {
+    label: "Construction",
+    href: "/marketplace?category=construction",
+    icon: Wrench,
+    subgroups: [
+      { label: "Cement & Aggregate", href: "/marketplace?category=construction&sub=cement" },
+      { label: "Steel & Rebar", href: "/marketplace?category=construction&sub=steel" },
+      { label: "Tools & Hardware", href: "/marketplace?category=construction&sub=tools" },
+      { label: "Plumbing & Sanitary", href: "/marketplace?category=construction&sub=plumbing" },
+      { label: "Roofing & Insulation", href: "/marketplace?category=construction&sub=roofing" },
+      { label: "Solar & Off-Grid", href: "/marketplace?category=construction&sub=solar" },
+      { label: "Glass & Aluminum", href: "/marketplace?category=construction&sub=glass" },
+      { label: "Paint & Finishes", href: "/marketplace?category=construction&sub=paint" },
+    ],
+    featured: {
+      title: "Tier-1 solar panels 550W",
+      description: "MOQ 10 panels · From $110",
+      image:
+        "https://images.pexels.com/photos/4993793/pexels-photo-4993793.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=construction&promo=solar",
+    },
+  },
+  {
+    label: "Coffee",
+    href: "/commodities?category=coffee",
+    icon: Coffee,
+    subgroups: [
+      { label: "Arabica Green Beans", href: "/commodities?category=coffee&sub=arabica" },
+      { label: "Robusta Green Beans", href: "/commodities?category=coffee&sub=robusta" },
+      { label: "Roasted Whole Bean", href: "/commodities?category=coffee&sub=roasted" },
+      { label: "Specialty Single-Estate", href: "/commodities?category=coffee&sub=specialty" },
+      { label: "Instant Coffee", href: "/commodities?category=coffee&sub=instant" },
+      { label: "Roasting Equipment", href: "/commodities?category=coffee&sub=equipment" },
+    ],
+    featured: {
+      title: "Yirgacheffe Grade 1",
+      description: "Ethiopia · $7.20/kg",
+      image:
+        "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/commodities?category=coffee&promo=yirgacheffe",
+    },
+  },
+  {
+    label: "Cocoa",
+    href: "/commodities?category=cocoa",
+    icon: Leaf,
+    subgroups: [
+      { label: "Cocoa Beans", href: "/commodities?category=cocoa&sub=beans" },
+      { label: "Cocoa Powder", href: "/commodities?category=cocoa&sub=powder" },
+      { label: "Cocoa Liquor", href: "/commodities?category=cocoa&sub=liquor" },
+      { label: "Cocoa Butter", href: "/commodities?category=cocoa&sub=butter" },
+      { label: "Couverture", href: "/commodities?category=cocoa&sub=couverture" },
+      { label: "Cocoa Husk", href: "/commodities?category=cocoa&sub=husk" },
+    ],
+    featured: {
+      title: "Fair-trade organic beans",
+      description: "Ghana · $3.20/kg",
+      image:
+        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/commodities?category=cocoa&promo=organic",
+    },
+  },
+  {
+    label: "Tea & Spices",
+    href: "/commodities?category=tea",
+    icon: Sprout,
+    subgroups: [
+      { label: "Black Tea CTC", href: "/commodities?category=tea&sub=black" },
+      { label: "Green Tea", href: "/commodities?category=tea&sub=green" },
+      { label: "Specialty & Herbal", href: "/commodities?category=tea&sub=specialty" },
+      { label: "Cardamom", href: "/commodities?category=spices&sub=cardamom" },
+      { label: "Vanilla Beans", href: "/commodities?category=spices&sub=vanilla" },
+      { label: "Cloves & Pepper", href: "/commodities?category=spices&sub=cloves" },
+    ],
+    featured: {
+      title: "Bourbon vanilla beans",
+      description: "Madagascar · $340/kg",
+      image:
+        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/commodities?category=spices&promo=vanilla",
+    },
+  },
+  {
+    label: "Minerals",
+    href: "/commodities?category=minerals",
+    icon: Gem,
+    subgroups: [
+      { label: "Cobalt", href: "/commodities?category=minerals&sub=cobalt" },
+      { label: "Copper", href: "/commodities?category=minerals&sub=copper" },
+      { label: "Lithium", href: "/commodities?category=minerals&sub=lithium" },
+      { label: "Gold & Precious", href: "/commodities?category=minerals&sub=gold" },
+      { label: "Tantalum & Coltan", href: "/commodities?category=minerals&sub=tantalum" },
+      { label: "Manganese", href: "/commodities?category=minerals&sub=manganese" },
+      { label: "Iron Ore", href: "/commodities?category=minerals&sub=iron" },
+      { label: "Bauxite", href: "/commodities?category=minerals&sub=bauxite" },
+    ],
+    featured: {
+      title: "Battery-grade cobalt",
+      description: "DRC · $32k/tonne",
+      image:
+        "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=600",
+      href: "/commodities?category=minerals&promo=cobalt",
+    },
+  },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
 ];
 
@@ -44,7 +221,9 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [scope, setScope] = useState<"all" | "products" | "commodities" | "suppliers">("all");
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
+  const categoryStripRef = useRef<HTMLDivElement>(null);
 
   const portal: "products" | "commodities" =
     pathname?.startsWith("/commodities") ? "commodities" : "products";
@@ -62,10 +241,28 @@ export function Navbar() {
       if (scopeRef.current && !scopeRef.current.contains(e.target as Node)) {
         setScopeOpen(false);
       }
+      if (
+        categoryStripRef.current &&
+        !categoryStripRef.current.contains(e.target as Node)
+      ) {
+        setOpenCategory(null);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenCategory(null);
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, []);
+
+  // Close any open mega-menu when the route changes.
+  useEffect(() => {
+    setOpenCategory(null);
+  }, [pathname]);
 
   const scopeLabel: Record<typeof scope, string> = {
     all: "All categories",
@@ -257,20 +454,55 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Secondary category strip */}
-        <div className="hidden lg:block border-t border-[var(--border-subtle)] bg-white">
+        {/* Secondary category strip with click-toggle mega-menus */}
+        <div
+          ref={categoryStripRef}
+          className="hidden lg:block border-t border-[var(--border-subtle)] bg-white relative"
+        >
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
             <div className="flex items-center gap-1 h-11 overflow-x-auto scrollbar-hide">
-              {CATEGORY_GROUPS.map((cat) => (
-                <Link
-                  key={cat.href}
-                  href={cat.href}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
-                >
-                  <cat.icon className="w-3.5 h-3.5" />
-                  {cat.label}
-                </Link>
-              ))}
+              {CATEGORY_GROUPS.map((cat) => {
+                const hasMenu = !!cat.subgroups?.length;
+                const isOpen = openCategory === cat.label;
+
+                if (!hasMenu) {
+                  return (
+                    <Link
+                      key={cat.label}
+                      href={cat.href}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+                    >
+                      <cat.icon className="w-3.5 h-3.5" />
+                      {cat.label}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <button
+                    key={cat.label}
+                    type="button"
+                    onClick={() =>
+                      setOpenCategory((prev) => (prev === cat.label ? null : cat.label))
+                    }
+                    aria-expanded={isOpen}
+                    aria-haspopup="true"
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+                      isOpen
+                        ? "bg-[var(--surface-secondary)] text-[var(--text-primary)]"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]"
+                    }`}
+                  >
+                    <cat.icon className="w-3.5 h-3.5" />
+                    {cat.label}
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                );
+              })}
               <span className="ml-auto shrink-0 flex items-center gap-3 pl-4 text-[12px] text-[var(--text-tertiary)]">
                 {TOP_LINKS.slice(3).map((link) => (
                   <Link
@@ -284,6 +516,85 @@ export function Navbar() {
               </span>
             </div>
           </div>
+
+          {/* Mega-menu panel */}
+          {openCategory &&
+            (() => {
+              const cat = CATEGORY_GROUPS.find((c) => c.label === openCategory);
+              if (!cat?.subgroups?.length) return null;
+              return (
+                <div className="absolute top-full left-0 right-0 bg-white border-b border-[var(--border-subtle)] shadow-lg z-40 animate-fade-in">
+                  <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
+                    <div className="grid grid-cols-12 gap-8">
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 rounded-lg bg-[var(--amber)]/10 flex items-center justify-center">
+                            <cat.icon className="w-4 h-4 text-[var(--amber-dark)]" />
+                          </div>
+                          <span
+                            className="text-base font-bold text-[var(--obsidian)]"
+                            style={{ fontFamily: "var(--font-display)" }}
+                          >
+                            {cat.label}
+                          </span>
+                        </div>
+                        <Link
+                          href={cat.href}
+                          onClick={() => setOpenCategory(null)}
+                          className="inline-flex items-center gap-1.5 mt-4 text-[12px] font-semibold text-[var(--amber-dark)] hover:gap-2 transition-all"
+                        >
+                          See all {cat.label.toLowerCase()}
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+
+                      <ul className="col-span-6 grid grid-cols-2 gap-x-8 gap-y-2.5">
+                        {cat.subgroups.map((sub) => (
+                          <li key={sub.href}>
+                            <Link
+                              href={sub.href}
+                              onClick={() => setOpenCategory(null)}
+                              className="inline-block text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline underline-offset-4 transition-colors"
+                            >
+                              {sub.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {cat.featured && (
+                        <Link
+                          href={cat.featured.href}
+                          onClick={() => setOpenCategory(null)}
+                          className="col-span-4 group relative isolate flex flex-col justify-end overflow-hidden rounded-xl min-h-[160px] p-5 border border-[var(--border-subtle)]"
+                        >
+                          <Image
+                            src={cat.featured.image}
+                            alt={cat.featured.title}
+                            fill
+                            sizes="320px"
+                            className="object-cover transition-transform duration-500 group-hover:scale-[1.04] -z-10"
+                          />
+                          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/0" />
+                          <span className="text-[10px] font-semibold text-[var(--amber)] tracking-[0.12em] uppercase">
+                            Featured
+                          </span>
+                          <h4
+                            className="mt-1 text-base font-bold text-white leading-tight"
+                            style={{ fontFamily: "var(--font-display)" }}
+                          >
+                            {cat.featured.title}
+                          </h4>
+                          <p className="mt-1 text-xs text-white/80">
+                            {cat.featured.description}
+                          </p>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
         </div>
       </header>
 
