@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Search,
-  Globe,
   ChevronDown,
   Menu,
   X,
@@ -22,15 +22,7 @@ import {
   Zap,
   FileText,
 } from "lucide-react";
-
-const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "zh", label: "中文" },
-  { code: "fr", label: "Français" },
-  { code: "sw", label: "Kiswahili" },
-  { code: "pt", label: "Português" },
-  { code: "ar", label: "العربية" },
-];
+import { RegionPicker } from "@/components/ui/region-picker";
 
 const CATEGORY_GROUPS = [
   { label: "All", href: "/marketplace", icon: Package },
@@ -48,12 +40,14 @@ const CATEGORY_GROUPS = [
 export function Navbar() {
   const t = useTranslations("nav");
   const tc = useTranslations("common");
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [scope, setScope] = useState<"all" | "products" | "commodities" | "suppliers">("all");
-  const langRef = useRef<HTMLDivElement>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
+
+  const portal: "products" | "commodities" =
+    pathname?.startsWith("/commodities") ? "commodities" : "products";
 
   const TOP_LINKS = [
     { label: t("products"), href: "/marketplace" },
@@ -65,9 +59,6 @@ export function Navbar() {
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (langRef.current && !langRef.current.contains(e.target as Node)) {
-        setLangOpen(false);
-      }
       if (scopeRef.current && !scopeRef.current.contains(e.target as Node)) {
         setScopeOpen(false);
       }
@@ -92,8 +83,8 @@ export function Navbar() {
             <Link href="/about" className="hover:text-[var(--text-primary)] transition-colors">
               About
             </Link>
-            <Link href="/how-to-buy" className="hover:text-[var(--text-primary)] transition-colors">
-              How to buy
+            <Link href="/how-it-works" className="hover:text-[var(--text-primary)] transition-colors">
+              How it works
             </Link>
             <Link href="/sell" className="hover:text-[var(--text-primary)] transition-colors">
               Sell on Silk Road
@@ -102,29 +93,7 @@ export function Navbar() {
               Help
             </Link>
             <span className="w-px h-3 bg-[var(--border-default)]" />
-            <div className="relative" ref={langRef}>
-              <button
-                onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                EN · USD
-                <ChevronDown className="w-3 h-3" />
-              </button>
-              {langOpen && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border border-[var(--border-subtle)] py-2 animate-scale-in z-10">
-                  {LANGUAGES.map((lang) => (
-                    <button
-                      key={lang.code}
-                      className="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                      onClick={() => setLangOpen(false)}
-                    >
-                      {lang.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <RegionPicker variant="compact" />
           </div>
         </div>
 
@@ -153,6 +122,40 @@ export function Navbar() {
                 </span>
               </div>
             </Link>
+
+            {/* Portal toggle — Products | Commodities */}
+            <div
+              className="hidden md:inline-flex items-center p-1 rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] shrink-0"
+              role="tablist"
+              aria-label="Switch portal"
+            >
+              <Link
+                href="/"
+                role="tab"
+                aria-selected={portal === "products"}
+                className={`px-3.5 lg:px-4 h-8 inline-flex items-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                  portal === "products"
+                    ? "bg-[var(--obsidian)] text-[var(--ivory)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                Products
+              </Link>
+              <Link
+                href="/commodities"
+                role="tab"
+                aria-selected={portal === "commodities"}
+                className={`px-3.5 lg:px-4 h-8 inline-flex items-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                  portal === "commodities"
+                    ? "bg-[var(--obsidian)] text-[var(--ivory)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <Leaf className="w-3.5 h-3.5" />
+                Commodities
+              </Link>
+            </div>
 
             {/* Search bar — IKEA-style: scope + input + button */}
             <form
@@ -334,6 +337,12 @@ export function Navbar() {
             </Link>
 
             <div className="pt-6 border-t border-[var(--border-subtle)] mt-6 space-y-3">
+              <div className="flex items-center justify-between gap-2 px-1 pb-1">
+                <span className="text-[11px] font-semibold text-[var(--text-tertiary)] tracking-[0.12em] uppercase">
+                  Region
+                </span>
+                <RegionPicker variant="full" />
+              </div>
               <Link
                 href="/auth/login"
                 className="btn-primary w-full !text-base !py-3.5"

@@ -3,14 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
-  Factory,
+  Coffee,
+  Gem,
+  Leaf,
   Package,
-  Truck,
-  Zap,
-  Wrench,
-  Shirt,
+  Sprout,
+  Wheat,
 } from "lucide-react";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
@@ -19,7 +20,7 @@ import { EditorialBand } from "@/components/landing/editorial-band";
 import { TwoUpValue } from "@/components/landing/two-up-value";
 
 /* ============================================================
-   HERO — Products portal (China → Africa, single big tile)
+   HERO — Commodities portal (Africa → China)
    ============================================================ */
 function HeroSection() {
   return (
@@ -28,8 +29,8 @@ function HeroSection() {
         <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 lg:gap-5">
           <div className="relative isolate flex flex-col justify-end overflow-hidden rounded-2xl min-h-[480px] lg:min-h-[600px] p-8 lg:p-14 border border-[var(--border-subtle)]">
             <Image
-              src="https://images.pexels.com/photos/33626641/pexels-photo-33626641.jpeg?auto=compress&cs=tinysrgb&w=1800"
-              alt="Manufacturing factory floor with assembly line"
+              src="https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=1800"
+              alt="African coffee farmer holding freshly harvested cherries"
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 65vw"
@@ -38,82 +39,83 @@ function HeroSection() {
             <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
 
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 mb-5 w-fit">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--terracotta-light)]" />
               <span className="text-[11px] font-semibold text-white tracking-wide uppercase">
-                Products Portal · China → Africa
+                Commodities Portal · Africa → China
               </span>
             </span>
             <h1
               className="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white max-w-3xl"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Source from 12,000 verified Chinese factories.
+              Export Africa&rsquo;s finest to the world&rsquo;s largest market.
             </h1>
             <p className="mt-5 text-base lg:text-lg text-white/85 max-w-xl leading-relaxed">
-              Electronics, machinery, textiles, construction — direct from the
-              factory floor with MOQ as low as 10 units, escrow protection,
-              and door-to-door logistics across 27 African countries.
+              Coffee, cocoa, tea, minerals, spices, specialty crops — connect
+              cooperatives and producers directly with verified Chinese
+              importers. Fair-trade certified, full traceability, escrow paid
+              in your local currency.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                href="/marketplace"
+                href="/commodities/browse"
                 className="btn-primary !py-3.5 !px-7 !text-sm"
               >
-                Browse products
+                Browse commodities
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/commodities"
+                href="/"
                 className="text-sm font-semibold text-white/85 hover:text-white inline-flex items-center gap-1.5 transition-colors"
               >
-                Or export from Africa
-                <ArrowRight className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" />
+                Or source from China
               </Link>
             </div>
           </div>
 
-          {/* Secondary stack: trust badge + featured pitch */}
+          {/* Secondary stack */}
           <div className="flex flex-col gap-4 lg:gap-5">
             <div className="bg-[var(--surface-secondary)] rounded-2xl p-7 lg:p-8 border border-[var(--border-subtle)] flex-1 flex flex-col justify-between">
               <div>
-                <span className="text-[11px] font-semibold text-[var(--amber-dark)] tracking-[0.12em] uppercase">
-                  New This Week
+                <span className="text-[11px] font-semibold text-[var(--terracotta)] tracking-[0.12em] uppercase">
+                  Cooperative Onboarding
                 </span>
                 <h3
                   className="mt-2 text-xl lg:text-2xl font-bold text-[var(--obsidian)] leading-tight"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  Free trade assurance on first 3 orders for new buyers.
+                  Zero listing fees for farmer cooperatives.
                 </h3>
                 <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                  Sign up this month and pay zero platform escrow fees on your
-                  first three orders.
+                  Cooperatives with 50+ members get free verification and
+                  unlimited product listings for the first 12 months.
                 </p>
               </div>
               <Link
-                href="/auth/register?role=buyer"
+                href="/auth/register?role=supplier&type=cooperative"
                 className="btn-primary !text-sm !py-3 !px-5 mt-5 w-fit"
               >
-                Claim offer
+                Onboard cooperative
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
 
             <Link
               href="/dashboard/rfq"
-              className="group bg-[var(--obsidian)] rounded-2xl p-7 border border-transparent hover:border-[var(--amber)]/30 transition-colors"
+              className="group bg-[var(--obsidian)] rounded-2xl p-7 border border-transparent hover:border-[var(--terracotta-light)]/30 transition-colors"
             >
-              <span className="text-[11px] font-semibold text-[var(--amber)] tracking-[0.12em] uppercase">
-                For Buyers
+              <span className="text-[11px] font-semibold text-[var(--terracotta-light)] tracking-[0.12em] uppercase">
+                For Importers
               </span>
               <h3
                 className="mt-2 text-lg font-bold text-[var(--ivory)] leading-tight"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Submit one RFQ. Get 5+ supplier quotes in 24 hours.
+                Post a buy request. Get sample shipments in 14 days.
               </h3>
-              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--amber)] group-hover:gap-2.5 transition-all">
-                Start an RFQ
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--terracotta-light)] group-hover:gap-2.5 transition-all">
+                Post buy request
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
@@ -123,10 +125,10 @@ function HeroSection() {
         {/* Trust strip */}
         <div className="mt-10 lg:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6 lg:gap-10 py-6 lg:py-8 border-y border-[var(--border-subtle)]">
           {[
-            { value: "12,000+", label: "Verified suppliers" },
-            { value: "$2.4B", label: "Annual GMV" },
-            { value: "54", label: "African countries" },
-            { value: "98.2%", label: "Satisfaction rate" },
+            { value: "2,400+", label: "Cooperatives" },
+            { value: "$680M", label: "Annual exports" },
+            { value: "27", label: "Source countries" },
+            { value: "100%", label: "Traceable lots" },
           ].map((stat) => (
             <div key={stat.label}>
               <div
@@ -147,50 +149,50 @@ function HeroSection() {
 }
 
 /* ============================================================
-   FEATURED CATEGORIES (Products only)
+   FEATURED CATEGORIES (Commodities only)
    ============================================================ */
 function FeaturedCategories() {
   const categories = [
     {
-      name: "Consumer Electronics",
-      count: "3,400+",
-      image:
-        "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Zap,
-    },
-    {
-      name: "Machinery & Parts",
-      count: "2,100+",
-      image:
-        "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Factory,
-    },
-    {
-      name: "Textiles & Apparel",
-      count: "1,800+",
-      image:
-        "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Shirt,
-    },
-    {
-      name: "Construction & Hardware",
-      count: "1,200+",
-      image:
-        "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Wrench,
-    },
-    {
-      name: "Auto & Transport",
-      count: "1,500+",
-      image:
-        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Truck,
-    },
-    {
-      name: "Packaging & Print",
-      count: "640+",
+      name: "Premium Coffee",
+      count: "800+ lots",
       image:
         "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Coffee,
+    },
+    {
+      name: "Organic Cocoa",
+      count: "280+ lots",
+      image:
+        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Leaf,
+    },
+    {
+      name: "Tea & Spices",
+      count: "450+ lots",
+      image:
+        "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Sprout,
+    },
+    {
+      name: "Minerals & Metals",
+      count: "320+ lots",
+      image:
+        "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=900",
+      icon: Gem,
+    },
+    {
+      name: "Cereals & Grains",
+      count: "190+ lots",
+      image:
+        "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Wheat,
+    },
+    {
+      name: "Specialty Crops",
+      count: "240+ lots",
+      image:
+        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Package,
     },
   ];
@@ -200,21 +202,21 @@ function FeaturedCategories() {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
-              Top Categories
+            <span className="text-xs font-semibold text-[var(--terracotta)] tracking-[0.15em] uppercase">
+              Top Commodities
             </span>
             <h2
               className="mt-2 text-2xl lg:text-3xl font-bold tracking-tight text-[var(--obsidian)]"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Browse by category
+              Browse by commodity
             </h2>
           </div>
           <Link
-            href="/marketplace"
-            className="hidden sm:flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--amber-dark)] transition-colors"
+            href="/commodities/browse"
+            className="hidden sm:flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--terracotta)] transition-colors"
           >
-            View all categories
+            View all commodities
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -223,7 +225,7 @@ function FeaturedCategories() {
           {categories.map((cat) => (
             <Link
               key={cat.name}
-              href="/marketplace"
+              href="/commodities/browse"
               className="group relative isolate flex flex-col justify-end p-6 h-48 lg:h-64 rounded-2xl overflow-hidden border border-[var(--border-subtle)] hover:shadow-lg transition-all duration-300"
             >
               <Image
@@ -244,7 +246,7 @@ function FeaturedCategories() {
                 >
                   {cat.name}
                 </h3>
-                <p className="text-sm text-white/75">{cat.count} products</p>
+                <p className="text-sm text-white/75">{cat.count}</p>
               </div>
 
               <ArrowUpRight className="absolute bottom-5 right-5 w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -257,130 +259,130 @@ function FeaturedCategories() {
 }
 
 /* ============================================================
-   MOCK PRODUCT DATA + RAIL
+   MOCK COMMODITY DATA + GUIDES
    ============================================================ */
-const NEW_PRODUCTS: RailProduct[] = [
+const NEW_COMMODITIES: RailProduct[] = [
   {
-    id: "p-cnc-lathe",
-    name: "Industrial CNC Lathe 1000mm — Variable Speed",
+    id: "c-arabica-rwanda",
+    name: "Premium Arabica Coffee — Bourbon, Washed Process",
     image:
-      "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$8,500",
-    unit: "set",
-    supplier: "Guangzhou Huahe Precision",
-    country: "CN",
-    moq: "1 set",
+      "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
+    price: "$4.85",
+    unit: "kg",
+    supplier: "Gorilla Coffee Co-op",
+    country: "Rwanda",
+    moq: "60kg",
     badge: "New",
   },
   {
-    id: "p-smartphone-5g",
-    name: "5G Android Smartphone 6.7\" AMOLED — 256GB OEM",
+    id: "c-cocoa-ghana",
+    name: "Organic Cocoa Beans — Fair Trade Certified, Sun-dried",
     image:
-      "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$85",
-    unit: "unit",
-    supplier: "Shenzhen DigiTech Electronics",
-    country: "CN",
-    moq: "100 units",
-  },
-  {
-    id: "p-cotton-tee",
-    name: "Premium Cotton T-Shirt — Custom Bulk Logo Printing",
-    image:
-      "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$2.80",
-    unit: "piece",
-    supplier: "Zhejiang Silk Valley Textiles",
-    country: "CN",
-    moq: "500 pieces",
-    badge: "Hot",
-  },
-  {
-    id: "p-excavator-21t",
-    name: "Hydraulic Excavator 21-ton — Heavy Construction",
-    image:
-      "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$42,000",
-    unit: "unit",
-    supplier: "Henan HeavyBuild Machinery",
-    country: "CN",
-    moq: "1 unit",
-  },
-  {
-    id: "p-solar-550w",
-    name: "Solar Panel 550W Monocrystalline PV Module Tier 1",
-    image:
-      "https://images.pexels.com/photos/4993793/pexels-photo-4993793.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$110",
-    unit: "panel",
-    supplier: "Jiangsu Sunburst Energy",
-    country: "CN",
-    moq: "10 panels",
-    badge: "New",
-  },
-  {
-    id: "p-cement-425r",
-    name: "Portland Cement 42.5R Grade — Bulk Supply 25kg Bags",
-    image:
-      "https://images.pexels.com/photos/33626641/pexels-photo-33626641.jpeg?auto=compress&cs=tinysrgb&w=600",
+      "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
     price: "$3.20",
-    unit: "bag",
-    supplier: "Fujian RockMight Materials",
-    country: "CN",
-    moq: "1,000 bags",
+    unit: "kg",
+    supplier: "Asante Farmers Union",
+    country: "Ghana",
+    moq: "100kg",
   },
   {
-    id: "p-led-streetlamp",
-    name: "LED Street Light 200W IP66 Waterproof Solar Powered",
+    id: "c-tea-kenya",
+    name: "Specialty Black Tea CTC — Single-Estate Highland",
     image:
-      "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$45",
-    unit: "unit",
-    supplier: "Jiangsu BrightPath Lighting",
-    country: "CN",
-    moq: "50 units",
-  },
-  {
-    id: "p-air-compressor",
-    name: "Industrial Air Compressor 7.5kW Screw — Energy Efficient",
-    image:
-      "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$1,850",
-    unit: "unit",
-    supplier: "Shanghai AirPro Equipment",
-    country: "CN",
-    moq: "1 unit",
+      "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=600",
+    price: "$5.50",
+    unit: "kg",
+    supplier: "Kericho Highlands Tea",
+    country: "Kenya",
+    moq: "50kg",
     badge: "Hot",
+  },
+  {
+    id: "c-yirgacheffe",
+    name: "Yirgacheffe Coffee Green Beans — Grade 1 Specialty",
+    image:
+      "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
+    price: "$7.20",
+    unit: "kg",
+    supplier: "Sidama Coffee Union",
+    country: "Ethiopia",
+    moq: "60kg",
+    badge: "New",
+  },
+  {
+    id: "c-cardamom-tanzania",
+    name: "Sun-Dried Green Cardamom Pods — Aromatic Premium",
+    image:
+      "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
+    price: "$24.00",
+    unit: "kg",
+    supplier: "Spice Roads Cooperative",
+    country: "Tanzania",
+    moq: "25kg",
+  },
+  {
+    id: "c-cobalt-drc",
+    name: "Cobalt Ore Concentrate — Battery-Grade, Certified Origin",
+    image:
+      "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=600",
+    price: "$32,000",
+    unit: "tonne",
+    supplier: "Katanga Mining Resources",
+    country: "DRC",
+    moq: "1 tonne",
+  },
+  {
+    id: "c-vanilla-madagascar",
+    name: "Bourbon Vanilla Beans — Grade A Gourmet Cured",
+    image:
+      "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
+    price: "$340",
+    unit: "kg",
+    supplier: "Sava Vanilla Growers",
+    country: "Madagascar",
+    moq: "5kg",
+    badge: "Hot",
+  },
+  {
+    id: "c-shea-butter",
+    name: "Raw Shea Butter — Unrefined, Cosmetic Grade",
+    image:
+      "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=600",
+    price: "$6.80",
+    unit: "kg",
+    supplier: "Burkina Women's Collective",
+    country: "Burkina Faso",
+    moq: "200kg",
   },
 ];
 
-const EDITORIAL_GUIDES = [
+const COMMODITY_GUIDES = [
   {
-    title: "Importing from Guangzhou: a 7-step guide",
+    title: "Exporting coffee to China: certifications & buyers",
     description:
-      "From canton fair sourcing to bonded warehouse delivery, what every African importer needs to know in 2026.",
+      "Which Chinese buyers want African specialty coffee, what certifications open doors, and how to negotiate FOB pricing.",
     image:
-      "https://images.pexels.com/photos/36882975/pexels-photo-36882975.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=1200",
     href: "/resources",
-    tag: "Sourcing Guide",
+    tag: "Export Guide",
   },
   {
-    title: "Mobile money checkout for B2B trade",
+    title: "Cocoa traceability: chain of custody for premium pricing",
     description:
-      "Why MTN MoMo, Airtel Money, and M-Pesa are reshaping how cross-border B2B settles — and what suppliers need to enable.",
+      "How blockchain-backed traceability earns 18-24% premium pricing from European and Chinese specialty buyers.",
+    image:
+      "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    href: "/resources",
+    tag: "Quality",
+  },
+  {
+    title: "Mobile money payouts to cooperatives at scale",
+    description:
+      "How Silk Road settles bulk buyer payments out to thousands of cooperative members via MTN MoMo and Airtel Money.",
     image:
       "https://images.pexels.com/photos/5239818/pexels-photo-5239818.jpeg?auto=compress&cs=tinysrgb&w=1200",
     href: "/resources",
     tag: "Payments",
-  },
-  {
-    title: "Shipping to East Africa: rates & lead times",
-    description:
-      "Sea, air, and overland — current freight benchmarks from Shenzhen to Mombasa, Dar, and Mogadishu.",
-    image:
-      "https://images.pexels.com/photos/18609057/pexels-photo-18609057.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Logistics",
   },
 ];
 
@@ -397,7 +399,7 @@ function CTASection() {
             className="absolute top-0 right-0 w-[500px] h-[500px]"
             style={{
               background:
-                "radial-gradient(ellipse at top right, rgba(212,168,83,0.1), transparent 60%)",
+                "radial-gradient(ellipse at top right, rgba(196,93,62,0.12), transparent 60%)",
             }}
           />
 
@@ -407,28 +409,29 @@ function CTASection() {
                 className="text-3xl lg:text-4xl font-bold text-[var(--ivory)] tracking-tight leading-tight"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Start sourcing today
-                <span className="text-[var(--amber)]">.</span>
+                List your harvest. Reach Chinese importers
+                <span className="text-[var(--terracotta-light)]">.</span>
               </h2>
               <p className="mt-4 text-base lg:text-lg text-white/55 max-w-lg leading-relaxed">
-                Join 50,000+ African businesses sourcing from verified Chinese
-                manufacturers — with trade assurance on every order.
+                Cooperatives, estates, and producers — onboard your members in
+                under a week and start receiving offers from verified
+                importers.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 min-w-[240px]">
               <Link
-                href="/auth/register?role=buyer"
+                href="/auth/register?role=supplier"
                 className="btn-primary !py-3.5 !px-7 !text-base w-full justify-center"
               >
-                Sign up as a buyer
+                List a commodity
                 <ArrowUpRight className="w-5 h-5" />
               </Link>
               <Link
-                href="/auth/register?role=supplier"
+                href="/auth/register?role=buyer"
                 className="btn-secondary !py-3.5 !px-7 !text-base w-full justify-center"
               >
-                Become a supplier
+                I&rsquo;m an importer
               </Link>
             </div>
           </div>
@@ -438,7 +441,7 @@ function CTASection() {
   );
 }
 
-export default function ProductsPortalHome() {
+export default function CommoditiesPortal() {
   return (
     <>
       <Navbar />
@@ -446,16 +449,16 @@ export default function ProductsPortalHome() {
         <HeroSection />
         <FeaturedCategories />
         <ProductRail
-          eyebrow="Products Portal"
-          title="New on Silk Road"
-          subtitle="Recently listed by verified Chinese suppliers."
-          viewAllHref="/marketplace?sort=newest"
-          products={NEW_PRODUCTS}
+          eyebrow="Commodities Portal"
+          title="New from Africa"
+          subtitle="Recently listed by verified cooperatives and producers."
+          viewAllHref="/commodities/browse?sort=newest"
+          products={NEW_COMMODITIES}
         />
         <EditorialBand
-          eyebrow="Sourcing Guides"
-          title="Trade intelligence, written by people who ship every day."
-          items={EDITORIAL_GUIDES}
+          eyebrow="Export Guides"
+          title="Practical guides for African producers entering Chinese markets."
+          items={COMMODITY_GUIDES}
         />
         <TwoUpValue />
         <CTASection />

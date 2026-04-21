@@ -4,6 +4,8 @@ import { updateSession } from "@/lib/supabase/middleware";
 const publicRoutes = [
   "/",
   "/about",
+  "/how-it-works",
+  "/commodities",
   "/marketplace",
   "/suppliers",
   "/resources",
@@ -18,6 +20,7 @@ const publicPrefixes = [
   "/marketplace/",
   "/suppliers/",
   "/resources/",
+  "/commodities/",
   "/api/webhooks/",
 ];
 

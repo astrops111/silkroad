@@ -10,6 +10,8 @@ import {
   Package,
   Globe,
   Shield,
+  Star,
+  TrendingUp,
   Truck,
   Users,
 } from "lucide-react";
@@ -220,6 +222,108 @@ function Pillars() {
   );
 }
 
+function SocialProof() {
+  const testimonials = [
+    {
+      quote:
+        "We reduced our sourcing costs by 35% by going direct through Silk Road. The escrow system gives us confidence we never had with wire transfers.",
+      name: "Amara Diallo",
+      role: "Procurement Manager",
+      company: "TechHub Ghana",
+      avatar: "AD",
+    },
+    {
+      quote:
+        "Finally a platform that understands African commodity trade. We now export our specialty coffee directly to Guangzhou buyers.",
+      name: "Jean-Pierre Habimana",
+      role: "Export Director",
+      company: "Gorilla Coffee Co-op, Rwanda",
+      avatar: "JH",
+    },
+    {
+      quote:
+        "通过Silk Road平台，我们成功开拓了非洲市场。平台的中文界面和支付宝集成让交易变得简单。",
+      name: "张海明",
+      role: "总经理",
+      company: "广州华南电子有限公司",
+      avatar: "张",
+    },
+  ];
+
+  return (
+    <section className="py-24 bg-[var(--obsidian)] relative overflow-hidden">
+      <div
+        className="absolute top-0 left-1/3 w-[500px] h-[500px] opacity-50 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse, rgba(212,168,83,0.06), transparent 70%)",
+        }}
+      />
+
+      <div className="max-w-[1400px] mx-auto px-6 lg:px-10 relative">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16 pb-16 border-b border-white/[0.06]">
+          {[
+            { value: "$2.4B+", label: "Trade Volume", icon: TrendingUp },
+            { value: "12,000+", label: "Verified Suppliers", icon: Users },
+            { value: "54", label: "African Countries", icon: Globe },
+            { value: "98.2%", label: "Satisfaction Rate", icon: Star },
+          ].map((stat) => (
+            <div key={stat.label} className="text-center lg:text-left">
+              <stat.icon className="w-5 h-5 text-[var(--amber)] mx-auto lg:mx-0 mb-3 opacity-70" />
+              <div
+                className="text-3xl lg:text-4xl font-bold text-[var(--ivory)] tracking-tight"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {stat.value}
+              </div>
+              <div className="text-sm text-white/35 mt-1">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <span className="text-xs font-semibold text-[var(--amber)] tracking-[0.15em] uppercase">
+            Trusted by Businesses Across Two Continents
+          </span>
+          <div className="mt-8 grid md:grid-cols-3 gap-5">
+            {testimonials.map((t) => (
+              <div
+                key={t.name}
+                className="p-6 rounded-2xl bg-white/[0.04] border border-white/[0.06]"
+              >
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className="w-4 h-4 text-[var(--amber)] fill-[var(--amber)]"
+                    />
+                  ))}
+                </div>
+                <p className="text-sm text-white/65 leading-relaxed mb-5">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--amber)]/15 border border-[var(--amber)]/25 flex items-center justify-center text-sm font-bold text-[var(--amber)]">
+                    {t.avatar}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--ivory)]">
+                      {t.name}
+                    </div>
+                    <div className="text-xs text-white/30">
+                      {t.role}, {t.company}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CTA() {
   return (
     <section className="py-24 bg-[var(--surface-secondary)]">
@@ -266,6 +370,7 @@ export default function AboutPage() {
         <PageHeader />
         <TradeFlowDiagram />
         <Pillars />
+        <SocialProof />
         <CTA />
       </main>
       <Footer />

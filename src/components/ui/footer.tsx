@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Globe,
   Mail,
   MapPin,
   Phone,
@@ -10,6 +9,7 @@ import {
   CreditCard,
   MessageCircle,
 } from "lucide-react";
+import { RegionPicker } from "@/components/ui/region-picker";
 
 const FOOTER_LINKS: Record<string, { label: string; href: string }[]> = {
   "Shop": [
@@ -210,13 +210,7 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col md:items-end gap-3">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)] transition-colors"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              English (US) · USD
-            </button>
+            <RegionPicker variant="full" />
             <div className="flex items-center gap-5 text-xs text-[var(--text-tertiary)]">
               <Link href="/privacy" className="hover:text-[var(--text-primary)] transition-colors">
                 Privacy
