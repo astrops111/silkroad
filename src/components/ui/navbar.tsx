@@ -25,6 +25,7 @@ import {
   Shirt,
   Wrench,
   Sprout,
+  Wheat,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -39,7 +40,7 @@ type CategoryGroup = {
   featured?: { title: string; description: string; image: string; href: string };
 };
 
-const CATEGORY_GROUPS: CategoryGroup[] = [
+const PRODUCT_CATEGORIES: CategoryGroup[] = [
   { label: "All", href: "/marketplace", icon: Package },
   {
     label: "Electronics",
@@ -129,86 +130,111 @@ const CATEGORY_GROUPS: CategoryGroup[] = [
       href: "/marketplace?category=construction&promo=solar",
     },
   },
+  { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
+];
+
+const COMMODITY_CATEGORIES: CategoryGroup[] = [
+  { label: "All", href: "/commodities/browse", icon: Package },
   {
     label: "Coffee",
-    href: "/commodities?category=coffee",
+    href: "/commodities/browse?category=coffee",
     icon: Coffee,
     subgroups: [
-      { label: "Arabica Green Beans", href: "/commodities?category=coffee&sub=arabica" },
-      { label: "Robusta Green Beans", href: "/commodities?category=coffee&sub=robusta" },
-      { label: "Roasted Whole Bean", href: "/commodities?category=coffee&sub=roasted" },
-      { label: "Specialty Single-Estate", href: "/commodities?category=coffee&sub=specialty" },
-      { label: "Instant Coffee", href: "/commodities?category=coffee&sub=instant" },
-      { label: "Roasting Equipment", href: "/commodities?category=coffee&sub=equipment" },
+      { label: "Arabica Green Beans", href: "/commodities/browse?category=coffee&sub=arabica" },
+      { label: "Robusta Green Beans", href: "/commodities/browse?category=coffee&sub=robusta" },
+      { label: "Roasted Whole Bean", href: "/commodities/browse?category=coffee&sub=roasted" },
+      { label: "Specialty Single-Estate", href: "/commodities/browse?category=coffee&sub=specialty" },
+      { label: "Instant Coffee", href: "/commodities/browse?category=coffee&sub=instant" },
+      { label: "Roasting Equipment", href: "/commodities/browse?category=coffee&sub=equipment" },
     ],
     featured: {
       title: "Yirgacheffe Grade 1",
       description: "Ethiopia · $7.20/kg",
       image:
         "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities?category=coffee&promo=yirgacheffe",
+      href: "/commodities/browse?category=coffee&promo=yirgacheffe",
     },
   },
   {
     label: "Cocoa",
-    href: "/commodities?category=cocoa",
+    href: "/commodities/browse?category=cocoa",
     icon: Leaf,
     subgroups: [
-      { label: "Cocoa Beans", href: "/commodities?category=cocoa&sub=beans" },
-      { label: "Cocoa Powder", href: "/commodities?category=cocoa&sub=powder" },
-      { label: "Cocoa Liquor", href: "/commodities?category=cocoa&sub=liquor" },
-      { label: "Cocoa Butter", href: "/commodities?category=cocoa&sub=butter" },
-      { label: "Couverture", href: "/commodities?category=cocoa&sub=couverture" },
-      { label: "Cocoa Husk", href: "/commodities?category=cocoa&sub=husk" },
+      { label: "Cocoa Beans", href: "/commodities/browse?category=cocoa&sub=beans" },
+      { label: "Cocoa Powder", href: "/commodities/browse?category=cocoa&sub=powder" },
+      { label: "Cocoa Liquor", href: "/commodities/browse?category=cocoa&sub=liquor" },
+      { label: "Cocoa Butter", href: "/commodities/browse?category=cocoa&sub=butter" },
+      { label: "Couverture", href: "/commodities/browse?category=cocoa&sub=couverture" },
+      { label: "Cocoa Husk", href: "/commodities/browse?category=cocoa&sub=husk" },
     ],
     featured: {
       title: "Fair-trade organic beans",
       description: "Ghana · $3.20/kg",
       image:
         "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities?category=cocoa&promo=organic",
+      href: "/commodities/browse?category=cocoa&promo=organic",
     },
   },
   {
     label: "Tea & Spices",
-    href: "/commodities?category=tea",
+    href: "/commodities/browse?category=tea",
     icon: Sprout,
     subgroups: [
-      { label: "Black Tea CTC", href: "/commodities?category=tea&sub=black" },
-      { label: "Green Tea", href: "/commodities?category=tea&sub=green" },
-      { label: "Specialty & Herbal", href: "/commodities?category=tea&sub=specialty" },
-      { label: "Cardamom", href: "/commodities?category=spices&sub=cardamom" },
-      { label: "Vanilla Beans", href: "/commodities?category=spices&sub=vanilla" },
-      { label: "Cloves & Pepper", href: "/commodities?category=spices&sub=cloves" },
+      { label: "Black Tea CTC", href: "/commodities/browse?category=tea&sub=black" },
+      { label: "Green Tea", href: "/commodities/browse?category=tea&sub=green" },
+      { label: "Specialty & Herbal", href: "/commodities/browse?category=tea&sub=specialty" },
+      { label: "Cardamom", href: "/commodities/browse?category=spices&sub=cardamom" },
+      { label: "Vanilla Beans", href: "/commodities/browse?category=spices&sub=vanilla" },
+      { label: "Cloves & Pepper", href: "/commodities/browse?category=spices&sub=cloves" },
     ],
     featured: {
       title: "Bourbon vanilla beans",
       description: "Madagascar · $340/kg",
       image:
         "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities?category=spices&promo=vanilla",
+      href: "/commodities/browse?category=spices&promo=vanilla",
     },
   },
   {
     label: "Minerals",
-    href: "/commodities?category=minerals",
+    href: "/commodities/browse?category=minerals",
     icon: Gem,
     subgroups: [
-      { label: "Cobalt", href: "/commodities?category=minerals&sub=cobalt" },
-      { label: "Copper", href: "/commodities?category=minerals&sub=copper" },
-      { label: "Lithium", href: "/commodities?category=minerals&sub=lithium" },
-      { label: "Gold & Precious", href: "/commodities?category=minerals&sub=gold" },
-      { label: "Tantalum & Coltan", href: "/commodities?category=minerals&sub=tantalum" },
-      { label: "Manganese", href: "/commodities?category=minerals&sub=manganese" },
-      { label: "Iron Ore", href: "/commodities?category=minerals&sub=iron" },
-      { label: "Bauxite", href: "/commodities?category=minerals&sub=bauxite" },
+      { label: "Cobalt", href: "/commodities/browse?category=minerals&sub=cobalt" },
+      { label: "Copper", href: "/commodities/browse?category=minerals&sub=copper" },
+      { label: "Lithium", href: "/commodities/browse?category=minerals&sub=lithium" },
+      { label: "Gold & Precious", href: "/commodities/browse?category=minerals&sub=gold" },
+      { label: "Tantalum & Coltan", href: "/commodities/browse?category=minerals&sub=tantalum" },
+      { label: "Manganese", href: "/commodities/browse?category=minerals&sub=manganese" },
+      { label: "Iron Ore", href: "/commodities/browse?category=minerals&sub=iron" },
+      { label: "Bauxite", href: "/commodities/browse?category=minerals&sub=bauxite" },
     ],
     featured: {
       title: "Battery-grade cobalt",
       description: "DRC · $32k/tonne",
       image:
         "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities?category=minerals&promo=cobalt",
+      href: "/commodities/browse?category=minerals&promo=cobalt",
+    },
+  },
+  {
+    label: "Specialty Crops",
+    href: "/commodities/browse?category=specialty",
+    icon: Wheat,
+    subgroups: [
+      { label: "Shea Butter", href: "/commodities/browse?category=specialty&sub=shea" },
+      { label: "Cashew Nuts", href: "/commodities/browse?category=specialty&sub=cashew" },
+      { label: "Sesame Seeds", href: "/commodities/browse?category=specialty&sub=sesame" },
+      { label: "Hibiscus", href: "/commodities/browse?category=specialty&sub=hibiscus" },
+      { label: "Moringa", href: "/commodities/browse?category=specialty&sub=moringa" },
+      { label: "Baobab", href: "/commodities/browse?category=specialty&sub=baobab" },
+    ],
+    featured: {
+      title: "Raw shea butter",
+      description: "Burkina Faso · $6.80/kg",
+      image:
+        "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/commodities/browse?category=specialty&promo=shea",
     },
   },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
@@ -227,6 +253,9 @@ export function Navbar() {
 
   const portal: "products" | "commodities" =
     pathname?.startsWith("/commodities") ? "commodities" : "products";
+
+  const activeCategoryGroups: CategoryGroup[] =
+    portal === "commodities" ? COMMODITY_CATEGORIES : PRODUCT_CATEGORIES;
 
   const TOP_LINKS = [
     { label: t("products"), href: "/marketplace" },
@@ -461,7 +490,7 @@ export function Navbar() {
         >
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
             <div className="flex items-center gap-1 h-11 overflow-x-auto scrollbar-hide">
-              {CATEGORY_GROUPS.map((cat) => {
+              {activeCategoryGroups.map((cat) => {
                 const hasMenu = !!cat.subgroups?.length;
                 const isOpen = openCategory === cat.label;
 
@@ -520,7 +549,7 @@ export function Navbar() {
           {/* Mega-menu panel */}
           {openCategory &&
             (() => {
-              const cat = CATEGORY_GROUPS.find((c) => c.label === openCategory);
+              const cat = activeCategoryGroups.find((c) => c.label === openCategory);
               if (!cat?.subgroups?.length) return null;
               return (
                 <div className="absolute top-full left-0 right-0 bg-white border-b border-[var(--border-subtle)] shadow-lg z-40 animate-fade-in">
@@ -615,7 +644,7 @@ export function Navbar() {
             <p className="text-[11px] font-semibold text-[var(--text-tertiary)] tracking-[0.12em] uppercase px-1">
               Browse
             </p>
-            {CATEGORY_GROUPS.map((cat) => (
+            {activeCategoryGroups.map((cat) => (
               <Link
                 key={cat.href}
                 href={cat.href}

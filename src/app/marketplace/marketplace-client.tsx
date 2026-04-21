@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import {
@@ -42,16 +43,16 @@ export interface MarketplaceProduct {
 }
 
 const CATEGORIES = [
-  "All Categories",
-  "Electronics & Components",
-  "Machinery & Equipment",
-  "Textiles & Apparel",
-  "Construction Materials",
-  "Auto Parts & Accessories",
-  "Home & Garden",
-  "Health & Beauty",
-  "Food & Agriculture",
-];
+  { slug: null, label: "All Categories" },
+  { slug: "electronics", label: "Electronics & Components" },
+  { slug: "machinery", label: "Machinery & Equipment" },
+  { slug: "textiles", label: "Textiles & Apparel" },
+  { slug: "construction", label: "Construction Materials" },
+  { slug: "auto", label: "Auto Parts & Accessories" },
+  { slug: "home", label: "Home & Garden" },
+  { slug: "beauty", label: "Health & Beauty" },
+  { slug: "food", label: "Food & Agriculture" },
+] as const;
 
 const PRODUCTS = [
   {
@@ -219,10 +220,27 @@ function formatPrice(price: number) {
 function FilterSidebar({
   open,
   onClose,
+  activeCategorySlug,
 }: {
   open: boolean;
   onClose: () => void;
+  activeCategorySlug: string | null;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const buildHref = (slug: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (slug) {
+      params.set("category", slug);
+    } else {
+      params.delete("category");
+    }
+    params.delete("sub");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -267,18 +285,24 @@ function FilterSidebar({
               Category
             </h4>
             <div className="space-y-1">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                    cat === "All Categories"
-                      ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+              {CATEGORIES.map((cat) => {
+                const isActive = (cat.slug ?? null) === activeCategorySlug;
+                return (
+                  <Link
+                    key={cat.label}
+                    href={buildHref(cat.slug)}
+                    onClick={onClose}
+                    scroll={false}
+                    className={`block w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                      isActive
+                        ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {cat.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
@@ -493,7 +517,29 @@ function ProductCard({ product }: { product: (typeof PRODUCTS)[0] }) {
 export function MarketplaceClient({ initialProducts }: { initialProducts?: MarketplaceProduct[] }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const displayProducts = initialProducts && initialProducts.length > 0 ? initialProducts : PRODUCTS;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const allProducts = initialProducts && initialProducts.length > 0 ? initialProducts : PRODUCTS;
+
+  const categorySlug = searchParams.get("category");
+  const subSlug = searchParams.get("sub");
+  const activeCategory = CATEGORIES.find((c) => c.slug === categorySlug) ?? null;
+
+  const displayProducts = useMemo(() => {
+    if (!activeCategory || !activeCategory.label || activeCategory.slug === null) {
+      return allProducts;
+    }
+    return allProducts.filter((p) => p.category === activeCategory.label);
+  }, [allProducts, activeCategory]);
+
+  const clearFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("category");
+    params.delete("sub");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   return (
     <>
@@ -506,11 +552,43 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
               className="text-2xl lg:text-3xl font-bold text-[var(--obsidian)] tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Marketplace
+              {activeCategory && activeCategory.slug
+                ? activeCategory.label
+                : "Marketplace"}
             </h1>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Browse 12,000+ products from verified Chinese manufacturers
+              {activeCategory && activeCategory.slug
+                ? `${displayProducts.length} ${
+                    displayProducts.length === 1 ? "product" : "products"
+                  } in ${activeCategory.label}`
+                : "Browse 12,000+ products from verified Chinese manufacturers"}
             </p>
+
+            {(activeCategory?.slug || subSlug) && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mr-1">
+                  Filters
+                </span>
+                {activeCategory?.slug && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--amber)]/12 border border-[var(--amber)]/25 text-[var(--amber-dark)]">
+                    {activeCategory.label}
+                  </span>
+                )}
+                {subSlug && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+                    {subSlug.replace(/-/g, " ")}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={clearFilter}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Clear
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
 
             {/* Search */}
             <div className="mt-5 flex items-center h-12 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-secondary)] focus-within:border-[var(--amber)] transition-colors max-w-2xl">
@@ -534,6 +612,7 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
             <FilterSidebar
               open={filterOpen}
               onClose={() => setFilterOpen(false)}
+              activeCategorySlug={categorySlug}
             />
 
             {/* Main content */}
