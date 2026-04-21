@@ -3,13 +3,19 @@
 import { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useLocale } from "next-intl";
 import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { useRegion } from "@/lib/providers/region-provider";
+import { formatConvertedPriceWithCode } from "@/lib/currency/formatter";
 
 export type RailProduct = {
   id: string;
   name: string;
   image: string;
-  price: string;
+  /** Price in minor units (cents) of `currency`. */
+  amount: number;
+  /** Base currency the supplier listed in (e.g. "USD"). */
+  currency: string;
   unit?: string;
   supplier: string;
   country: string;
@@ -35,6 +41,8 @@ export function ProductRail({
   products,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const region = useRegion();
+  const locale = useLocale();
 
   const scroll = (dir: 1 | -1) => {
     const el = scrollerRef.current;
@@ -122,7 +130,12 @@ export function ProductRail({
                     className="text-base font-bold text-[var(--obsidian)]"
                     style={{ fontFamily: "var(--font-display)" }}
                   >
-                    {p.price}
+                    {formatConvertedPriceWithCode(
+                      p.amount,
+                      p.currency,
+                      region.currency,
+                      locale,
+                    )}
                   </span>
                   {p.unit && (
                     <span className="text-xs text-[var(--text-tertiary)]">

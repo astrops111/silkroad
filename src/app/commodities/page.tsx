@@ -267,7 +267,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Premium Arabica Coffee — Bourbon, Washed Process",
     image:
       "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$4.85",
+    amount: 4_85,
+    currency: "USD",
     unit: "kg",
     supplier: "Gorilla Coffee Co-op",
     country: "Rwanda",
@@ -279,7 +280,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Organic Cocoa Beans — Fair Trade Certified, Sun-dried",
     image:
       "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$3.20",
+    amount: 3_20,
+    currency: "USD",
     unit: "kg",
     supplier: "Asante Farmers Union",
     country: "Ghana",
@@ -290,7 +292,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Specialty Black Tea CTC — Single-Estate Highland",
     image:
       "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$5.50",
+    amount: 5_50,
+    currency: "USD",
     unit: "kg",
     supplier: "Kericho Highlands Tea",
     country: "Kenya",
@@ -302,7 +305,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Yirgacheffe Coffee Green Beans — Grade 1 Specialty",
     image:
       "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$7.20",
+    amount: 7_20,
+    currency: "USD",
     unit: "kg",
     supplier: "Sidama Coffee Union",
     country: "Ethiopia",
@@ -314,7 +318,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Sun-Dried Green Cardamom Pods — Aromatic Premium",
     image:
       "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$24.00",
+    amount: 24_00,
+    currency: "USD",
     unit: "kg",
     supplier: "Spice Roads Cooperative",
     country: "Tanzania",
@@ -325,7 +330,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Cobalt Ore Concentrate — Battery-Grade, Certified Origin",
     image:
       "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=600",
-    price: "$32,000",
+    amount: 32_000_00,
+    currency: "USD",
     unit: "tonne",
     supplier: "Katanga Mining Resources",
     country: "DRC",
@@ -336,7 +342,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Bourbon Vanilla Beans — Grade A Gourmet Cured",
     image:
       "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$340",
+    amount: 340_00,
+    currency: "USD",
     unit: "kg",
     supplier: "Sava Vanilla Growers",
     country: "Madagascar",
@@ -348,7 +355,8 @@ const NEW_COMMODITIES: RailProduct[] = [
     name: "Raw Shea Butter — Unrefined, Cosmetic Grade",
     image:
       "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$6.80",
+    amount: 6_80,
+    currency: "USD",
     unit: "kg",
     supplier: "Burkina Women's Collective",
     country: "Burkina Faso",

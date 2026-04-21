@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useLocale } from "next-intl";
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
+import { useRegion } from "@/lib/providers/region-provider";
+import { formatConvertedPriceWithCode } from "@/lib/currency/formatter";
 
 const COMMODITY_CATEGORIES = [
   { slug: null, label: "All Commodities" },
@@ -33,7 +36,8 @@ type Commodity = {
   origin: string;
   cooperative: string;
   certified: boolean;
-  price: string;
+  amount: number;
+  currency: string;
   unit: string;
   moq: string;
   rating: number;
@@ -50,7 +54,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Rwanda · Western Province",
     cooperative: "Gorilla Coffee Co-op",
     certified: true,
-    price: "USD 4.85",
+    amount: 4_85,
+    currency: "USD",
     unit: "kg",
     moq: "60kg",
     rating: 4.9,
@@ -66,7 +71,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Ghana · Ashanti",
     cooperative: "Asante Farmers Union",
     certified: true,
-    price: "USD 3.20",
+    amount: 3_20,
+    currency: "USD",
     unit: "kg",
     moq: "100kg",
     rating: 4.7,
@@ -82,7 +88,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Kenya · Kericho",
     cooperative: "Kericho Highlands Tea",
     certified: true,
-    price: "USD 5.50",
+    amount: 5_50,
+    currency: "USD",
     unit: "kg",
     moq: "50kg",
     rating: 4.8,
@@ -98,7 +105,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Ethiopia · Sidama",
     cooperative: "Sidama Coffee Union",
     certified: true,
-    price: "USD 7.20",
+    amount: 7_20,
+    currency: "USD",
     unit: "kg",
     moq: "60kg",
     rating: 5.0,
@@ -114,7 +122,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Tanzania · Kilimanjaro",
     cooperative: "Spice Roads Cooperative",
     certified: true,
-    price: "USD 24.00",
+    amount: 24_00,
+    currency: "USD",
     unit: "kg",
     moq: "25kg",
     rating: 4.6,
@@ -130,7 +139,8 @@ const COMMODITIES: Commodity[] = [
     origin: "DRC · Katanga",
     cooperative: "Katanga Mining Resources",
     certified: true,
-    price: "USD 32,000",
+    amount: 32_000_00,
+    currency: "USD",
     unit: "tonne",
     moq: "1 tonne",
     rating: 4.5,
@@ -146,7 +156,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Madagascar · Sava",
     cooperative: "Sava Vanilla Growers",
     certified: true,
-    price: "USD 340.00",
+    amount: 340_00,
+    currency: "USD",
     unit: "kg",
     moq: "5kg",
     rating: 4.9,
@@ -162,7 +173,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Burkina Faso · Bobo-Dioulasso",
     cooperative: "Burkina Women's Collective",
     certified: true,
-    price: "USD 6.80",
+    amount: 6_80,
+    currency: "USD",
     unit: "kg",
     moq: "200kg",
     rating: 4.8,
@@ -178,7 +190,8 @@ const COMMODITIES: Commodity[] = [
     origin: "Côte d'Ivoire · San-Pédro",
     cooperative: "Ivory Cocoa Processors",
     certified: true,
-    price: "USD 4.90",
+    amount: 4_90,
+    currency: "USD",
     unit: "kg",
     moq: "500kg",
     rating: 4.4,
@@ -326,6 +339,8 @@ export function CommoditiesBrowseClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const region = useRegion();
+  const locale = useLocale();
 
   const categorySlug = searchParams.get("category");
   const subSlug = searchParams.get("sub");
@@ -474,7 +489,12 @@ export function CommoditiesBrowseClient() {
                             className="text-lg font-bold text-[var(--obsidian)]"
                             style={{ fontFamily: "var(--font-display)" }}
                           >
-                            {c.price}
+                            {formatConvertedPriceWithCode(
+                              c.amount,
+                              c.currency,
+                              region.currency,
+                              locale,
+                            )}
                           </span>
                           <span className="text-xs text-[var(--text-tertiary)]">
                             / {c.unit}

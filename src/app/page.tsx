@@ -265,7 +265,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "Industrial CNC Lathe 1000mm — Variable Speed",
     image:
       "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$8,500",
+    amount: 8_500_00,
+    currency: "USD",
     unit: "set",
     supplier: "Guangzhou Huahe Precision",
     country: "CN",
@@ -277,7 +278,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "5G Android Smartphone 6.7\" AMOLED — 256GB OEM",
     image:
       "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$85",
+    amount: 85_00,
+    currency: "USD",
     unit: "unit",
     supplier: "Shenzhen DigiTech Electronics",
     country: "CN",
@@ -288,7 +290,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "Premium Cotton T-Shirt — Custom Bulk Logo Printing",
     image:
       "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$2.80",
+    amount: 2_80,
+    currency: "USD",
     unit: "piece",
     supplier: "Zhejiang Silk Valley Textiles",
     country: "CN",
@@ -300,7 +303,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "Hydraulic Excavator 21-ton — Heavy Construction",
     image:
       "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$42,000",
+    amount: 42_000_00,
+    currency: "USD",
     unit: "unit",
     supplier: "Henan HeavyBuild Machinery",
     country: "CN",
@@ -311,7 +315,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "Solar Panel 550W Monocrystalline PV Module Tier 1",
     image:
       "https://images.pexels.com/photos/4993793/pexels-photo-4993793.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$110",
+    amount: 110_00,
+    currency: "USD",
     unit: "panel",
     supplier: "Jiangsu Sunburst Energy",
     country: "CN",
@@ -323,7 +328,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "Portland Cement 42.5R Grade — Bulk Supply 25kg Bags",
     image:
       "https://images.pexels.com/photos/33626641/pexels-photo-33626641.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$3.20",
+    amount: 3_20,
+    currency: "USD",
     unit: "bag",
     supplier: "Fujian RockMight Materials",
     country: "CN",
@@ -334,7 +340,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "LED Street Light 200W IP66 Waterproof Solar Powered",
     image:
       "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$45",
+    amount: 45_00,
+    currency: "USD",
     unit: "unit",
     supplier: "Jiangsu BrightPath Lighting",
     country: "CN",
@@ -345,7 +352,8 @@ const NEW_PRODUCTS: RailProduct[] = [
     name: "Industrial Air Compressor 7.5kW Screw — Energy Efficient",
     image:
       "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600",
-    price: "$1,850",
+    amount: 1_850_00,
+    currency: "USD",
     unit: "unit",
     supplier: "Shanghai AirPro Equipment",
     country: "CN",
