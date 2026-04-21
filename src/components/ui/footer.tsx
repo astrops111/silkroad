@@ -19,8 +19,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     headingKey: "shopHeading",
     links: [
       { labelKey: "shopAllProducts", href: "/marketplace" },
-      { labelKey: "shopAfricanCommodities", href: "/commodities" },
-      { labelKey: "shopVerifiedSuppliers", href: "/suppliers" },
       { labelKey: "shopNewArrivals", href: "/marketplace?sort=newest" },
       { labelKey: "shopFeaturedDeals", href: "/marketplace?featured=1" },
     ],
@@ -139,7 +137,7 @@ export function Footer() {
             <input
               type="email"
               placeholder={t("newsletterPlaceholder")}
-              className="flex-1 lg:w-72 h-12 px-4 rounded-full border border-[var(--border-default)] bg-white text-sm outline-none focus:border-[var(--obsidian)] focus:shadow-[0_0_0_3px_rgba(212,168,83,0.15)] transition-all"
+              className="flex-1 lg:w-72 h-12 px-4 rounded-full border border-[var(--border-default)] bg-white text-sm outline-none focus:border-[var(--obsidian)] focus:shadow-[0_0_0_3px_rgba(216,159,46,0.15)] transition-all"
               required
             />
             <button

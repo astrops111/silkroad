@@ -15,17 +15,13 @@ import {
   User,
   Heart,
   Package,
-  Coffee,
-  Factory,
-  Gem,
-  Truck,
-  Leaf,
-  Zap,
+  Sparkles,
+  Smartphone,
+  ShoppingBasket,
+  Baby,
+  BedDouble,
+  Sofa,
   FileText,
-  Shirt,
-  Wrench,
-  Sprout,
-  Wheat,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -41,22 +37,45 @@ type CategoryGroup = {
 };
 
 /* Category labels are intentionally English here — they're swapped to
-   t("nav.categoryX") at render time below. */
+   t("nav.categoryX") at render time below. Subgroup labels are kept
+   literal; they render as-is. */
 const PRODUCT_CATEGORIES: CategoryGroup[] = [
   { label: "All", href: "/marketplace", icon: Package },
   {
-    label: "Electronics",
-    href: "/marketplace?category=electronics",
-    icon: Zap,
+    label: "Cosmetics",
+    href: "/marketplace?category=cosmetics",
+    icon: Sparkles,
     subgroups: [
-      { label: "Smartphones & Tablets", href: "/marketplace?category=electronics&sub=phones" },
-      { label: "Laptops & PCs", href: "/marketplace?category=electronics&sub=computers" },
-      { label: "Components & Chips", href: "/marketplace?category=electronics&sub=components" },
-      { label: "LED Lighting", href: "/marketplace?category=electronics&sub=lighting" },
-      { label: "Audio & Headphones", href: "/marketplace?category=electronics&sub=audio" },
-      { label: "Cameras & Imaging", href: "/marketplace?category=electronics&sub=cameras" },
-      { label: "Networking Equipment", href: "/marketplace?category=electronics&sub=networking" },
-      { label: "Wearables & Smart Home", href: "/marketplace?category=electronics&sub=wearables" },
+      { label: "Skincare", href: "/marketplace?category=cosmetics&sub=skincare" },
+      { label: "Haircare & Wigs", href: "/marketplace?category=cosmetics&sub=haircare" },
+      { label: "Makeup", href: "/marketplace?category=cosmetics&sub=makeup" },
+      { label: "Fragrance", href: "/marketplace?category=cosmetics&sub=fragrance" },
+      { label: "Nail Care", href: "/marketplace?category=cosmetics&sub=nail" },
+      { label: "Personal Hygiene", href: "/marketplace?category=cosmetics&sub=hygiene" },
+      { label: "Beauty Tools & Devices", href: "/marketplace?category=cosmetics&sub=tools" },
+      { label: "Cosmetic Packaging (OEM)", href: "/marketplace?category=cosmetics&sub=packaging" },
+    ],
+    featured: {
+      title: "Human-hair wigs OEM",
+      description: "MOQ 50 units · From $18",
+      image:
+        "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=cosmetics&promo=wigs",
+    },
+  },
+  {
+    label: "Consumer Electronics",
+    href: "/marketplace?category=electronics",
+    icon: Smartphone,
+    subgroups: [
+      { label: "Mobile Phones & Accessories", href: "/marketplace?category=electronics&sub=phones" },
+      { label: "Audio (speakers, earbuds)", href: "/marketplace?category=electronics&sub=audio" },
+      { label: "TVs & Displays", href: "/marketplace?category=electronics&sub=tvs" },
+      { label: "Small Appliances", href: "/marketplace?category=electronics&sub=appliances" },
+      { label: "Computing & Tablets", href: "/marketplace?category=electronics&sub=computing" },
+      { label: "Chargers & Power Banks", href: "/marketplace?category=electronics&sub=power" },
+      { label: "LED & Solar Lighting", href: "/marketplace?category=electronics&sub=lighting" },
+      { label: "Security & Cameras", href: "/marketplace?category=electronics&sub=security" },
     ],
     featured: {
       title: "5G smartphone OEM bulk",
@@ -67,176 +86,91 @@ const PRODUCT_CATEGORIES: CategoryGroup[] = [
     },
   },
   {
-    label: "Machinery",
-    href: "/marketplace?category=machinery",
-    icon: Factory,
+    label: "Groceries",
+    href: "/marketplace?category=groceries",
+    icon: ShoppingBasket,
     subgroups: [
-      { label: "CNC & Lathes", href: "/marketplace?category=machinery&sub=cnc" },
-      { label: "Hydraulic Equipment", href: "/marketplace?category=machinery&sub=hydraulic" },
-      { label: "Generators", href: "/marketplace?category=machinery&sub=generators" },
-      { label: "Pumps & Motors", href: "/marketplace?category=machinery&sub=pumps" },
-      { label: "Forklifts & Loaders", href: "/marketplace?category=machinery&sub=forklifts" },
-      { label: "Welders & Cutters", href: "/marketplace?category=machinery&sub=welders" },
-      { label: "Air Compressors", href: "/marketplace?category=machinery&sub=compressors" },
-      { label: "Food Processing", href: "/marketplace?category=machinery&sub=food" },
+      { label: "Rice & Grains", href: "/marketplace?category=groceries&sub=grains" },
+      { label: "Cooking Oil", href: "/marketplace?category=groceries&sub=oil" },
+      { label: "Instant Noodles", href: "/marketplace?category=groceries&sub=noodles" },
+      { label: "Canned & Packaged Foods", href: "/marketplace?category=groceries&sub=canned" },
+      { label: "Beverages", href: "/marketplace?category=groceries&sub=beverages" },
+      { label: "Snacks & Confectionery", href: "/marketplace?category=groceries&sub=snacks" },
+      { label: "Condiments & Sauces", href: "/marketplace?category=groceries&sub=condiments" },
+      { label: "Sugar, Salt & Dry Goods", href: "/marketplace?category=groceries&sub=dry" },
     ],
     featured: {
-      title: "Hydraulic excavator 21t",
-      description: "From $42,000 · Lead time 30d",
+      title: "Instant noodles private label",
+      description: "MOQ 1 pallet · From $0.18/pack",
       image:
-        "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=machinery&promo=excavator",
+        "https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=groceries&promo=noodles",
     },
   },
   {
-    label: "Textiles",
-    href: "/marketplace?category=textiles",
-    icon: Shirt,
+    label: "Baby Products",
+    href: "/marketplace?category=baby",
+    icon: Baby,
     subgroups: [
-      { label: "Apparel & Garments", href: "/marketplace?category=textiles&sub=apparel" },
-      { label: "Fabrics & Rolls", href: "/marketplace?category=textiles&sub=fabrics" },
-      { label: "Yarn & Threads", href: "/marketplace?category=textiles&sub=yarn" },
-      { label: "Trims & Accessories", href: "/marketplace?category=textiles&sub=trims" },
-      { label: "Footwear", href: "/marketplace?category=textiles&sub=footwear" },
-      { label: "Bags & Luggage", href: "/marketplace?category=textiles&sub=bags" },
-      { label: "Home Linens", href: "/marketplace?category=textiles&sub=linens" },
-      { label: "Workwear & Uniforms", href: "/marketplace?category=textiles&sub=workwear" },
+      { label: "Diapers", href: "/marketplace?category=baby&sub=diapers" },
+      { label: "Wipes", href: "/marketplace?category=baby&sub=wipes" },
+      { label: "Formula & Baby Food", href: "/marketplace?category=baby&sub=food" },
+      { label: "Feeding (bottles, bibs)", href: "/marketplace?category=baby&sub=feeding" },
+      { label: "Baby Clothing", href: "/marketplace?category=baby&sub=clothing" },
+      { label: "Strollers & Car Seats", href: "/marketplace?category=baby&sub=strollers" },
+      { label: "Toys (0–3, 3–6)", href: "/marketplace?category=baby&sub=toys" },
+      { label: "Bath & Skincare", href: "/marketplace?category=baby&sub=bath" },
     ],
     featured: {
-      title: "Custom-print cotton tees",
-      description: "MOQ 500 pcs · From $2.80",
+      title: "OEM ultra-absorbent diapers",
+      description: "MOQ 10 cartons · From $4.20/pack",
       image:
-        "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=textiles&promo=tees",
+        "https://images.pexels.com/photos/3933250/pexels-photo-3933250.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=baby&promo=diapers",
     },
   },
   {
-    label: "Construction",
-    href: "/marketplace?category=construction",
-    icon: Wrench,
+    label: "Hotel Interiors",
+    href: "/marketplace?category=hotel",
+    icon: BedDouble,
     subgroups: [
-      { label: "Cement & Aggregate", href: "/marketplace?category=construction&sub=cement" },
-      { label: "Steel & Rebar", href: "/marketplace?category=construction&sub=steel" },
-      { label: "Tools & Hardware", href: "/marketplace?category=construction&sub=tools" },
-      { label: "Plumbing & Sanitary", href: "/marketplace?category=construction&sub=plumbing" },
-      { label: "Roofing & Insulation", href: "/marketplace?category=construction&sub=roofing" },
-      { label: "Solar & Off-Grid", href: "/marketplace?category=construction&sub=solar" },
-      { label: "Glass & Aluminum", href: "/marketplace?category=construction&sub=glass" },
-      { label: "Paint & Finishes", href: "/marketplace?category=construction&sub=paint" },
+      { label: "Guestroom Furniture", href: "/marketplace?category=hotel&sub=guestroom" },
+      { label: "Bathroom Fixtures", href: "/marketplace?category=hotel&sub=bathroom" },
+      { label: "Lighting & Chandeliers", href: "/marketplace?category=hotel&sub=lighting" },
+      { label: "Bedding & Towels", href: "/marketplace?category=hotel&sub=bedding" },
+      { label: "Curtains & Drapes", href: "/marketplace?category=hotel&sub=curtains" },
+      { label: "Decor & Mirrors", href: "/marketplace?category=hotel&sub=decor" },
+      { label: "Lobby / Reception", href: "/marketplace?category=hotel&sub=lobby" },
+      { label: "F&B Equipment", href: "/marketplace?category=hotel&sub=fb" },
     ],
     featured: {
-      title: "Tier-1 solar panels 550W",
-      description: "MOQ 10 panels · From $110",
+      title: "4-star guestroom set",
+      description: "Full room · From $1,280",
       image:
-        "https://images.pexels.com/photos/4993793/pexels-photo-4993793.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=construction&promo=solar",
-    },
-  },
-  { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
-];
-
-const COMMODITY_CATEGORIES: CategoryGroup[] = [
-  { label: "All", href: "/commodities/browse", icon: Package },
-  {
-    label: "Coffee",
-    href: "/commodities/browse?category=coffee",
-    icon: Coffee,
-    subgroups: [
-      { label: "Arabica Green Beans", href: "/commodities/browse?category=coffee&sub=arabica" },
-      { label: "Robusta Green Beans", href: "/commodities/browse?category=coffee&sub=robusta" },
-      { label: "Roasted Whole Bean", href: "/commodities/browse?category=coffee&sub=roasted" },
-      { label: "Specialty Single-Estate", href: "/commodities/browse?category=coffee&sub=specialty" },
-      { label: "Instant Coffee", href: "/commodities/browse?category=coffee&sub=instant" },
-      { label: "Roasting Equipment", href: "/commodities/browse?category=coffee&sub=equipment" },
-    ],
-    featured: {
-      title: "Yirgacheffe Grade 1",
-      description: "Ethiopia · $7.20/kg",
-      image:
-        "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities/browse?category=coffee&promo=yirgacheffe",
+        "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=hotel&promo=guestroom",
     },
   },
   {
-    label: "Cocoa",
-    href: "/commodities/browse?category=cocoa",
-    icon: Leaf,
+    label: "Furniture",
+    href: "/marketplace?category=furniture",
+    icon: Sofa,
     subgroups: [
-      { label: "Cocoa Beans", href: "/commodities/browse?category=cocoa&sub=beans" },
-      { label: "Cocoa Powder", href: "/commodities/browse?category=cocoa&sub=powder" },
-      { label: "Cocoa Liquor", href: "/commodities/browse?category=cocoa&sub=liquor" },
-      { label: "Cocoa Butter", href: "/commodities/browse?category=cocoa&sub=butter" },
-      { label: "Couverture", href: "/commodities/browse?category=cocoa&sub=couverture" },
-      { label: "Cocoa Husk", href: "/commodities/browse?category=cocoa&sub=husk" },
+      { label: "Living Room", href: "/marketplace?category=furniture&sub=living" },
+      { label: "Bedroom", href: "/marketplace?category=furniture&sub=bedroom" },
+      { label: "Dining", href: "/marketplace?category=furniture&sub=dining" },
+      { label: "Office", href: "/marketplace?category=furniture&sub=office" },
+      { label: "Outdoor / Garden", href: "/marketplace?category=furniture&sub=outdoor" },
+      { label: "Kids'", href: "/marketplace?category=furniture&sub=kids" },
+      { label: "Storage & Shelving", href: "/marketplace?category=furniture&sub=storage" },
+      { label: "Commercial / Retail", href: "/marketplace?category=furniture&sub=commercial" },
     ],
     featured: {
-      title: "Fair-trade organic beans",
-      description: "Ghana · $3.20/kg",
+      title: "Modular 3-seat fabric sofa",
+      description: "MOQ 10 sets · From $320",
       image:
-        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities/browse?category=cocoa&promo=organic",
-    },
-  },
-  {
-    label: "Tea & Spices",
-    href: "/commodities/browse?category=tea",
-    icon: Sprout,
-    subgroups: [
-      { label: "Black Tea CTC", href: "/commodities/browse?category=tea&sub=black" },
-      { label: "Green Tea", href: "/commodities/browse?category=tea&sub=green" },
-      { label: "Specialty & Herbal", href: "/commodities/browse?category=tea&sub=specialty" },
-      { label: "Cardamom", href: "/commodities/browse?category=spices&sub=cardamom" },
-      { label: "Vanilla Beans", href: "/commodities/browse?category=spices&sub=vanilla" },
-      { label: "Cloves & Pepper", href: "/commodities/browse?category=spices&sub=cloves" },
-    ],
-    featured: {
-      title: "Bourbon vanilla beans",
-      description: "Madagascar · $340/kg",
-      image:
-        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities/browse?category=spices&promo=vanilla",
-    },
-  },
-  {
-    label: "Minerals",
-    href: "/commodities/browse?category=minerals",
-    icon: Gem,
-    subgroups: [
-      { label: "Cobalt", href: "/commodities/browse?category=minerals&sub=cobalt" },
-      { label: "Copper", href: "/commodities/browse?category=minerals&sub=copper" },
-      { label: "Lithium", href: "/commodities/browse?category=minerals&sub=lithium" },
-      { label: "Gold & Precious", href: "/commodities/browse?category=minerals&sub=gold" },
-      { label: "Tantalum & Coltan", href: "/commodities/browse?category=minerals&sub=tantalum" },
-      { label: "Manganese", href: "/commodities/browse?category=minerals&sub=manganese" },
-      { label: "Iron Ore", href: "/commodities/browse?category=minerals&sub=iron" },
-      { label: "Bauxite", href: "/commodities/browse?category=minerals&sub=bauxite" },
-    ],
-    featured: {
-      title: "Battery-grade cobalt",
-      description: "DRC · $32k/tonne",
-      image:
-        "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities/browse?category=minerals&promo=cobalt",
-    },
-  },
-  {
-    label: "Specialty Crops",
-    href: "/commodities/browse?category=specialty",
-    icon: Wheat,
-    subgroups: [
-      { label: "Shea Butter", href: "/commodities/browse?category=specialty&sub=shea" },
-      { label: "Cashew Nuts", href: "/commodities/browse?category=specialty&sub=cashew" },
-      { label: "Sesame Seeds", href: "/commodities/browse?category=specialty&sub=sesame" },
-      { label: "Hibiscus", href: "/commodities/browse?category=specialty&sub=hibiscus" },
-      { label: "Moringa", href: "/commodities/browse?category=specialty&sub=moringa" },
-      { label: "Baobab", href: "/commodities/browse?category=specialty&sub=baobab" },
-    ],
-    featured: {
-      title: "Raw shea butter",
-      description: "Burkina Faso · $6.80/kg",
-      image:
-        "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/commodities/browse?category=specialty&promo=shea",
+        "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=furniture&promo=sofa",
     },
   },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
@@ -250,36 +184,27 @@ export function Navbar() {
   // Map a category English label to its translation key under nav.*.
   const labelKeyMap: Record<string, string> = {
     All: "all",
-    Electronics: "categoryElectronics",
-    Machinery: "categoryMachinery",
-    Textiles: "categoryTextiles",
-    Construction: "categoryConstruction",
-    Coffee: "categoryCoffee",
-    Cocoa: "categoryCocoa",
-    "Tea & Spices": "categoryTeaSpices",
-    Minerals: "categoryMinerals",
-    "Specialty Crops": "categorySpecialtyCrops",
+    Cosmetics: "categoryCosmetics",
+    "Consumer Electronics": "categoryConsumerElectronics",
+    Groceries: "categoryGroceries",
+    "Baby Products": "categoryBabyProducts",
+    "Hotel Interiors": "categoryHotelInteriors",
+    Furniture: "categoryFurniture",
     RFQ: "rfq",
   };
   const tCat = (label: string) =>
     labelKeyMap[label] ? t(labelKeyMap[label]) : label;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
-  const [scope, setScope] = useState<"all" | "products" | "commodities" | "suppliers">("all");
+  const [scope, setScope] = useState<"all" | "products">("all");
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
   const categoryStripRef = useRef<HTMLDivElement>(null);
 
-  const portal: "products" | "commodities" =
-    pathname?.startsWith("/commodities") ? "commodities" : "products";
-
-  const activeCategoryGroups: CategoryGroup[] =
-    portal === "commodities" ? COMMODITY_CATEGORIES : PRODUCT_CATEGORIES;
+  const activeCategoryGroups: CategoryGroup[] = PRODUCT_CATEGORIES;
 
   const TOP_LINKS = [
     { label: t("products"), href: "/marketplace" },
-    { label: t("commodities"), href: "/commodities" },
-    { label: t("suppliers"), href: "/suppliers" },
     { label: t("rfq"), href: "/dashboard/rfq" },
     { label: t("tradeAssurance"), href: "/trade-assurance" },
   ];
@@ -315,8 +240,6 @@ export function Navbar() {
   const scopeLabel: Record<typeof scope, string> = {
     all: t("scopeAll"),
     products: t("scopeProducts"),
-    commodities: t("scopeCommodities"),
-    suppliers: t("scopeSuppliers"),
   };
 
   return (
@@ -368,44 +291,10 @@ export function Navbar() {
               </div>
             </Link>
 
-            {/* Portal toggle — Products | Commodities */}
-            <div
-              className="hidden md:inline-flex items-center p-1 rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] shrink-0"
-              role="tablist"
-              aria-label="Switch portal"
-            >
-              <Link
-                href="/"
-                role="tab"
-                aria-selected={portal === "products"}
-                className={`px-3.5 lg:px-4 h-8 inline-flex items-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors ${
-                  portal === "products"
-                    ? "bg-[var(--obsidian)] text-[var(--ivory)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" />
-                {t("products")}
-              </Link>
-              <Link
-                href="/commodities"
-                role="tab"
-                aria-selected={portal === "commodities"}
-                className={`px-3.5 lg:px-4 h-8 inline-flex items-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors ${
-                  portal === "commodities"
-                    ? "bg-[var(--obsidian)] text-[var(--ivory)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <Leaf className="w-3.5 h-3.5" />
-                {t("commodities")}
-              </Link>
-            </div>
-
             {/* Search bar — IKEA-style: scope + input + button */}
             <form
               action="/marketplace"
-              className="hidden md:flex flex-1 max-w-[760px] h-12 rounded-full border border-[var(--border-default)] hover:border-[var(--text-tertiary)] focus-within:border-[var(--obsidian)] focus-within:shadow-[0_0_0_3px_rgba(212,168,83,0.15)] bg-white transition-all overflow-hidden"
+              className="hidden md:flex flex-1 max-w-[760px] h-12 rounded-full border border-[var(--border-default)] hover:border-[var(--text-tertiary)] focus-within:border-[var(--obsidian)] focus-within:shadow-[0_0_0_3px_rgba(216,159,46,0.15)] bg-white transition-all overflow-hidden"
             >
               {/* Scope selector */}
               <div className="relative" ref={scopeRef}>
@@ -419,7 +308,7 @@ export function Navbar() {
                 </button>
                 {scopeOpen && (
                   <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-[var(--border-subtle)] py-2 animate-scale-in z-10">
-                    {(["all", "products", "commodities", "suppliers"] as const).map((s) => (
+                    {(["all", "products"] as const).map((s) => (
                       <button
                         type="button"
                         key={s}

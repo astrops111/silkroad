@@ -6,12 +6,12 @@ import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   ArrowUpRight,
-  Factory,
-  Package,
-  Truck,
-  Zap,
-  Wrench,
-  Shirt,
+  Sparkles,
+  Smartphone,
+  ShoppingBasket,
+  Baby,
+  BedDouble,
+  Sofa,
 } from "lucide-react";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
@@ -62,13 +62,6 @@ function HeroSection() {
               >
                 {t("hero.browseCta")}
                 <ArrowUpRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="/commodities"
-                className="text-sm font-semibold text-white/85 hover:text-white inline-flex items-center gap-1.5 transition-colors"
-              >
-                {t("hero.switchCta")}
-                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -153,46 +146,52 @@ function FeaturedCategories() {
   const t = useTranslations("marketing.products.categories");
   const categories = [
     {
+      name: t("cosmetics"),
+      count: "2,800+",
+      image:
+        "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Sparkles,
+      href: "/marketplace?category=cosmetics",
+    },
+    {
       name: t("consumerElectronics"),
       count: "3,400+",
       image:
         "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Zap,
+      icon: Smartphone,
+      href: "/marketplace?category=electronics",
     },
     {
-      name: t("machineryParts"),
+      name: t("groceries"),
       count: "2,100+",
       image:
-        "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Factory,
+        "https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: ShoppingBasket,
+      href: "/marketplace?category=groceries",
     },
     {
-      name: t("textilesApparel"),
-      count: "1,800+",
-      image:
-        "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Shirt,
-    },
-    {
-      name: t("constructionHardware"),
+      name: t("babyProducts"),
       count: "1,200+",
       image:
-        "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Wrench,
+        "https://images.pexels.com/photos/3933250/pexels-photo-3933250.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Baby,
+      href: "/marketplace?category=baby",
     },
     {
-      name: t("autoTransport"),
+      name: t("hotelInteriors"),
       count: "1,500+",
       image:
-        "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Truck,
+        "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: BedDouble,
+      href: "/marketplace?category=hotel",
     },
     {
-      name: t("packagingPrint"),
-      count: "640+",
+      name: t("furniture"),
+      count: "1,800+",
       image:
-        "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Package,
+        "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=900",
+      icon: Sofa,
+      href: "/marketplace?category=furniture",
     },
   ];
 
@@ -224,7 +223,7 @@ function FeaturedCategories() {
           {categories.map((cat) => (
             <Link
               key={cat.name}
-              href="/marketplace"
+              href={cat.href}
               className="group relative isolate flex flex-col justify-end p-6 h-48 lg:h-64 rounded-2xl overflow-hidden border border-[var(--border-subtle)] hover:shadow-lg transition-all duration-300"
             >
               <Image
@@ -386,7 +385,7 @@ function CTASection() {
             className="absolute top-0 right-0 w-[500px] h-[500px]"
             style={{
               background:
-                "radial-gradient(ellipse at top right, rgba(212,168,83,0.1), transparent 60%)",
+                "radial-gradient(ellipse at top right, rgba(216,159,46,0.1), transparent 60%)",
             }}
           />
 
