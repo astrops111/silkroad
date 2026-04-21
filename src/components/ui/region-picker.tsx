@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Globe } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
+import { Check, ChevronDown, Globe, Loader2 } from "lucide-react";
+import { setUserLocale } from "@/i18n/set-locale";
+import { useRegion } from "@/lib/providers/region-provider";
+import type { Locale } from "@/i18n/routing";
 
 type Country = { code: string; name: string; flag: string; defaultLang: string; defaultCurrency: string };
 type Language = { code: string; label: string; native: string };
@@ -56,11 +61,19 @@ const CURRENCIES: Currency[] = [
 type Variant = "compact" | "full";
 
 export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
+  const router = useRouter();
+  const activeLocale = useLocale();
+  const region = useRegion();
   const [open, setOpen] = useState(false);
-  const [country, setCountry] = useState<Country>(COUNTRIES[0]);
-  const [language, setLanguage] = useState<Language>(LANGUAGES[0]);
-  const [currency, setCurrency] = useState<Currency>(CURRENCIES[0]);
+  const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+
+  const country =
+    COUNTRIES.find((c) => c.code === region.country) ?? COUNTRIES[0];
+  const currency =
+    CURRENCIES.find((c) => c.code === region.currency) ?? CURRENCIES[0];
+  const language =
+    LANGUAGES.find((l) => l.code === activeLocale) ?? LANGUAGES[0];
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -79,12 +92,26 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
     };
   }, []);
 
+  const applyLocale = (code: string) => {
+    if (!LANGUAGES.find((l) => l.code === code)) return;
+    startTransition(async () => {
+      await setUserLocale(code as Locale);
+      router.refresh();
+    });
+  };
+
   const onCountrySelect = (c: Country) => {
-    setCountry(c);
-    const lang = LANGUAGES.find((l) => l.code === c.defaultLang);
-    if (lang) setLanguage(lang);
-    const cur = CURRENCIES.find((cu) => cu.code === c.defaultCurrency);
-    if (cur) setCurrency(cur);
+    region.setCountry(c.code);
+    region.setCurrency(c.defaultCurrency);
+    applyLocale(c.defaultLang);
+  };
+
+  const onLanguageSelect = (l: Language) => {
+    applyLocale(l.code);
+  };
+
+  const onCurrencySelect = (cu: Currency) => {
+    region.setCurrency(cu.code);
   };
 
   return (
@@ -100,7 +127,11 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
             : "inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)] transition-colors"
         }
       >
-        <Globe className="w-3.5 h-3.5" />
+        {pending ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Globe className="w-3.5 h-3.5" />
+        )}
         <span className="font-semibold">{country.flag}</span>
         <span>
           {language.code.toUpperCase()} · {currency.code}
@@ -134,7 +165,9 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
                   <li key={c.code}>
                     <button
                       type="button"
-                      onClick={() => onCountrySelect(c)}
+                      onClick={() => {
+                        onCountrySelect(c);
+                      }}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                         c.code === country.code
                           ? "bg-[var(--amber)]/10 text-[var(--text-primary)] font-semibold"
@@ -158,7 +191,7 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
                   <li key={l.code}>
                     <button
                       type="button"
-                      onClick={() => setLanguage(l)}
+                      onClick={() => onLanguageSelect(l)}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                         l.code === language.code
                           ? "bg-[var(--amber)]/10 text-[var(--text-primary)] font-semibold"
@@ -184,7 +217,7 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
                   <li key={cu.code}>
                     <button
                       type="button"
-                      onClick={() => setCurrency(cu)}
+                      onClick={() => onCurrencySelect(cu)}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                         cu.code === currency.code
                           ? "bg-[var(--amber)]/10 text-[var(--text-primary)] font-semibold"
