@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -18,13 +20,16 @@ import {
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 
-export const metadata: Metadata = {
-  title: "About — Silk Road Africa",
-  description:
-    "How Silk Road Africa connects Chinese manufacturers with African businesses, and African producers with Chinese importers.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("marketing.about");
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
+}
 
 function PageHeader() {
+  const t = useTranslations("marketing.about");
   return (
     <section className="relative isolate overflow-hidden border-b border-[var(--border-subtle)] pt-[148px] pb-24 lg:pb-32">
       <Image
@@ -39,19 +44,16 @@ function PageHeader() {
 
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
         <span className="text-xs font-semibold text-[var(--amber)] tracking-[0.15em] uppercase">
-          About Silk Road Africa
+          {t("eyebrow")}
         </span>
         <h1
           className="mt-4 text-4xl lg:text-6xl font-bold tracking-tight text-white max-w-3xl leading-[1.05]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Trade infrastructure for two continents.
+          {t("title")}
         </h1>
         <p className="mt-6 text-lg text-white/80 max-w-2xl leading-relaxed">
-          We connect Chinese manufacturers with African businesses — and African
-          producers with Chinese importers — on a single B2B platform built for
-          how this trade actually works: mobile-money payments, bonded
-          logistics, multi-language support, and trade assurance on every order.
+          {t("subtitle")}
         </p>
       </div>
     </section>
@@ -59,22 +61,24 @@ function PageHeader() {
 }
 
 function TradeFlowDiagram() {
+  const t = useTranslations("marketing.about");
+  const mfg = [t("mfg1"), t("mfg2"), t("mfg3"), t("mfg4")];
+  const prod = [t("prod1"), t("prod2"), t("prod3"), t("prod4")];
   return (
     <section className="py-24 lg:py-32 bg-[var(--surface-secondary)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
         <div className="text-center mb-16">
           <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
-            Bidirectional Commerce
+            {t("flowEyebrow")}
           </span>
           <h2
             className="mt-4 text-3xl lg:text-5xl font-bold tracking-tight text-[var(--obsidian)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            How trade flows on Silk Road
+            {t("flowTitle")}
           </h2>
           <p className="mt-5 text-[var(--text-secondary)] max-w-xl mx-auto">
-            Two source markets. One platform. Verified suppliers and importers
-            on both sides of every transaction.
+            {t("flowSubtitle")}
           </p>
         </div>
 
@@ -86,20 +90,15 @@ function TradeFlowDiagram() {
               </div>
               <div>
                 <div className="text-base font-bold text-[var(--obsidian)]">
-                  Chinese Manufacturers
+                  {t("chineseManufacturers")}
                 </div>
                 <div className="text-sm text-[var(--text-tertiary)]">
-                  Guangdong · Zhejiang · Fujian
+                  {t("chineseRegions")}
                 </div>
               </div>
             </div>
             <div className="space-y-2.5">
-              {[
-                "Electronics & Components",
-                "Machinery & Equipment",
-                "Textiles & Apparel",
-                "Construction & Hardware",
-              ].map((cat) => (
+              {mfg.map((cat) => (
                 <div
                   key={cat}
                   className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--surface-secondary)] text-sm text-[var(--text-secondary)]"
@@ -128,20 +127,15 @@ function TradeFlowDiagram() {
               </div>
               <div>
                 <div className="text-base font-bold text-[var(--obsidian)]">
-                  African Producers
+                  {t("africanProducers")}
                 </div>
                 <div className="text-sm text-[var(--text-tertiary)]">
-                  Kenya · Ethiopia · Rwanda · Ghana
+                  {t("africanRegions")}
                 </div>
               </div>
             </div>
             <div className="space-y-2.5">
-              {[
-                "Premium Arabica Coffee",
-                "Organic Cocoa Beans",
-                "Specialty Tea & Spices",
-                "Minerals & Metals",
-              ].map((cat) => (
+              {prod.map((cat) => (
                 <div
                   key={cat}
                   className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--surface-secondary)] text-sm text-[var(--text-secondary)]"
@@ -159,27 +153,12 @@ function TradeFlowDiagram() {
 }
 
 function Pillars() {
+  const t = useTranslations("marketing.about");
   const pillars = [
-    {
-      icon: Shield,
-      title: "Trade Assurance",
-      desc: "Every transaction is held in escrow until you confirm delivery and quality. Disputes are mediated by Silk Road operations.",
-    },
-    {
-      icon: Truck,
-      title: "Owned Logistics",
-      desc: "Our own fleet, drivers, and bonded warehouses move goods door-to-door across 27+ African countries — not third-party carriers.",
-    },
-    {
-      icon: Globe,
-      title: "Local-First Payments",
-      desc: "MTN MoMo, Airtel Money, M-Pesa, Alipay, WeChat Pay, bank transfer. Pay the way your business already pays.",
-    },
-    {
-      icon: Users,
-      title: "Verified On Both Sides",
-      desc: "KYC verification, factory inspections, and business license validation for every supplier and importer on the platform.",
-    },
+    { icon: Shield, title: t("pillar1Title"), desc: t("pillar1Body") },
+    { icon: Truck, title: t("pillar2Title"), desc: t("pillar2Body") },
+    { icon: Globe, title: t("pillar3Title"), desc: t("pillar3Body") },
+    { icon: Users, title: t("pillar4Title"), desc: t("pillar4Body") },
   ];
 
   return (
@@ -187,13 +166,13 @@ function Pillars() {
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
         <div className="mb-14 max-w-2xl">
           <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
-            What We Do
+            {t("pillarsEyebrow")}
           </span>
           <h2
             className="mt-4 text-3xl lg:text-4xl font-bold tracking-tight text-[var(--obsidian)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Four pillars of cross-continental B2B
+            {t("pillarsTitle")}
           </h2>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
@@ -223,6 +202,7 @@ function Pillars() {
 }
 
 function SocialProof() {
+  const t = useTranslations("marketing.about");
   const testimonials = [
     {
       quote:
@@ -263,10 +243,10 @@ function SocialProof() {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10 relative">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16 pb-16 border-b border-white/[0.06]">
           {[
-            { value: "$2.4B+", label: "Trade Volume", icon: TrendingUp },
-            { value: "12,000+", label: "Verified Suppliers", icon: Users },
-            { value: "54", label: "African Countries", icon: Globe },
-            { value: "98.2%", label: "Satisfaction Rate", icon: Star },
+            { value: "$2.4B+", label: t("stat1Label"), icon: TrendingUp },
+            { value: "12,000+", label: t("stat2Label"), icon: Users },
+            { value: "54", label: t("stat3Label"), icon: Globe },
+            { value: "98.2%", label: t("stat4Label"), icon: Star },
           ].map((stat) => (
             <div key={stat.label} className="text-center lg:text-left">
               <stat.icon className="w-5 h-5 text-[var(--amber)] mx-auto lg:mx-0 mb-3 opacity-70" />
@@ -283,7 +263,7 @@ function SocialProof() {
 
         <div>
           <span className="text-xs font-semibold text-[var(--amber)] tracking-[0.15em] uppercase">
-            Trusted by Businesses Across Two Continents
+            {t("socialProofEyebrow")}
           </span>
           <div className="mt-8 grid md:grid-cols-3 gap-5">
             {testimonials.map((t) => (
@@ -325,6 +305,7 @@ function SocialProof() {
 }
 
 function CTA() {
+  const t = useTranslations("marketing.about");
   return (
     <section className="py-24 bg-[var(--surface-secondary)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
@@ -334,26 +315,24 @@ function CTA() {
               className="text-3xl lg:text-4xl font-bold text-[var(--ivory)] tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Start trading across continents
+              {t("ctaTitle")}
               <span className="text-[var(--amber)]">.</span>
             </h2>
-            <p className="mt-4 text-white/55 max-w-lg">
-              Free to join. No listing fees for the first 50 products.
-            </p>
+            <p className="mt-4 text-white/55 max-w-lg">{t("ctaBody")}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 min-w-fit">
             <Link
               href="/auth/register?role=buyer"
               className="btn-primary !py-3.5 !px-7"
             >
-              I Want to Buy
+              {t("ctaBuyer")}
               <ArrowUpRight className="w-4 h-4" />
             </Link>
             <Link
               href="/auth/register?role=supplier"
               className="btn-secondary !py-3.5 !px-7"
             >
-              I Want to Sell
+              {t("ctaSupplier")}
             </Link>
           </div>
         </div>

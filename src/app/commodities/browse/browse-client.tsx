@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -20,13 +20,28 @@ import { useRegion } from "@/lib/providers/region-provider";
 import { formatConvertedPriceWithCode } from "@/lib/currency/formatter";
 
 const COMMODITY_CATEGORIES = [
-  { slug: null, label: "All Commodities" },
-  { slug: "coffee", label: "Coffee" },
-  { slug: "cocoa", label: "Cocoa" },
-  { slug: "tea", label: "Tea" },
-  { slug: "spices", label: "Spices" },
-  { slug: "minerals", label: "Minerals" },
-  { slug: "specialty", label: "Specialty Crops" },
+  { slug: null, key: "categoryAll" },
+  { slug: "coffee", key: "categoryCoffee" },
+  { slug: "cocoa", key: "categoryCocoa" },
+  { slug: "tea", key: "categoryTea" },
+  { slug: "spices", key: "categorySpices" },
+  { slug: "minerals", key: "categoryMinerals" },
+  { slug: "specialty", key: "categorySpecialty" },
+] as const;
+
+const CERTIFICATIONS = [
+  { key: "certFairTrade" },
+  { key: "certOrganic" },
+  { key: "certSpecialty" },
+  { key: "certSingleEstate" },
+  { key: "certTraceable" },
+] as const;
+
+const REGIONS = [
+  { key: "regionEastAfrica" },
+  { key: "regionWestAfrica" },
+  { key: "regionSouthernAfrica" },
+  { key: "regionNorthAfrica" },
 ] as const;
 
 type Commodity = {
@@ -213,6 +228,7 @@ function FilterSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useTranslations("marketing.browse");
 
   const buildHref = (slug: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -251,7 +267,7 @@ function FilterSidebar({
               className="text-lg font-bold"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Filters
+              {t("filtersHeading")}
             </h3>
             <button
               onClick={onClose}
@@ -263,14 +279,14 @@ function FilterSidebar({
 
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Commodity
+              {t("commodityHeading")}
             </h4>
             <div className="space-y-1">
               {COMMODITY_CATEGORIES.map((cat) => {
                 const isActive = (cat.slug ?? null) === activeSlug;
                 return (
                   <Link
-                    key={cat.label}
+                    key={cat.key}
                     href={buildHref(cat.slug)}
                     onClick={onClose}
                     scroll={false}
@@ -280,7 +296,7 @@ function FilterSidebar({
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
-                    {cat.label}
+                    {t(cat.key)}
                   </Link>
                 );
               })}
@@ -289,22 +305,16 @@ function FilterSidebar({
 
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Certification
+              {t("certificationHeading")}
             </h4>
             <div className="space-y-2">
-              {[
-                "Fair Trade",
-                "Organic",
-                "Specialty",
-                "Single-Estate",
-                "Traceable",
-              ].map((label) => (
+              {CERTIFICATIONS.map((cert) => (
                 <label
-                  key={label}
+                  key={cert.key}
                   className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
                 >
                   <div className="w-4 h-4 rounded border border-[var(--border-strong)]" />
-                  {label}
+                  {t(cert.key)}
                 </label>
               ))}
             </div>
@@ -312,20 +322,18 @@ function FilterSidebar({
 
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Source Region
+              {t("regionHeading")}
             </h4>
             <div className="space-y-2">
-              {["East Africa", "West Africa", "Southern Africa", "North Africa"].map(
-                (label) => (
-                  <label
-                    key={label}
-                    className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
-                  >
-                    <div className="w-4 h-4 rounded border border-[var(--border-strong)]" />
-                    {label}
-                  </label>
-                ),
-              )}
+              {REGIONS.map((region) => (
+                <label
+                  key={region.key}
+                  className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
+                >
+                  <div className="w-4 h-4 rounded border border-[var(--border-strong)]" />
+                  {t(region.key)}
+                </label>
+              ))}
             </div>
           </div>
         </div>
@@ -341,11 +349,13 @@ export function CommoditiesBrowseClient() {
   const searchParams = useSearchParams();
   const region = useRegion();
   const locale = useLocale();
+  const t = useTranslations("marketing.browse");
 
   const categorySlug = searchParams.get("category");
   const subSlug = searchParams.get("sub");
   const activeCategory =
     COMMODITY_CATEGORIES.find((c) => c.slug === categorySlug) ?? null;
+  const activeCategoryLabel = activeCategory ? t(activeCategory.key) : "";
 
   const displayCommodities = useMemo(() => {
     if (!activeCategory?.slug) return COMMODITIES;
@@ -371,33 +381,34 @@ export function CommoditiesBrowseClient() {
                 href="/commodities"
                 className="hover:text-[var(--text-primary)] transition-colors"
               >
-                Commodities Portal
+                {t("breadcrumbHome")}
               </Link>
               <span>/</span>
-              <span>Browse</span>
+              <span>{t("breadcrumbBrowse")}</span>
             </div>
             <h1
               className="text-2xl lg:text-3xl font-bold text-[var(--obsidian)] tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              {activeCategory?.slug ? activeCategory.label : "Browse Commodities"}
+              {activeCategory?.slug ? activeCategoryLabel : t("title")}
             </h1>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
               {activeCategory?.slug
-                ? `${displayCommodities.length} ${
-                    displayCommodities.length === 1 ? "lot" : "lots"
-                  } in ${activeCategory.label}`
-                : "African coffee, cocoa, tea, spices, and minerals from verified cooperatives"}
+                ? t("lotCount", {
+                    count: displayCommodities.length,
+                    category: activeCategoryLabel,
+                  })
+                : t("subtitle")}
             </p>
 
             {(activeCategory?.slug || subSlug) && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mr-1">
-                  Filters
+                  {t("filterChipLabel")}
                 </span>
                 {activeCategory?.slug && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--terracotta)]/12 border border-[var(--terracotta)]/25 text-[var(--terracotta)]">
-                    {activeCategory.label}
+                    {activeCategoryLabel}
                   </span>
                 )}
                 {subSlug && (
@@ -410,7 +421,7 @@ export function CommoditiesBrowseClient() {
                   onClick={clearFilter}
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                  Clear
+                  {t("clear")}
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -420,11 +431,11 @@ export function CommoditiesBrowseClient() {
               <Search className="w-4 h-4 ml-4 text-[var(--text-tertiary)]" />
               <input
                 type="text"
-                placeholder="Search commodities, cooperatives, regions…"
+                placeholder={t("searchPlaceholder")}
                 className="w-full bg-transparent px-3 text-sm outline-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
               <button className="h-full px-6 text-sm font-semibold bg-[var(--terracotta)] text-white rounded-xl hover:opacity-90 transition-opacity">
-                Search
+                {t("searchButton")}
               </button>
             </div>
           </div>
@@ -445,16 +456,19 @@ export function CommoditiesBrowseClient() {
                   className="lg:hidden flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
                 >
                   <SlidersHorizontal className="w-4 h-4" />
-                  Filters
+                  {t("filtersHeading")}
                 </button>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Showing {displayCommodities.length} of {COMMODITIES.length} lots
+                  {t("showing", {
+                    shown: displayCommodities.length,
+                    total: COMMODITIES.length,
+                  })}
                 </p>
               </div>
 
               {displayCommodities.length === 0 ? (
                 <div className="py-16 text-center text-[var(--text-secondary)]">
-                  No commodities match this filter.
+                  {t("noResults")}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -522,7 +536,7 @@ export function CommoditiesBrowseClient() {
                         </div>
                         <div className="mt-4 flex items-center justify-between">
                           <span className="text-xs font-semibold text-[var(--terracotta)]">
-                            View lot
+                            {t("viewLot")}
                           </span>
                           <ArrowUpRight className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--terracotta)] transition-colors" />
                         </div>

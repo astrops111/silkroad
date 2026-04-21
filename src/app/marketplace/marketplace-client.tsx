@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import {
@@ -43,15 +44,15 @@ export interface MarketplaceProduct {
 }
 
 const CATEGORIES = [
-  { slug: null, label: "All Categories" },
-  { slug: "electronics", label: "Electronics & Components" },
-  { slug: "machinery", label: "Machinery & Equipment" },
-  { slug: "textiles", label: "Textiles & Apparel" },
-  { slug: "construction", label: "Construction Materials" },
-  { slug: "auto", label: "Auto Parts & Accessories" },
-  { slug: "home", label: "Home & Garden" },
-  { slug: "beauty", label: "Health & Beauty" },
-  { slug: "food", label: "Food & Agriculture" },
+  { slug: null, key: "categoryAll", matchLabel: null },
+  { slug: "electronics", key: "categoryElectronics", matchLabel: "Electronics & Components" },
+  { slug: "machinery", key: "categoryMachinery", matchLabel: "Machinery & Equipment" },
+  { slug: "textiles", key: "categoryTextiles", matchLabel: "Textiles & Apparel" },
+  { slug: "construction", key: "categoryConstruction", matchLabel: "Construction Materials" },
+  { slug: "auto", key: "categoryAuto", matchLabel: "Auto Parts & Accessories" },
+  { slug: "home", key: "categoryHome", matchLabel: "Home & Garden" },
+  { slug: "beauty", key: "categoryBeauty", matchLabel: "Health & Beauty" },
+  { slug: "food", key: "categoryFood", matchLabel: "Food & Agriculture" },
 ] as const;
 
 const PRODUCTS = [
@@ -228,6 +229,21 @@ function FilterSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useTranslations("marketing.marketplace");
+
+  const moqRanges = [
+    { key: "any", label: t("moqAny") },
+    { key: "1-10", label: t("moqUnits", { range: "1-10" }) },
+    { key: "10-100", label: t("moqUnits", { range: "10-100" }) },
+    { key: "100-500", label: t("moqUnits", { range: "100-500" }) },
+    { key: "500+", label: t("moqUnits", { range: "500+" }) },
+  ];
+
+  const supplierFilters = [
+    { label: t("filterVerified"), checked: false },
+    { label: t("filterTradeAssurance"), checked: true },
+    { label: t("filter4Star"), checked: false },
+  ];
 
   const buildHref = (slug: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -269,7 +285,7 @@ function FilterSidebar({
               className="text-lg font-bold"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Filters
+              {t("filtersHeading")}
             </h3>
             <button
               onClick={onClose}
@@ -282,14 +298,14 @@ function FilterSidebar({
           {/* Categories */}
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Category
+              {t("categoryHeading")}
             </h4>
             <div className="space-y-1">
               {CATEGORIES.map((cat) => {
                 const isActive = (cat.slug ?? null) === activeCategorySlug;
                 return (
                   <Link
-                    key={cat.label}
+                    key={cat.key}
                     href={buildHref(cat.slug)}
                     onClick={onClose}
                     scroll={false}
@@ -299,7 +315,7 @@ function FilterSidebar({
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
-                    {cat.label}
+                    {t(cat.key)}
                   </Link>
                 );
               })}
@@ -309,18 +325,18 @@ function FilterSidebar({
           {/* Price range */}
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Price Range (USD)
+              {t("priceHeading")}
             </h4>
             <div className="flex items-center gap-3">
               <input
                 type="text"
-                placeholder="Min"
+                placeholder={t("priceMin")}
                 className="w-full px-3 py-2.5 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-secondary)] outline-none focus:border-[var(--amber)] transition-colors"
               />
               <span className="text-[var(--text-tertiary)]">&mdash;</span>
               <input
                 type="text"
-                placeholder="Max"
+                placeholder={t("priceMax")}
                 className="w-full px-3 py-2.5 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-secondary)] outline-none focus:border-[var(--amber)] transition-colors"
               />
             </div>
@@ -329,20 +345,20 @@ function FilterSidebar({
           {/* MOQ range */}
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Minimum Order
+              {t("moqHeading")}
             </h4>
             <div className="space-y-2">
-              {["Any", "1-10", "10-100", "100-500", "500+"].map((range) => (
+              {moqRanges.map((range) => (
                 <label
-                  key={range}
+                  key={range.key}
                   className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
                 >
                   <div className="w-4 h-4 rounded border border-[var(--border-strong)] flex items-center justify-center">
-                    {range === "Any" && (
+                    {range.key === "any" && (
                       <div className="w-2.5 h-2.5 rounded-sm bg-[var(--amber)]" />
                     )}
                   </div>
-                  {range} units
+                  {range.label}
                 </label>
               ))}
             </div>
@@ -351,14 +367,10 @@ function FilterSidebar({
           {/* Supplier filters */}
           <div className="mb-8">
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Supplier
+              {t("supplierHeading")}
             </h4>
             <div className="space-y-2">
-              {[
-                { label: "Verified Only", checked: false },
-                { label: "Trade Assurance", checked: true },
-                { label: "4+ Star Rating", checked: false },
-              ].map((filter) => (
+              {supplierFilters.map((filter) => (
                 <label
                   key={filter.label}
                   className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
@@ -377,7 +389,7 @@ function FilterSidebar({
           {/* Supplier location */}
           <div>
             <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              Supplier Region
+              {t("supplierRegionHeading")}
             </h4>
             <div className="space-y-2">
               {[
@@ -520,17 +532,19 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useTranslations("marketing.marketplace");
   const allProducts = initialProducts && initialProducts.length > 0 ? initialProducts : PRODUCTS;
 
   const categorySlug = searchParams.get("category");
   const subSlug = searchParams.get("sub");
   const activeCategory = CATEGORIES.find((c) => c.slug === categorySlug) ?? null;
+  const activeCategoryLabel = activeCategory ? t(activeCategory.key) : "";
 
   const displayProducts = useMemo(() => {
-    if (!activeCategory || !activeCategory.label || activeCategory.slug === null) {
+    if (!activeCategory || !activeCategory.matchLabel || activeCategory.slug === null) {
       return allProducts;
     }
-    return allProducts.filter((p) => p.category === activeCategory.label);
+    return allProducts.filter((p) => p.category === activeCategory.matchLabel);
   }, [allProducts, activeCategory]);
 
   const clearFilter = () => {
@@ -553,25 +567,26 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
               style={{ fontFamily: "var(--font-display)" }}
             >
               {activeCategory && activeCategory.slug
-                ? activeCategory.label
-                : "Marketplace"}
+                ? activeCategoryLabel
+                : t("title")}
             </h1>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
               {activeCategory && activeCategory.slug
-                ? `${displayProducts.length} ${
-                    displayProducts.length === 1 ? "product" : "products"
-                  } in ${activeCategory.label}`
-                : "Browse 12,000+ products from verified Chinese manufacturers"}
+                ? t("productCount", {
+                    count: displayProducts.length,
+                    category: activeCategoryLabel,
+                  })
+                : t("subtitle")}
             </p>
 
             {(activeCategory?.slug || subSlug) && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mr-1">
-                  Filters
+                  {t("filterChipLabel")}
                 </span>
                 {activeCategory?.slug && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--amber)]/12 border border-[var(--amber)]/25 text-[var(--amber-dark)]">
-                    {activeCategory.label}
+                    {activeCategoryLabel}
                   </span>
                 )}
                 {subSlug && (
@@ -584,7 +599,7 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
                   onClick={clearFilter}
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                  Clear
+                  {t("clear")}
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -595,11 +610,11 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
               <Search className="w-4 h-4 ml-4 text-[var(--text-tertiary)]" />
               <input
                 type="text"
-                placeholder="Search products, suppliers, or keywords..."
+                placeholder={t("searchPlaceholder")}
                 className="w-full bg-transparent px-3 text-sm outline-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
               <button className="h-full px-6 text-sm font-semibold bg-[var(--amber)] text-[var(--obsidian)] rounded-xl hover:bg-[var(--amber-light)] transition-colors">
-                Search
+                {t("searchButton")}
               </button>
             </div>
           </div>
@@ -625,27 +640,24 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
                     className="lg:hidden flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
                   >
                     <SlidersHorizontal className="w-4 h-4" />
-                    Filters
+                    {t("filtersHeading")}
                   </button>
                   <span className="text-sm text-[var(--text-tertiary)]">
-                    <strong className="text-[var(--text-primary)]">
-                      {displayProducts.length}
-                    </strong>{" "}
-                    products found
+                    {t("productsFound", { count: displayProducts.length })}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-primary)]">
                     <span className="text-[var(--text-tertiary)] text-xs">
-                      Sort:
+                      {t("sortLabel")}
                     </span>
                     <select className="bg-transparent text-sm font-medium text-[var(--text-primary)] outline-none cursor-pointer">
-                      <option>Best Match</option>
-                      <option>Price: Low to High</option>
-                      <option>Price: High to Low</option>
-                      <option>Newest</option>
-                      <option>Most Popular</option>
+                      <option>{t("sortBestMatch")}</option>
+                      <option>{t("sortPriceLowHigh")}</option>
+                      <option>{t("sortPriceHighLow")}</option>
+                      <option>{t("sortNewest")}</option>
+                      <option>{t("sortMostPopular")}</option>
                     </select>
                     <ChevronDown className="w-3 h-3 text-[var(--text-tertiary)]" />
                   </div>
