@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowUpRight } from "lucide-react";
 
 export type EditorialItem = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function EditorialBand({ eyebrow, title, items }: Props) {
+  const t = useTranslations("marketing.editorial");
   return (
     <section className="py-16 lg:py-20 bg-[var(--surface-secondary)]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
@@ -64,7 +66,7 @@ export function EditorialBand({ eyebrow, title, items }: Props) {
                   {item.description}
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--text-primary)] group-hover:gap-2 transition-all">
-                  Read guide
+                  {t("readGuide")}
                   <ArrowUpRight className="w-4 h-4" />
                 </span>
               </div>

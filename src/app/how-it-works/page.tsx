@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -19,18 +21,13 @@ import {
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 
-export const metadata: Metadata = {
-  title: "How It Works — Silk Road Africa",
-  description:
-    "Bidirectional B2B commerce across China and Africa. Discover, quote, pay, and ship — the four-step process and the trade flows that move through Silk Road.",
-};
-
 function PageHeader() {
+  const t = useTranslations("marketing.howItWorks");
   return (
     <section className="relative isolate overflow-hidden border-b border-[var(--border-subtle)] pt-[148px] pb-20 lg:pb-28">
       <Image
         src="https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=1800"
-        alt="Cargo trucks moving goods across borders"
+        alt={t("title")}
         fill
         priority
         sizes="100vw"
@@ -40,17 +37,16 @@ function PageHeader() {
 
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
         <span className="text-xs font-semibold text-[var(--amber)] tracking-[0.15em] uppercase">
-          How Silk Road Works
+          {t("eyebrow")}
         </span>
         <h1
           className="mt-4 text-4xl lg:text-6xl font-bold tracking-tight text-white max-w-3xl leading-[1.05]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Two continents. One platform. Four steps.
+          {t("title")}
         </h1>
         <p className="mt-5 text-lg text-white/80 max-w-2xl leading-relaxed">
-          From discovery to delivery, Silk Road handles the complexity of
-          China–Africa trade so you can focus on growing your business.
+          {t("subtitle")}
         </p>
       </div>
     </section>
@@ -58,41 +54,43 @@ function PageHeader() {
 }
 
 function TradeDirections() {
+  const t = useTranslations("marketing.howItWorks");
+  const tRegions = useTranslations("marketing.regions");
   const flows = [
     {
-      direction: "China → Africa",
-      tag: "Manufactured Goods",
+      direction: tRegions("chinaToAfrica"),
+      tag: t("flowChinaTag"),
       tagColor:
         "bg-[var(--indigo)]/10 text-[var(--indigo)] border-[var(--indigo)]/20",
-      title: "Source from 12,000+ verified Chinese factories",
-      desc: "Electronics, machinery, textiles, construction materials, auto parts — direct from manufacturers with MOQ as low as 10 units.",
+      title: t("flowChinaTitle"),
+      desc: t("flowChinaDesc"),
       categories: [
-        { icon: Zap, name: "Electronics", count: "3,400+" },
-        { icon: Factory, name: "Machinery", count: "2,100+" },
-        { icon: Package, name: "Textiles", count: "1,800+" },
-        { icon: Truck, name: "Construction", count: "1,200+" },
+        { icon: Zap, name: t("subElectronics"), count: "3,400+" },
+        { icon: Factory, name: t("subMachinery"), count: "2,100+" },
+        { icon: Package, name: t("subTextiles"), count: "1,800+" },
+        { icon: Truck, name: t("subConstruction"), count: "1,200+" },
       ],
       accent: "var(--indigo)",
       accentLight: "var(--indigo-light)",
-      cta: "Browse Products",
+      cta: t("flowChinaCta"),
       href: "/marketplace",
     },
     {
-      direction: "Africa → China",
-      tag: "Natural Resources & Commodities",
+      direction: tRegions("africaToChina"),
+      tag: t("flowAfricaTag"),
       tagColor:
         "bg-[var(--terracotta)]/10 text-[var(--terracotta)] border-[var(--terracotta)]/20",
-      title: "Export Africa's finest to the world's largest market",
-      desc: "Coffee, cocoa, tea, minerals, spices, and specialty crops — connecting cooperatives and producers directly with Chinese importers.",
+      title: t("flowAfricaTitle"),
+      desc: t("flowAfricaDesc"),
       categories: [
-        { icon: Coffee, name: "Coffee", count: "800+" },
-        { icon: Leaf, name: "Tea & Spices", count: "450+" },
-        { icon: Gem, name: "Minerals", count: "320+" },
-        { icon: Package, name: "Cocoa", count: "280+" },
+        { icon: Coffee, name: t("subCoffee"), count: "800+" },
+        { icon: Leaf, name: t("subTeaSpices"), count: "450+" },
+        { icon: Gem, name: t("subMinerals"), count: "320+" },
+        { icon: Package, name: t("subCocoa"), count: "280+" },
       ],
       accent: "var(--terracotta)",
       accentLight: "var(--terracotta-light)",
-      cta: "Browse Commodities",
+      cta: t("flowAfricaCta"),
       href: "/commodities",
     },
   ];
@@ -102,13 +100,13 @@ function TradeDirections() {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="text-center mb-14">
           <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
-            Bidirectional Commerce
+            {t("directionsEyebrow")}
           </span>
           <h2
             className="mt-3 text-3xl lg:text-4xl font-bold tracking-tight text-[var(--obsidian)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            What flows through Silk Road
+            {t("directionsTitle")}
           </h2>
         </div>
 
@@ -162,7 +160,7 @@ function TradeDirections() {
                         {cat.name}
                       </div>
                       <div className="text-xs text-[var(--text-tertiary)]">
-                        {cat.count} listings
+                        {t("listings", { count: cat.count })}
                       </div>
                     </div>
                   </div>
@@ -186,31 +184,12 @@ function TradeDirections() {
 }
 
 function HowItWorks() {
+  const t = useTranslations("marketing.howItWorks");
   const steps = [
-    {
-      number: "01",
-      icon: Search,
-      title: "Discover & Source",
-      desc: "Browse verified suppliers, compare products, and find the best deals across categories.",
-    },
-    {
-      number: "02",
-      icon: FileText,
-      title: "Request Quotation",
-      desc: "Submit your requirements. Receive competitive quotes from multiple verified suppliers.",
-    },
-    {
-      number: "03",
-      icon: CreditCard,
-      title: "Secure Payment",
-      desc: "Pay via escrow or mobile money. Funds held safely until you confirm delivery and quality.",
-    },
-    {
-      number: "04",
-      icon: Truck,
-      title: "Ship & Track",
-      desc: "Door-to-door logistics with real-time tracking, customs documentation, and insurance.",
-    },
+    { number: "01", icon: Search, title: t("step1Title"), desc: t("step1Desc") },
+    { number: "02", icon: FileText, title: t("step2Title"), desc: t("step2Desc") },
+    { number: "03", icon: CreditCard, title: t("step3Title"), desc: t("step3Desc") },
+    { number: "04", icon: Truck, title: t("step4Title"), desc: t("step4Desc") },
   ];
 
   return (
@@ -219,18 +198,17 @@ function HowItWorks() {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-12 gap-6">
           <div>
             <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
-              The Process
+              {t("stepsEyebrow")}
             </span>
             <h2
               className="mt-3 text-3xl lg:text-4xl font-bold tracking-tight text-[var(--obsidian)]"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Four steps, end to end
+              {t("stepsTitle")}
             </h2>
           </div>
           <p className="text-[var(--text-secondary)] max-w-sm leading-relaxed lg:text-right">
-            From the first search to the last-mile delivery, Silk Road handles
-            the complexity.
+            {t("stepsSubtitle")}
           </p>
         </div>
 
@@ -276,6 +254,7 @@ function HowItWorks() {
 }
 
 function CTA() {
+  const t = useTranslations("marketing.howItWorks");
   return (
     <section className="py-20 bg-[var(--surface-primary)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
@@ -285,10 +264,10 @@ function CTA() {
               className="text-2xl lg:text-3xl font-bold text-[var(--ivory)] tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Ready to start your first order?
+              {t("ctaTitle")}
             </h2>
             <p className="mt-3 text-white/55 max-w-lg">
-              Free to join. No listing fees for the first 50 products.
+              {t("ctaBody")}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 min-w-fit">
@@ -296,14 +275,14 @@ function CTA() {
               href="/auth/register?role=buyer"
               className="btn-primary !py-3.5 !px-7"
             >
-              I Want to Buy
+              {t("ctaBuyer")}
               <ArrowUpRight className="w-4 h-4" />
             </Link>
             <Link
               href="/auth/register?role=supplier"
               className="btn-secondary !py-3.5 !px-7"
             >
-              I Want to Sell
+              {t("ctaSupplier")}
             </Link>
           </div>
         </div>

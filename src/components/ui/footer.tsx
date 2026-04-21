@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowUpRight,
   Mail,
@@ -11,46 +12,63 @@ import {
 } from "lucide-react";
 import { RegionPicker } from "@/components/ui/region-picker";
 
-const FOOTER_LINKS: Record<string, { label: string; href: string }[]> = {
-  "Shop": [
-    { label: "All products", href: "/marketplace" },
-    { label: "African commodities", href: "/commodities" },
-    { label: "Verified suppliers", href: "/suppliers" },
-    { label: "New arrivals", href: "/marketplace?sort=newest" },
-    { label: "Featured deals", href: "/marketplace?featured=1" },
-  ],
-  "Buy on Silk Road": [
-    { label: "How to buy", href: "/how-to-buy" },
-    { label: "Request for quotation", href: "/dashboard/rfq" },
-    { label: "Trade assurance", href: "/trade-assurance" },
-    { label: "Buyer protection", href: "/buyer-protection" },
-    { label: "Payment methods", href: "/payments" },
-    { label: "Customs & duties", href: "/customs" },
-  ],
-  "Sell on Silk Road": [
-    { label: "Become a supplier", href: "/sell" },
-    { label: "Supplier center", href: "/supplier-center" },
-    { label: "Verification process", href: "/verification" },
-    { label: "Fees & commissions", href: "/fees" },
-    { label: "Advertising", href: "/advertising" },
-    { label: "API & integrations", href: "/api" },
-  ],
-  "Services": [
-    { label: "Logistics & shipping", href: "/logistics" },
-    { label: "Mobile money", href: "/payments#mobile-money" },
-    { label: "Inspection services", href: "/inspection" },
-    { label: "Trade financing", href: "/financing" },
-    { label: "Insurance", href: "/insurance" },
-  ],
-  "Company": [
-    { label: "About us", href: "/about" },
-    { label: "Careers", href: "/careers" },
-    { label: "Press & media", href: "/press" },
-    { label: "Blog & resources", href: "/resources" },
-    { label: "Contact", href: "/contact" },
-    { label: "Help center", href: "/help" },
-  ],
-};
+type FooterColumn = { headingKey: string; links: { labelKey: string; href: string }[] };
+
+const FOOTER_COLUMNS: FooterColumn[] = [
+  {
+    headingKey: "shopHeading",
+    links: [
+      { labelKey: "shopAllProducts", href: "/marketplace" },
+      { labelKey: "shopAfricanCommodities", href: "/commodities" },
+      { labelKey: "shopVerifiedSuppliers", href: "/suppliers" },
+      { labelKey: "shopNewArrivals", href: "/marketplace?sort=newest" },
+      { labelKey: "shopFeaturedDeals", href: "/marketplace?featured=1" },
+    ],
+  },
+  {
+    headingKey: "buyHeading",
+    links: [
+      { labelKey: "buyHowToBuy", href: "/how-to-buy" },
+      { labelKey: "buyRfq", href: "/dashboard/rfq" },
+      { labelKey: "buyTradeAssurance", href: "/trade-assurance" },
+      { labelKey: "buyBuyerProtection", href: "/buyer-protection" },
+      { labelKey: "buyPaymentMethods", href: "/payments" },
+      { labelKey: "buyCustoms", href: "/customs" },
+    ],
+  },
+  {
+    headingKey: "sellHeading",
+    links: [
+      { labelKey: "sellBecomeSupplier", href: "/sell" },
+      { labelKey: "sellSupplierCenter", href: "/supplier-center" },
+      { labelKey: "sellVerification", href: "/verification" },
+      { labelKey: "sellFees", href: "/fees" },
+      { labelKey: "sellAdvertising", href: "/advertising" },
+      { labelKey: "sellApi", href: "/api" },
+    ],
+  },
+  {
+    headingKey: "servicesHeading",
+    links: [
+      { labelKey: "servicesLogistics", href: "/logistics" },
+      { labelKey: "servicesMobileMoney", href: "/payments#mobile-money" },
+      { labelKey: "servicesInspection", href: "/inspection" },
+      { labelKey: "servicesFinancing", href: "/financing" },
+      { labelKey: "servicesInsurance", href: "/insurance" },
+    ],
+  },
+  {
+    headingKey: "companyHeading",
+    links: [
+      { labelKey: "companyAbout", href: "/about" },
+      { labelKey: "companyCareers", href: "/careers" },
+      { labelKey: "companyPress", href: "/press" },
+      { labelKey: "companyBlog", href: "/resources" },
+      { labelKey: "companyContact", href: "/contact" },
+      { labelKey: "companyHelp", href: "/help" },
+    ],
+  },
+];
 
 const TRADE_REGIONS = [
   "Nigeria",
@@ -72,13 +90,14 @@ const TRADE_REGIONS = [
 ];
 
 const TRUST_BADGES = [
-  { icon: Shield, label: "Trade Assurance", desc: "Escrow on every order" },
-  { icon: Truck, label: "Owned Logistics", desc: "Door-to-door across Africa" },
-  { icon: CreditCard, label: "Mobile Money", desc: "MoMo, Airtel, M-Pesa" },
-  { icon: MessageCircle, label: "24/7 Support", desc: "6 languages, real humans" },
+  { icon: Shield, titleKey: "trust1Title", bodyKey: "trust1Body" },
+  { icon: Truck, titleKey: "trust2Title", bodyKey: "trust2Body" },
+  { icon: CreditCard, titleKey: "trust3Title", bodyKey: "trust3Body" },
+  { icon: MessageCircle, titleKey: "trust4Title", bodyKey: "trust4Body" },
 ];
 
 export function Footer() {
+  const t = useTranslations("marketing.footer");
   return (
     <footer className="bg-white border-t border-[var(--border-subtle)]">
       {/* Trust badges row */}
@@ -86,15 +105,15 @@ export function Footer() {
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
             {TRUST_BADGES.map((b) => (
-              <div key={b.label} className="flex items-center gap-3">
+              <div key={b.titleKey} className="flex items-center gap-3">
                 <div className="w-10 h-10 shrink-0 rounded-xl bg-white border border-[var(--border-subtle)] flex items-center justify-center">
                   <b.icon className="w-5 h-5 text-[var(--amber-dark)]" />
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-[var(--obsidian)]">
-                    {b.label}
+                    {t(b.titleKey)}
                   </div>
-                  <div className="text-xs text-[var(--text-tertiary)]">{b.desc}</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">{t(b.bodyKey)}</div>
                 </div>
               </div>
             ))}
@@ -110,17 +129,16 @@ export function Footer() {
               className="text-2xl lg:text-3xl font-bold text-[var(--obsidian)] tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Trade intelligence, weekly.
+              {t("newsletterTitle")}
             </h3>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Sourcing trends, new supplier verticals, and shipping rates across
-              the China–Africa corridor.
+              {t("newsletterBody")}
             </p>
           </div>
           <form className="flex w-full lg:w-auto max-w-md gap-2">
             <input
               type="email"
-              placeholder="you@company.com"
+              placeholder={t("newsletterPlaceholder")}
               className="flex-1 lg:w-72 h-12 px-4 rounded-full border border-[var(--border-default)] bg-white text-sm outline-none focus:border-[var(--obsidian)] focus:shadow-[0_0_0_3px_rgba(212,168,83,0.15)] transition-all"
               required
             />
@@ -128,7 +146,7 @@ export function Footer() {
               type="submit"
               className="btn-primary !py-3 !px-6 !text-sm shrink-0"
             >
-              Subscribe
+              {t("newsletterCta")}
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </form>
@@ -136,19 +154,19 @@ export function Footer() {
 
         {/* Links grid */}
         <div className="py-14 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-6">
-          {Object.entries(FOOTER_LINKS).map(([category, links]) => (
-            <div key={category}>
+          {FOOTER_COLUMNS.map((col) => (
+            <div key={col.headingKey}>
               <h4 className="text-xs font-bold text-[var(--obsidian)] tracking-[0.08em] uppercase mb-4">
-                {category}
+                {t(col.headingKey)}
               </h4>
               <ul className="space-y-2.5">
-                {links.map((link) => (
+                {col.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
                       className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline underline-offset-4 transition-colors"
                     >
-                      {link.label}
+                      {t(link.labelKey)}
                     </Link>
                   </li>
                 ))}
@@ -160,7 +178,7 @@ export function Footer() {
         {/* Trade regions */}
         <div className="py-8 border-t border-[var(--border-subtle)]">
           <p className="text-xs text-[var(--text-tertiary)] mb-3 font-semibold tracking-[0.08em] uppercase">
-            Active Trade Regions
+            {t("regionsHeading")}
           </p>
           <div className="flex flex-wrap gap-2">
             {TRADE_REGIONS.map((region) => (
@@ -192,7 +210,7 @@ export function Footer() {
                   Silk Road Africa
                 </div>
                 <div className="text-xs text-[var(--text-tertiary)]">
-                  &copy; {new Date().getFullYear()} Silk Road Trade Co.
+                  {t("copyright", { year: new Date().getFullYear() })}
                 </div>
               </div>
             </div>
@@ -213,16 +231,16 @@ export function Footer() {
             <RegionPicker variant="full" />
             <div className="flex items-center gap-5 text-xs text-[var(--text-tertiary)]">
               <Link href="/privacy" className="hover:text-[var(--text-primary)] transition-colors">
-                Privacy
+                {t("privacy")}
               </Link>
               <Link href="/terms" className="hover:text-[var(--text-primary)] transition-colors">
-                Terms
+                {t("terms")}
               </Link>
               <Link href="/compliance" className="hover:text-[var(--text-primary)] transition-colors">
-                Trade compliance
+                {t("compliance")}
               </Link>
               <Link href="/cookies" className="hover:text-[var(--text-primary)] transition-colors">
-                Cookies
+                {t("cookies")}
               </Link>
             </div>
           </div>

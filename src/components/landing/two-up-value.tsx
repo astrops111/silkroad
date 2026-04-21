@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowRight, Shield, Truck } from "lucide-react";
 
 export function TwoUpValue() {
+  const t = useTranslations("marketing.twoUpValue");
   return (
     <section className="py-16 lg:py-24 bg-[var(--surface-primary)]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
@@ -27,15 +31,13 @@ export function TwoUpValue() {
               className="text-2xl lg:text-3xl font-bold text-white tracking-tight leading-tight max-w-md"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Trade assurance on every order.
+              {t("tradeAssuranceTitle")}
             </h3>
             <p className="mt-3 text-sm lg:text-base text-white/80 max-w-md leading-relaxed">
-              Funds held in escrow until delivery is confirmed. Disputes
-              mediated by Silk Road operations — not the supplier, not the
-              buyer.
+              {t("tradeAssuranceBody")}
             </p>
             <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white group-hover:gap-2.5 transition-all">
-              How it works
+              {t("tradeAssuranceCta")}
               <ArrowRight className="w-4 h-4" />
             </span>
           </Link>
@@ -60,15 +62,13 @@ export function TwoUpValue() {
               className="text-2xl lg:text-3xl font-bold text-white tracking-tight leading-tight max-w-md"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Owned logistics, door to door.
+              {t("logisticsTitle")}
             </h3>
             <p className="mt-3 text-sm lg:text-base text-white/80 max-w-md leading-relaxed">
-              Our fleet, our drivers, our bonded warehouses across 27 African
-              countries. Real-time tracking, customs handling, insurance
-              included.
+              {t("logisticsBody")}
             </p>
             <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white group-hover:gap-2.5 transition-all">
-              See coverage
+              {t("logisticsCta")}
               <ArrowRight className="w-4 h-4" />
             </span>
           </Link>

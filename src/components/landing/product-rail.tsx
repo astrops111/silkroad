@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { useRegion } from "@/lib/providers/region-provider";
 import { formatConvertedPriceWithCode } from "@/lib/currency/formatter";
@@ -37,12 +37,14 @@ export function ProductRail({
   title,
   subtitle,
   viewAllHref,
-  viewAllLabel = "View all",
+  viewAllLabel,
   products,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const region = useRegion();
   const locale = useLocale();
+  const t = useTranslations("marketing.rail");
+  const resolvedViewAll = viewAllLabel ?? t("viewAll");
 
   const scroll = (dir: 1 | -1) => {
     const el = scrollerRef.current;
@@ -77,7 +79,7 @@ export function ProductRail({
             <button
               type="button"
               onClick={() => scroll(-1)}
-              aria-label="Scroll left"
+              aria-label={t("scrollLeft")}
               className="hidden md:inline-flex items-center justify-center w-10 h-10 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)] transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -85,7 +87,7 @@ export function ProductRail({
             <button
               type="button"
               onClick={() => scroll(1)}
-              aria-label="Scroll right"
+              aria-label={t("scrollRight")}
               className="hidden md:inline-flex items-center justify-center w-10 h-10 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)] transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
@@ -94,7 +96,7 @@ export function ProductRail({
               href={viewAllHref}
               className="inline-flex items-center gap-1.5 ml-2 px-4 h-10 rounded-full text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--amber-dark)] transition-colors"
             >
-              {viewAllLabel}
+              {resolvedViewAll}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -153,7 +155,7 @@ export function ProductRail({
                   </span>
                 </div>
                 <div className="mt-1 text-[11px] text-[var(--text-tertiary)]">
-                  MOQ {p.moq}
+                  {t("moq", { value: p.moq })}
                 </div>
               </div>
             </Link>

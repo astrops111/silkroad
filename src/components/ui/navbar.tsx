@@ -40,6 +40,8 @@ type CategoryGroup = {
   featured?: { title: string; description: string; image: string; href: string };
 };
 
+/* Category labels are intentionally English here — they're swapped to
+   t("nav.categoryX") at render time below. */
 const PRODUCT_CATEGORIES: CategoryGroup[] = [
   { label: "All", href: "/marketplace", icon: Package },
   {
@@ -244,6 +246,23 @@ export function Navbar() {
   const t = useTranslations("nav");
   const tc = useTranslations("common");
   const pathname = usePathname();
+
+  // Map a category English label to its translation key under nav.*.
+  const labelKeyMap: Record<string, string> = {
+    All: "all",
+    Electronics: "categoryElectronics",
+    Machinery: "categoryMachinery",
+    Textiles: "categoryTextiles",
+    Construction: "categoryConstruction",
+    Coffee: "categoryCoffee",
+    Cocoa: "categoryCocoa",
+    "Tea & Spices": "categoryTeaSpices",
+    Minerals: "categoryMinerals",
+    "Specialty Crops": "categorySpecialtyCrops",
+    RFQ: "rfq",
+  };
+  const tCat = (label: string) =>
+    labelKeyMap[label] ? t(labelKeyMap[label]) : label;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [scope, setScope] = useState<"all" | "products" | "commodities" | "suppliers">("all");
@@ -294,10 +313,10 @@ export function Navbar() {
   }, [pathname]);
 
   const scopeLabel: Record<typeof scope, string> = {
-    all: "All categories",
-    products: "Products",
-    commodities: "Commodities",
-    suppliers: "Suppliers",
+    all: t("scopeAll"),
+    products: t("scopeProducts"),
+    commodities: t("scopeCommodities"),
+    suppliers: t("scopeSuppliers"),
   };
 
   return (
@@ -307,16 +326,16 @@ export function Navbar() {
         <div className="hidden lg:block border-b border-[var(--border-subtle)] bg-[var(--surface-secondary)]">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10 h-9 flex items-center justify-end gap-6 text-[12px] text-[var(--text-tertiary)]">
             <Link href="/about" className="hover:text-[var(--text-primary)] transition-colors">
-              About
+              {t("about")}
             </Link>
             <Link href="/how-it-works" className="hover:text-[var(--text-primary)] transition-colors">
-              How it works
+              {t("howItWorks")}
             </Link>
             <Link href="/sell" className="hover:text-[var(--text-primary)] transition-colors">
-              Sell on Silk Road
+              {t("sell")}
             </Link>
             <Link href="/help" className="hover:text-[var(--text-primary)] transition-colors">
-              Help
+              {t("help")}
             </Link>
             <span className="w-px h-3 bg-[var(--border-default)]" />
             <RegionPicker variant="compact" />
@@ -366,7 +385,7 @@ export function Navbar() {
                 }`}
               >
                 <Package className="w-3.5 h-3.5" />
-                Products
+                {t("products")}
               </Link>
               <Link
                 href="/commodities"
@@ -379,7 +398,7 @@ export function Navbar() {
                 }`}
               >
                 <Leaf className="w-3.5 h-3.5" />
-                Commodities
+                {t("commodities")}
               </Link>
             </div>
 
@@ -419,12 +438,12 @@ export function Navbar() {
               <input
                 type="search"
                 name="q"
-                placeholder="Search 12,000+ products, suppliers, commodities…"
+                placeholder={t("searchPlaceholder")}
                 className="flex-1 bg-transparent px-4 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
               />
               <button
                 type="submit"
-                aria-label="Search"
+                aria-label={t("searchButton")}
                 className="h-full px-5 bg-[var(--obsidian)] text-[var(--ivory)] hover:bg-[var(--obsidian-light)] transition-colors flex items-center justify-center"
               >
                 <Search className="w-4 h-4" />
@@ -435,25 +454,25 @@ export function Navbar() {
             <div className="flex items-center gap-1 ml-auto md:ml-0">
               <Link
                 href="/messages"
-                aria-label="Messages"
+                aria-label={t("inbox")}
                 className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 <MessageSquare className="w-5 h-5" />
-                <span className="text-[10px] mt-0.5">Inbox</span>
+                <span className="text-[10px] mt-0.5">{t("inbox")}</span>
               </Link>
 
               <Link
                 href="/saved"
-                aria-label="Saved"
+                aria-label={t("saved")}
                 className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 <Heart className="w-5 h-5" />
-                <span className="text-[10px] mt-0.5">Saved</span>
+                <span className="text-[10px] mt-0.5">{t("saved")}</span>
               </Link>
 
               <Link
                 href="/auth/login"
-                aria-label="Account"
+                aria-label={tc("signIn")}
                 className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 <User className="w-5 h-5" />
@@ -462,11 +481,11 @@ export function Navbar() {
 
               <Link
                 href="/cart"
-                aria-label="Cart"
+                aria-label={t("cart")}
                 className="relative flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 <ShoppingCart className="w-5 h-5" />
-                <span className="hidden md:inline text-[10px] mt-0.5">Cart</span>
+                <span className="hidden md:inline text-[10px] mt-0.5">{t("cart")}</span>
                 <span className="absolute top-0.5 right-1.5 w-4 h-4 bg-[var(--terracotta)] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                   3
                 </span>
@@ -474,7 +493,7 @@ export function Navbar() {
 
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                aria-label="Menu"
+                aria-label={t("menu")}
                 className="lg:hidden p-2.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -502,7 +521,7 @@ export function Navbar() {
                       className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
                     >
                       <cat.icon className="w-3.5 h-3.5" />
-                      {cat.label}
+                      {tCat(cat.label)}
                     </Link>
                   );
                 }
@@ -523,7 +542,7 @@ export function Navbar() {
                     }`}
                   >
                     <cat.icon className="w-3.5 h-3.5" />
-                    {cat.label}
+                    {tCat(cat.label)}
                     <ChevronDown
                       className={`w-3 h-3 transition-transform ${
                         isOpen ? "rotate-180" : ""
@@ -564,7 +583,7 @@ export function Navbar() {
                             className="text-base font-bold text-[var(--obsidian)]"
                             style={{ fontFamily: "var(--font-display)" }}
                           >
-                            {cat.label}
+                            {tCat(cat.label)}
                           </span>
                         </div>
                         <Link
@@ -572,7 +591,7 @@ export function Navbar() {
                           onClick={() => setOpenCategory(null)}
                           className="inline-flex items-center gap-1.5 mt-4 text-[12px] font-semibold text-[var(--amber-dark)] hover:gap-2 transition-all"
                         >
-                          See all {cat.label.toLowerCase()}
+                          {t("seeAll", { label: tCat(cat.label) })}
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
                       </div>
@@ -606,7 +625,7 @@ export function Navbar() {
                           />
                           <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/0" />
                           <span className="text-[10px] font-semibold text-[var(--amber)] tracking-[0.12em] uppercase">
-                            Featured
+                            {t("featured")}
                           </span>
                           <h4
                             className="mt-1 text-base font-bold text-white leading-tight"
@@ -636,13 +655,13 @@ export function Navbar() {
               <input
                 name="q"
                 type="search"
-                placeholder="Search products, suppliers..."
+                placeholder={t("searchPlaceholderMobile")}
                 className="w-full bg-transparent px-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
               />
             </form>
 
             <p className="text-[11px] font-semibold text-[var(--text-tertiary)] tracking-[0.12em] uppercase px-1">
-              Browse
+              {t("browseHeading")}
             </p>
             {activeCategoryGroups.map((cat) => (
               <Link
@@ -652,12 +671,12 @@ export function Navbar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <cat.icon className="w-4 h-4 text-[var(--text-tertiary)]" />
-                {cat.label}
+                {tCat(cat.label)}
               </Link>
             ))}
 
             <p className="text-[11px] font-semibold text-[var(--text-tertiary)] tracking-[0.12em] uppercase px-1 pt-4">
-              Account
+              {t("accountHeading")}
             </p>
             <Link
               href="/messages"
@@ -665,7 +684,7 @@ export function Navbar() {
               onClick={() => setMobileOpen(false)}
             >
               <MessageSquare className="w-4 h-4 text-[var(--text-tertiary)]" />
-              Inbox
+              {t("inbox")}
             </Link>
             <Link
               href="/saved"
@@ -673,13 +692,13 @@ export function Navbar() {
               onClick={() => setMobileOpen(false)}
             >
               <Heart className="w-4 h-4 text-[var(--text-tertiary)]" />
-              Saved
+              {t("saved")}
             </Link>
 
             <div className="pt-6 border-t border-[var(--border-subtle)] mt-6 space-y-3">
               <div className="flex items-center justify-between gap-2 px-1 pb-1">
                 <span className="text-[11px] font-semibold text-[var(--text-tertiary)] tracking-[0.12em] uppercase">
-                  Region
+                  {t("regionHeading")}
                 </span>
                 <RegionPicker variant="full" />
               </div>
@@ -689,14 +708,14 @@ export function Navbar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <User className="w-4 h-4" />
-                Sign in
+                {tc("signIn")}
               </Link>
               <Link
                 href="/auth/register"
                 className="btn-outline w-full !text-base !py-3.5"
                 onClick={() => setMobileOpen(false)}
               >
-                Create account
+                {t("createAccount")}
               </Link>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Globe, Loader2 } from "lucide-react";
 import { setUserLocale } from "@/i18n/set-locale";
@@ -64,6 +64,7 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
   const router = useRouter();
   const activeLocale = useLocale();
   const region = useRegion();
+  const t = useTranslations("marketing.regionPicker");
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
@@ -147,10 +148,10 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
         >
           <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--surface-secondary)]">
             <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[var(--text-tertiary)]">
-              Region & Preferences
+              {t("regionHeading")}
             </div>
             <div className="mt-1 text-sm text-[var(--text-primary)]">
-              Shipping to{" "}
+              {t("shippingTo")}{" "}
               <span className="font-semibold">
                 {country.flag} {country.name}
               </span>{" "}
@@ -159,7 +160,7 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
           </div>
 
           <div className="grid sm:grid-cols-3 gap-0 sm:divide-x divide-[var(--border-subtle)]">
-            <Section title="Country">
+            <Section title={t("country")}>
               <ul className="max-h-72 overflow-y-auto py-1">
                 {COUNTRIES.map((c) => (
                   <li key={c.code}>
@@ -185,7 +186,7 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
               </ul>
             </Section>
 
-            <Section title="Language">
+            <Section title={t("language")}>
               <ul className="max-h-72 overflow-y-auto py-1">
                 {LANGUAGES.map((l) => (
                   <li key={l.code}>
@@ -211,7 +212,7 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
               </ul>
             </Section>
 
-            <Section title="Currency">
+            <Section title={t("currency")}>
               <ul className="max-h-72 overflow-y-auto py-1">
                 {CURRENCIES.map((cu) => (
                   <li key={cu.code}>
@@ -240,14 +241,14 @@ export function RegionPicker({ variant = "compact" }: { variant?: Variant }) {
 
           <div className="px-5 py-3 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)] flex items-center justify-between gap-3">
             <p className="text-[11px] text-[var(--text-tertiary)] leading-snug">
-              Choices apply across the site. Currency conversions use mid-market rates updated daily.
+              {t("footer")}
             </p>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="shrink-0 px-3.5 py-1.5 rounded-full bg-[var(--obsidian)] text-[var(--ivory)] text-xs font-semibold hover:bg-[var(--obsidian-light)] transition-colors"
             >
-              Done
+              {t("done")}
             </button>
           </div>
         </div>

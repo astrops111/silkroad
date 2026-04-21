@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,6 +24,8 @@ import { TwoUpValue } from "@/components/landing/two-up-value";
    HERO — Commodities portal (Africa → China)
    ============================================================ */
 function HeroSection() {
+  const t = useTranslations("marketing.commodities");
+  const tTrust = useTranslations("marketing.trust");
   return (
     <section className="bg-[var(--surface-primary)] pt-[140px] pb-12 lg:pb-16">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
@@ -41,27 +44,24 @@ function HeroSection() {
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 mb-5 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--terracotta-light)]" />
               <span className="text-[11px] font-semibold text-white tracking-wide uppercase">
-                Commodities Portal · Africa → China
+                {t("hero.badge")}
               </span>
             </span>
             <h1
               className="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white max-w-3xl"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Export Africa&rsquo;s finest to the world&rsquo;s largest market.
+              {t("hero.headline")}
             </h1>
             <p className="mt-5 text-base lg:text-lg text-white/85 max-w-xl leading-relaxed">
-              Coffee, cocoa, tea, minerals, spices, specialty crops — connect
-              cooperatives and producers directly with verified Chinese
-              importers. Fair-trade certified, full traceability, escrow paid
-              in your local currency.
+              {t("hero.tagline")}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/commodities/browse"
                 className="btn-primary !py-3.5 !px-7 !text-sm"
               >
-                Browse commodities
+                {t("hero.browseCta")}
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
               <Link
@@ -69,7 +69,7 @@ function HeroSection() {
                 className="text-sm font-semibold text-white/85 hover:text-white inline-flex items-center gap-1.5 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Or source from China
+                {t("hero.switchCta")}
               </Link>
             </div>
           </div>
@@ -79,24 +79,23 @@ function HeroSection() {
             <div className="bg-[var(--surface-secondary)] rounded-2xl p-7 lg:p-8 border border-[var(--border-subtle)] flex-1 flex flex-col justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-[var(--terracotta)] tracking-[0.12em] uppercase">
-                  Cooperative Onboarding
+                  {t("promo.eyebrow")}
                 </span>
                 <h3
                   className="mt-2 text-xl lg:text-2xl font-bold text-[var(--obsidian)] leading-tight"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  Zero listing fees for farmer cooperatives.
+                  {t("promo.headline")}
                 </h3>
                 <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                  Cooperatives with 50+ members get free verification and
-                  unlimited product listings for the first 12 months.
+                  {t("promo.body")}
                 </p>
               </div>
               <Link
                 href="/auth/register?role=supplier&type=cooperative"
                 className="btn-primary !text-sm !py-3 !px-5 mt-5 w-fit"
               >
-                Onboard cooperative
+                {t("promo.cta")}
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
@@ -106,16 +105,16 @@ function HeroSection() {
               className="group bg-[var(--obsidian)] rounded-2xl p-7 border border-transparent hover:border-[var(--terracotta-light)]/30 transition-colors"
             >
               <span className="text-[11px] font-semibold text-[var(--terracotta-light)] tracking-[0.12em] uppercase">
-                For Importers
+                {t("rfqBox.eyebrow")}
               </span>
               <h3
                 className="mt-2 text-lg font-bold text-[var(--ivory)] leading-tight"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Post a buy request. Get sample shipments in 14 days.
+                {t("rfqBox.headline")}
               </h3>
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--terracotta-light)] group-hover:gap-2.5 transition-all">
-                Post buy request
+                {t("rfqBox.cta")}
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
@@ -125,10 +124,10 @@ function HeroSection() {
         {/* Trust strip */}
         <div className="mt-10 lg:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6 lg:gap-10 py-6 lg:py-8 border-y border-[var(--border-subtle)]">
           {[
-            { value: "2,400+", label: "Cooperatives" },
-            { value: "$680M", label: "Annual exports" },
-            { value: "27", label: "Source countries" },
-            { value: "100%", label: "Traceable lots" },
+            { value: "2,400+", label: tTrust("cooperatives") },
+            { value: "$680M", label: tTrust("annualExports") },
+            { value: "27", label: tTrust("sourceCountries") },
+            { value: "100%", label: tTrust("traceableLots") },
           ].map((stat) => (
             <div key={stat.label}>
               <div
@@ -152,45 +151,46 @@ function HeroSection() {
    FEATURED CATEGORIES (Commodities only)
    ============================================================ */
 function FeaturedCategories() {
+  const t = useTranslations("marketing.commodities.categories");
   const categories = [
     {
-      name: "Premium Coffee",
-      count: "800+ lots",
+      name: t("premiumCoffee"),
+      count: t("lots", { count: "800+" }),
       image:
         "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Coffee,
     },
     {
-      name: "Organic Cocoa",
-      count: "280+ lots",
+      name: t("organicCocoa"),
+      count: t("lots", { count: "280+" }),
       image:
         "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Leaf,
     },
     {
-      name: "Tea & Spices",
-      count: "450+ lots",
+      name: t("teaSpices"),
+      count: t("lots", { count: "450+" }),
       image:
         "https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Sprout,
     },
     {
-      name: "Minerals & Metals",
-      count: "320+ lots",
+      name: t("mineralsMetals"),
+      count: t("lots", { count: "320+" }),
       image:
         "https://images.pexels.com/photos/33192/paddle-wheel-bucket-wheel-excavators-brown-coal-open-pit-mining.jpg?auto=compress&cs=tinysrgb&w=900",
       icon: Gem,
     },
     {
-      name: "Cereals & Grains",
-      count: "190+ lots",
+      name: t("cerealsGrains"),
+      count: t("lots", { count: "190+" }),
       image:
         "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Wheat,
     },
     {
-      name: "Specialty Crops",
-      count: "240+ lots",
+      name: t("specialtyCrops"),
+      count: t("lots", { count: "240+" }),
       image:
         "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Package,
@@ -203,20 +203,20 @@ function FeaturedCategories() {
         <div className="flex items-end justify-between mb-10">
           <div>
             <span className="text-xs font-semibold text-[var(--terracotta)] tracking-[0.15em] uppercase">
-              Top Commodities
+              {t("eyebrow")}
             </span>
             <h2
               className="mt-2 text-2xl lg:text-3xl font-bold tracking-tight text-[var(--obsidian)]"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Browse by commodity
+              {t("title")}
             </h2>
           </div>
           <Link
             href="/commodities/browse"
             className="hidden sm:flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--terracotta)] transition-colors"
           >
-            View all commodities
+            {t("viewAll")}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -364,40 +364,20 @@ const NEW_COMMODITIES: RailProduct[] = [
   },
 ];
 
-const COMMODITY_GUIDES = [
-  {
-    title: "Exporting coffee to China: certifications & buyers",
-    description:
-      "Which Chinese buyers want African specialty coffee, what certifications open doors, and how to negotiate FOB pricing.",
-    image:
-      "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Export Guide",
-  },
-  {
-    title: "Cocoa traceability: chain of custody for premium pricing",
-    description:
-      "How blockchain-backed traceability earns 18-24% premium pricing from European and Chinese specialty buyers.",
-    image:
-      "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Quality",
-  },
-  {
-    title: "Mobile money payouts to cooperatives at scale",
-    description:
-      "How Silk Road settles bulk buyer payments out to thousands of cooperative members via MTN MoMo and Airtel Money.",
-    image:
-      "https://images.pexels.com/photos/5239818/pexels-photo-5239818.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Payments",
-  },
-];
+const COMMODITY_GUIDE_IMAGES = {
+  guide1:
+    "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  guide2:
+    "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  guide3:
+    "https://images.pexels.com/photos/5239818/pexels-photo-5239818.jpeg?auto=compress&cs=tinysrgb&w=1200",
+};
 
 /* ============================================================
    CTA
    ============================================================ */
 function CTASection() {
+  const t = useTranslations("marketing.commodities.cta");
   return (
     <section className="py-20 bg-[var(--surface-primary)]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
@@ -417,13 +397,11 @@ function CTASection() {
                 className="text-3xl lg:text-4xl font-bold text-[var(--ivory)] tracking-tight leading-tight"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                List your harvest. Reach Chinese importers
+                {t("headline")}
                 <span className="text-[var(--terracotta-light)]">.</span>
               </h2>
               <p className="mt-4 text-base lg:text-lg text-white/55 max-w-lg leading-relaxed">
-                Cooperatives, estates, and producers — onboard your members in
-                under a week and start receiving offers from verified
-                importers.
+                {t("body")}
               </p>
             </div>
 
@@ -432,14 +410,14 @@ function CTASection() {
                 href="/auth/register?role=supplier"
                 className="btn-primary !py-3.5 !px-7 !text-base w-full justify-center"
               >
-                List a commodity
+                {t("supplier")}
                 <ArrowUpRight className="w-5 h-5" />
               </Link>
               <Link
                 href="/auth/register?role=buyer"
                 className="btn-secondary !py-3.5 !px-7 !text-base w-full justify-center"
               >
-                I&rsquo;m an importer
+                {t("buyer")}
               </Link>
             </div>
           </div>
@@ -450,6 +428,33 @@ function CTASection() {
 }
 
 export default function CommoditiesPortal() {
+  const tRail = useTranslations("marketing.commodities.rail");
+  const tEditorial = useTranslations("marketing.commodities.editorial");
+
+  const editorialItems = [
+    {
+      title: tEditorial("guide1Title"),
+      description: tEditorial("guide1Desc"),
+      tag: tEditorial("guide1Tag"),
+      image: COMMODITY_GUIDE_IMAGES.guide1,
+      href: "/resources",
+    },
+    {
+      title: tEditorial("guide2Title"),
+      description: tEditorial("guide2Desc"),
+      tag: tEditorial("guide2Tag"),
+      image: COMMODITY_GUIDE_IMAGES.guide2,
+      href: "/resources",
+    },
+    {
+      title: tEditorial("guide3Title"),
+      description: tEditorial("guide3Desc"),
+      tag: tEditorial("guide3Tag"),
+      image: COMMODITY_GUIDE_IMAGES.guide3,
+      href: "/resources",
+    },
+  ];
+
   return (
     <>
       <Navbar />
@@ -457,16 +462,16 @@ export default function CommoditiesPortal() {
         <HeroSection />
         <FeaturedCategories />
         <ProductRail
-          eyebrow="Commodities Portal"
-          title="New from Africa"
-          subtitle="Recently listed by verified cooperatives and producers."
+          eyebrow={tRail("eyebrow")}
+          title={tRail("title")}
+          subtitle={tRail("subtitle")}
           viewAllHref="/commodities/browse?sort=newest"
           products={NEW_COMMODITIES}
         />
         <EditorialBand
-          eyebrow="Export Guides"
-          title="Practical guides for African producers entering Chinese markets."
-          items={COMMODITY_GUIDES}
+          eyebrow={tEditorial("eyebrow")}
+          title={tEditorial("title")}
+          items={editorialItems}
         />
         <TwoUpValue />
         <CTASection />

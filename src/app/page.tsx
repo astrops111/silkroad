@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -22,6 +23,8 @@ import { TwoUpValue } from "@/components/landing/two-up-value";
    HERO — Products portal (China → Africa, single big tile)
    ============================================================ */
 function HeroSection() {
+  const t = useTranslations("marketing.products");
+  const tTrust = useTranslations("marketing.trust");
   return (
     <section className="bg-[var(--surface-primary)] pt-[140px] pb-12 lg:pb-16">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
@@ -40,33 +43,31 @@ function HeroSection() {
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 mb-5 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)]" />
               <span className="text-[11px] font-semibold text-white tracking-wide uppercase">
-                Products Portal · China → Africa
+                {t("hero.badge")}
               </span>
             </span>
             <h1
               className="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white max-w-3xl"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Source from 12,000 verified Chinese factories.
+              {t("hero.headline")}
             </h1>
             <p className="mt-5 text-base lg:text-lg text-white/85 max-w-xl leading-relaxed">
-              Electronics, machinery, textiles, construction — direct from the
-              factory floor with MOQ as low as 10 units, escrow protection,
-              and door-to-door logistics across 27 African countries.
+              {t("hero.tagline")}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/marketplace"
                 className="btn-primary !py-3.5 !px-7 !text-sm"
               >
-                Browse products
+                {t("hero.browseCta")}
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/commodities"
                 className="text-sm font-semibold text-white/85 hover:text-white inline-flex items-center gap-1.5 transition-colors"
               >
-                Or export from Africa
+                {t("hero.switchCta")}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -77,24 +78,23 @@ function HeroSection() {
             <div className="bg-[var(--surface-secondary)] rounded-2xl p-7 lg:p-8 border border-[var(--border-subtle)] flex-1 flex flex-col justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-[var(--amber-dark)] tracking-[0.12em] uppercase">
-                  New This Week
+                  {t("promo.eyebrow")}
                 </span>
                 <h3
                   className="mt-2 text-xl lg:text-2xl font-bold text-[var(--obsidian)] leading-tight"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  Free trade assurance on first 3 orders for new buyers.
+                  {t("promo.headline")}
                 </h3>
                 <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                  Sign up this month and pay zero platform escrow fees on your
-                  first three orders.
+                  {t("promo.body")}
                 </p>
               </div>
               <Link
                 href="/auth/register?role=buyer"
                 className="btn-primary !text-sm !py-3 !px-5 mt-5 w-fit"
               >
-                Claim offer
+                {t("promo.cta")}
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
@@ -104,16 +104,16 @@ function HeroSection() {
               className="group bg-[var(--obsidian)] rounded-2xl p-7 border border-transparent hover:border-[var(--amber)]/30 transition-colors"
             >
               <span className="text-[11px] font-semibold text-[var(--amber)] tracking-[0.12em] uppercase">
-                For Buyers
+                {t("rfqBox.eyebrow")}
               </span>
               <h3
                 className="mt-2 text-lg font-bold text-[var(--ivory)] leading-tight"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Submit one RFQ. Get 5+ supplier quotes in 24 hours.
+                {t("rfqBox.headline")}
               </h3>
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--amber)] group-hover:gap-2.5 transition-all">
-                Start an RFQ
+                {t("rfqBox.cta")}
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
@@ -123,10 +123,10 @@ function HeroSection() {
         {/* Trust strip */}
         <div className="mt-10 lg:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6 lg:gap-10 py-6 lg:py-8 border-y border-[var(--border-subtle)]">
           {[
-            { value: "12,000+", label: "Verified suppliers" },
-            { value: "$2.4B", label: "Annual GMV" },
-            { value: "54", label: "African countries" },
-            { value: "98.2%", label: "Satisfaction rate" },
+            { value: "12,000+", label: tTrust("verifiedSuppliers") },
+            { value: "$2.4B", label: tTrust("annualGmv") },
+            { value: "54", label: tTrust("africanCountries") },
+            { value: "98.2%", label: tTrust("satisfactionRate") },
           ].map((stat) => (
             <div key={stat.label}>
               <div
@@ -150,44 +150,45 @@ function HeroSection() {
    FEATURED CATEGORIES (Products only)
    ============================================================ */
 function FeaturedCategories() {
+  const t = useTranslations("marketing.products.categories");
   const categories = [
     {
-      name: "Consumer Electronics",
+      name: t("consumerElectronics"),
       count: "3,400+",
       image:
         "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Zap,
     },
     {
-      name: "Machinery & Parts",
+      name: t("machineryParts"),
       count: "2,100+",
       image:
         "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Factory,
     },
     {
-      name: "Textiles & Apparel",
+      name: t("textilesApparel"),
       count: "1,800+",
       image:
         "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Shirt,
     },
     {
-      name: "Construction & Hardware",
+      name: t("constructionHardware"),
       count: "1,200+",
       image:
         "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Wrench,
     },
     {
-      name: "Auto & Transport",
+      name: t("autoTransport"),
       count: "1,500+",
       image:
         "https://images.pexels.com/photos/3635147/pexels-photo-3635147.jpeg?auto=compress&cs=tinysrgb&w=900",
       icon: Truck,
     },
     {
-      name: "Packaging & Print",
+      name: t("packagingPrint"),
       count: "640+",
       image:
         "https://images.pexels.com/photos/28487979/pexels-photo-28487979.jpeg?auto=compress&cs=tinysrgb&w=900",
@@ -201,20 +202,20 @@ function FeaturedCategories() {
         <div className="flex items-end justify-between mb-10">
           <div>
             <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
-              Top Categories
+              {t("eyebrow")}
             </span>
             <h2
               className="mt-2 text-2xl lg:text-3xl font-bold tracking-tight text-[var(--obsidian)]"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Browse by category
+              {t("title")}
             </h2>
           </div>
           <Link
             href="/marketplace"
             className="hidden sm:flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--amber-dark)] transition-colors"
           >
-            View all categories
+            {t("viewAll")}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -244,7 +245,7 @@ function FeaturedCategories() {
                 >
                   {cat.name}
                 </h3>
-                <p className="text-sm text-white/75">{cat.count} products</p>
+                <p className="text-sm text-white/75">{t("products", { count: cat.count })}</p>
               </div>
 
               <ArrowUpRight className="absolute bottom-5 right-5 w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -362,40 +363,20 @@ const NEW_PRODUCTS: RailProduct[] = [
   },
 ];
 
-const EDITORIAL_GUIDES = [
-  {
-    title: "Importing from Guangzhou: a 7-step guide",
-    description:
-      "From canton fair sourcing to bonded warehouse delivery, what every African importer needs to know in 2026.",
-    image:
-      "https://images.pexels.com/photos/36882975/pexels-photo-36882975.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Sourcing Guide",
-  },
-  {
-    title: "Mobile money checkout for B2B trade",
-    description:
-      "Why MTN MoMo, Airtel Money, and M-Pesa are reshaping how cross-border B2B settles — and what suppliers need to enable.",
-    image:
-      "https://images.pexels.com/photos/5239818/pexels-photo-5239818.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Payments",
-  },
-  {
-    title: "Shipping to East Africa: rates & lead times",
-    description:
-      "Sea, air, and overland — current freight benchmarks from Shenzhen to Mombasa, Dar, and Mogadishu.",
-    image:
-      "https://images.pexels.com/photos/18609057/pexels-photo-18609057.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    href: "/resources",
-    tag: "Logistics",
-  },
-];
+const EDITORIAL_IMAGES = {
+  guide1:
+    "https://images.pexels.com/photos/36882975/pexels-photo-36882975.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  guide2:
+    "https://images.pexels.com/photos/5239818/pexels-photo-5239818.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  guide3:
+    "https://images.pexels.com/photos/18609057/pexels-photo-18609057.jpeg?auto=compress&cs=tinysrgb&w=1200",
+};
 
 /* ============================================================
    CTA
    ============================================================ */
 function CTASection() {
+  const t = useTranslations("marketing.products.cta");
   return (
     <section className="py-20 bg-[var(--surface-primary)]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
@@ -415,12 +396,11 @@ function CTASection() {
                 className="text-3xl lg:text-4xl font-bold text-[var(--ivory)] tracking-tight leading-tight"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Start sourcing today
+                {t("headline")}
                 <span className="text-[var(--amber)]">.</span>
               </h2>
               <p className="mt-4 text-base lg:text-lg text-white/55 max-w-lg leading-relaxed">
-                Join 50,000+ African businesses sourcing from verified Chinese
-                manufacturers — with trade assurance on every order.
+                {t("body")}
               </p>
             </div>
 
@@ -429,14 +409,14 @@ function CTASection() {
                 href="/auth/register?role=buyer"
                 className="btn-primary !py-3.5 !px-7 !text-base w-full justify-center"
               >
-                Sign up as a buyer
+                {t("buyer")}
                 <ArrowUpRight className="w-5 h-5" />
               </Link>
               <Link
                 href="/auth/register?role=supplier"
                 className="btn-secondary !py-3.5 !px-7 !text-base w-full justify-center"
               >
-                Become a supplier
+                {t("supplier")}
               </Link>
             </div>
           </div>
@@ -447,6 +427,33 @@ function CTASection() {
 }
 
 export default function ProductsPortalHome() {
+  const tRail = useTranslations("marketing.products.rail");
+  const tEditorial = useTranslations("marketing.products.editorial");
+
+  const editorialItems = [
+    {
+      title: tEditorial("guide1Title"),
+      description: tEditorial("guide1Desc"),
+      tag: tEditorial("guide1Tag"),
+      image: EDITORIAL_IMAGES.guide1,
+      href: "/resources",
+    },
+    {
+      title: tEditorial("guide2Title"),
+      description: tEditorial("guide2Desc"),
+      tag: tEditorial("guide2Tag"),
+      image: EDITORIAL_IMAGES.guide2,
+      href: "/resources",
+    },
+    {
+      title: tEditorial("guide3Title"),
+      description: tEditorial("guide3Desc"),
+      tag: tEditorial("guide3Tag"),
+      image: EDITORIAL_IMAGES.guide3,
+      href: "/resources",
+    },
+  ];
+
   return (
     <>
       <Navbar />
@@ -454,16 +461,16 @@ export default function ProductsPortalHome() {
         <HeroSection />
         <FeaturedCategories />
         <ProductRail
-          eyebrow="Products Portal"
-          title="New on Silk Road"
-          subtitle="Recently listed by verified Chinese suppliers."
+          eyebrow={tRail("eyebrow")}
+          title={tRail("title")}
+          subtitle={tRail("subtitle")}
           viewAllHref="/marketplace?sort=newest"
           products={NEW_PRODUCTS}
         />
         <EditorialBand
-          eyebrow="Sourcing Guides"
-          title="Trade intelligence, written by people who ship every day."
-          items={EDITORIAL_GUIDES}
+          eyebrow={tEditorial("eyebrow")}
+          title={tEditorial("title")}
+          items={editorialItems}
         />
         <TwoUpValue />
         <CTASection />
