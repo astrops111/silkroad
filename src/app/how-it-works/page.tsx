@@ -248,6 +248,27 @@ function HowItWorks() {
             </div>
           ))}
         </div>
+
+        <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 p-6 lg:p-7 rounded-2xl bg-white border border-[var(--border-subtle)]">
+          <div>
+            <h3
+              className="text-lg font-bold text-[var(--obsidian)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Want the full buyer walkthrough?
+            </h3>
+            <p className="mt-1 text-sm text-[var(--text-secondary)] max-w-xl">
+              See every step from browse to delivery, payment methods, buyer protections, and common questions.
+            </p>
+          </div>
+          <Link
+            href="/how-to-buy"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[var(--obsidian)] text-[var(--ivory)] text-sm font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            Read: How to buy
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     </section>
   );
