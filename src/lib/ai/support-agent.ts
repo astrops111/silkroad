@@ -56,7 +56,7 @@ export async function handleSupportQuery(
 
   const langName = LANGUAGE_NAMES[context.userLanguage] || "English";
 
-  const systemPrompt = `You are the AI customer support agent for Silk Road, an Africa-first B2B wholesale marketplace.
+  const systemPrompt = `You are the AI customer support agent for Silk Road Africa, an Africa-first B2B wholesale marketplace.
 
 PLATFORM INFO:
 - Supports mobile money (MTN MoMo, Airtel Money, Tigo Cash, M-Pesa), Stripe, Alipay, WeChat Pay

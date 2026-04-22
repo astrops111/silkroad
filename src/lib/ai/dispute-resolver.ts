@@ -62,7 +62,7 @@ export async function analyzeDispute(
 ): Promise<DisputeAnalysis> {
   const client = new Anthropic();
 
-  const systemPrompt = `You are a fair and impartial dispute resolution specialist for Silk Road, an Africa-first B2B marketplace.
+  const systemPrompt = `You are a fair and impartial dispute resolution specialist for Silk Road Africa, an Africa-first B2B marketplace.
 
 CONTEXT:
 - Platform uses escrow payments — funds are held until delivery is confirmed

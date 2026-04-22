@@ -68,10 +68,10 @@ export function SupportChat({
           role: "assistant",
           content:
             userLanguage === "fr"
-              ? "Bonjour ! Je suis l'assistant Silk Road. Comment puis-je vous aider aujourd'hui ?"
+              ? "Bonjour ! Je suis l'assistant Silk Road Africa. Comment puis-je vous aider aujourd'hui ?"
               : userLanguage === "sw"
-                ? "Habari! Mimi ni msaidizi wa Silk Road. Nawezaje kukusaidia leo?"
-                : "Hello! I'm the Silk Road support assistant. How can I help you today?",
+                ? "Habari! Mimi ni msaidizi wa Silk Road Africa. Nawezaje kukusaidia leo?"
+                : "Hello! I'm the Silk Road Africa support assistant. How can I help you today?",
           timestamp: new Date(),
         },
       ]);
@@ -192,7 +192,7 @@ export function SupportChat({
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: "var(--ivory)" }}>
-              Silk Road Support
+              Silk Road Africa Support
             </p>
             <p className="text-[10px]" style={{ color: "rgba(245,240,232,0.5)" }}>
               AI-powered • Multilingual

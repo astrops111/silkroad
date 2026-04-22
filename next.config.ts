@@ -14,6 +14,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    if (process.env.REDIRECT_WWW_TO_APEX !== "true") return [];
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.silkroad.africa" }],
+        destination: "https://silkroad.africa/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     const csp = [
       "default-src 'self'",

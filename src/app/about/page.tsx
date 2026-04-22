@@ -206,7 +206,7 @@ function SocialProof() {
   const testimonials = [
     {
       quote:
-        "We reduced our sourcing costs by 35% by going direct through Silk Road. The escrow system gives us confidence we never had with wire transfers.",
+        "We reduced our sourcing costs by 35% by going direct through Silk Road Africa. The escrow system gives us confidence we never had with wire transfers.",
       name: "Amara Diallo",
       role: "Procurement Manager",
       company: "TechHub Ghana",
@@ -222,7 +222,7 @@ function SocialProof() {
     },
     {
       quote:
-        "通过Silk Road平台，我们成功开拓了非洲市场。平台的中文界面和支付宝集成让交易变得简单。",
+        "通过 Silk Road Africa 平台，我们成功开拓了非洲市场。平台的中文界面和支付宝集成让交易变得简单。",
       name: "张海明",
       role: "总经理",
       company: "广州华南电子有限公司",

@@ -134,7 +134,7 @@ export async function generatePricingRecommendation(
     ? `\nKnown competitor prices:\n${input.competitorPrices.map((c) => `- ${c.name}: ${c.currency} ${c.price}`).join("\n")}`
     : "";
 
-  const systemPrompt = `You are a B2B pricing strategist for Silk Road, an Africa-first wholesale marketplace.
+  const systemPrompt = `You are a B2B pricing strategist for Silk Road Africa, an Africa-first wholesale marketplace.
 You help suppliers set competitive prices considering:
 - Africa's purchasing power parity (PPP)
 - B2B wholesale volume dynamics

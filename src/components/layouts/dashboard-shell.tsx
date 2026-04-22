@@ -83,7 +83,7 @@ export function DashboardShell({
                 className="text-[15px] font-bold text-[var(--ivory)] tracking-tight leading-none"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Silk Road
+                Silk Road Africa
               </span>
               <span className="block text-[10px] text-[var(--amber)] font-medium tracking-[0.12em] uppercase mt-0.5">
                 {dashboardLabel}

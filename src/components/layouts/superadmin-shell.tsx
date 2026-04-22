@@ -83,7 +83,7 @@ export function SuperAdminShell({ children, userName, userInitials }: SuperAdmin
             className="text-base font-bold tracking-tight"
             style={{ color: "var(--ivory)", fontFamily: "var(--font-display)" }}
           >
-            Silk Road
+            Silk Road Africa
           </span>
           <span
             className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"

@@ -72,7 +72,7 @@ export async function matchSuppliersToRFQ(
     };
   }
 
-  const systemPrompt = `You are a B2B trade matching specialist for Silk Road, an Africa-first wholesale marketplace.
+  const systemPrompt = `You are a B2B trade matching specialist for Silk Road Africa, an Africa-first wholesale marketplace.
 You match buyer RFQs to the most suitable supplier candidates based on:
 1. Product category fit
 2. Quantity capacity (MOQ vs requested quantity)

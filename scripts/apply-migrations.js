@@ -9,8 +9,8 @@ const { Client } = require("pg");
 function readEnv() {
   const envPath = path.join(__dirname, "..", ".env");
   const raw = fs.readFileSync(envPath, "utf8");
-  for (const line of raw.split("\n")) {
-    const m = line.match(/^DATABASE_URL=(.*)$/);
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/^DATABASE_URL\s*=\s*(.*)$/);
     if (m) {
       let val = m[1].trim();
       if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {

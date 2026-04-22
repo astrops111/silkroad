@@ -12,7 +12,7 @@ export function TwoUpValue() {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="grid lg:grid-cols-2 gap-5">
           <Link
-            href="/trade-assurance"
+            href="/how-it-works"
             className="group relative isolate flex flex-col justify-end overflow-hidden rounded-2xl min-h-[360px] lg:min-h-[420px] p-8 lg:p-10 border border-[var(--border-subtle)]"
           >
             <Image

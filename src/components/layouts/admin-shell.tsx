@@ -103,7 +103,7 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
             SR
           </div>
           <span className="text-base font-bold tracking-tight" style={{ color: "var(--ivory)", fontFamily: "var(--font-display)" }}>
-            Silk Road
+            Silk Road Africa
           </span>
           <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(216,159,46,0.15)", color: "var(--amber)" }}>
             Admin

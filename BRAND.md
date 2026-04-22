@@ -174,7 +174,37 @@ Numbers and currencies are always code-prefixed (`KES 1,240`, `NGN 45,000`) — 
 
 ---
 
-## 10. Implementation notes
+## 10. Heritage Contemporary (companion palette)
+
+A paler, editorial companion palette for long-form content surfaces where the saturated Kitenge cotton reads too warm — resources pages, "about", blog posts, policy documents. Structured on Material 3 roles (primary / secondary / tertiary / surface container ladder) so component libraries that expect M3 tokens can bind directly.
+
+**When to use.** Heritage is opt-in per surface — it does NOT replace Kitenge on the marketplace, checkout, portal, or admin chrome. Pick Heritage only when the page is primarily text on a near-white ground and Kitenge crimson would shout over it.
+
+**Role mapping.**
+
+| Role | Hex | Notes |
+|---|---|---|
+| `--heritage-primary` | `#9f3e07` | Burnt terracotta — tonal cousin of `--kitenge-crimson`, tuned for AA on near-white. |
+| `--heritage-primary-container` | `#c05621` | Tinted fills, callouts. |
+| `--heritage-secondary` | `#555f71` | Slate — neutral for metadata, captions, author blocks. |
+| `--heritage-tertiary` | `#175fa2` | Editorial blue — inline links, footnote markers. |
+| `--heritage-surface` / `--heritage-background` | `#fff8f6` | Warm near-white page field. |
+| `--heritage-surface-container-*` | `#fff1ec → #f3ded7` | Five-step elevation ladder for stacked cards. |
+| `--heritage-outline` | `#8a7268` | Hairlines, dividers. |
+| `--heritage-error` | `#ba1a1a` | Form errors only — not crimson. |
+
+Full set of roles (inverse, fixed, fixed-dim, on-variant) is declared in [src/app/globals.css](src/app/globals.css). Tailwind utilities: `bg-heritage-primary`, `text-heritage-on-surface`, `border-heritage-outline`, etc.
+
+**Typography pairing.** Heritage surfaces may swap Cabinet Grotesk → **Epilogue** and Satoshi → **Manrope** for a lighter editorial voice. Same 8 px grid, same tracking rules. Do not mix families within one surface.
+
+**Don'ts.**
+- Don't use Heritage terracotta (`#9f3e07`) next to Kitenge crimson (`#B83C30`) — they muddy each other. Pick one per surface.
+- Don't use the Heritage blues (`#175fa2`, `#a2c9ff`) as brand signifiers. They are editorial accents only; corridor coding stays on Kitenge indigo.
+- Don't nest the surface-container ladder more than three levels deep — the steps are subtle and collapse visually.
+
+---
+
+## 11. Implementation notes
 
 The current token layer lives in [src/app/globals.css](src/app/globals.css) under the `SilkRoad` namespace (obsidian / ivory / amber / terracotta / indigo). To adopt this guide, map the existing variables as follows — no component code needs to change:
 

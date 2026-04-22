@@ -286,21 +286,14 @@ export function Navbar() {
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
           <div className="flex items-center gap-4 lg:gap-6 h-[68px]">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-              <div className="hidden sm:flex relative w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--amber)] to-[var(--amber-dark)] items-center justify-center group-hover:shadow-md transition-shadow">
-                <span
-                  className="font-black text-[var(--obsidian)] text-sm tracking-tight"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  SR
-                </span>
-              </div>
+            <Link href="/" className="flex items-center shrink-0 group">
               <div className="flex flex-col">
                 <span
-                  className="text-[16px] font-bold tracking-tight leading-none text-[var(--obsidian)]"
+                  className="text-[16px] font-bold tracking-tight leading-none"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  Silk Road
+                  <span className="text-[var(--terracotta)]">Silk</span>{" "}
+                  <span className="text-[var(--text-primary)]">Road</span>
                 </span>
                 <span className="text-[10px] font-semibold tracking-[0.15em] uppercase leading-none mt-1 text-[var(--amber-dark)]">
                   Africa

@@ -78,7 +78,7 @@ export async function scanCompliance(
     tradeAgreements.push("AfCFTA (African Continental Free Trade Area) — tariff liberalization in progress");
   }
 
-  const systemPrompt = `You are a trade compliance specialist for Silk Road, an Africa-first B2B marketplace.
+  const systemPrompt = `You are a trade compliance specialist for Silk Road Africa, an Africa-first B2B marketplace.
 You assess whether products and transactions comply with import/export regulations.
 
 TRADE CONTEXT:

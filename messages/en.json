@@ -36,7 +36,7 @@
     "tradeAssurance": "Trade Assurance",
     "about": "About",
     "howItWorks": "How it works",
-    "sell": "Sell on Silk Road",
+    "sell": "Sell on Silk Road Africa",
     "help": "Help",
     "all": "All",
     "browse": "Browse",
@@ -126,7 +126,7 @@
       },
       "rail": {
         "eyebrow": "Products Portal",
-        "title": "New on Silk Road",
+        "title": "New on Silk Road Africa",
         "subtitle": "Recently listed by verified Chinese suppliers."
       },
       "editorial": {
@@ -196,7 +196,7 @@
         "guide2Desc": "How blockchain-backed traceability earns 18-24% premium pricing from European and Chinese specialty buyers.",
         "guide3Tag": "Payments",
         "guide3Title": "Mobile money payouts to cooperatives at scale",
-        "guide3Desc": "How Silk Road settles bulk buyer payments out to thousands of cooperative members via MTN MoMo and Airtel Money."
+        "guide3Desc": "How Silk Road Africa settles bulk buyer payments out to thousands of cooperative members via MTN MoMo and Airtel Money."
       },
       "cta": {
         "headline": "List your harvest. Reach Chinese importers",
@@ -206,9 +206,9 @@
       }
     },
     "twoUpValue": {
-      "tradeAssuranceTitle": "Trade assurance on every order.",
-      "tradeAssuranceBody": "Funds held in escrow until delivery is confirmed. Disputes mediated by Silk Road operations — not the supplier, not the buyer.",
-      "tradeAssuranceCta": "How it works",
+      "tradeAssuranceTitle": "Sourced from trusted manufacturers.",
+      "tradeAssuranceBody": "Every supplier is vetted by our China sourcing team — factory audits, licence checks, product sampling. You see Silk Road Africa; we see the factory floor.",
+      "tradeAssuranceCta": "How we vet suppliers",
       "logisticsTitle": "Owned logistics, door to door.",
       "logisticsBody": "Our fleet, our drivers, our bonded warehouses across 27 African countries. Real-time tracking, customs handling, insurance included.",
       "logisticsCta": "See coverage"
@@ -293,11 +293,11 @@
       "sortMostPopular": "Most Popular"
     },
     "howItWorks": {
-      "eyebrow": "How Silk Road Works",
+      "eyebrow": "How Silk Road Africa Works",
       "title": "Two continents. One platform. Four steps.",
-      "subtitle": "From discovery to delivery, Silk Road handles the complexity of China–Africa trade so you can focus on growing your business.",
+      "subtitle": "From discovery to delivery, Silk Road Africa handles the complexity of China–Africa trade so you can focus on growing your business.",
       "directionsEyebrow": "Bidirectional Commerce",
-      "directionsTitle": "What flows through Silk Road",
+      "directionsTitle": "What flows through Silk Road Africa",
       "flowChinaTitle": "Source from 12,000+ verified Chinese factories",
       "flowChinaTag": "Manufactured Goods",
       "flowChinaDesc": "Electronics, machinery, textiles, construction materials, auto parts — direct from manufacturers with MOQ as low as 10 units.",
@@ -317,7 +317,7 @@
       "listings": "{count} listings",
       "stepsEyebrow": "The Process",
       "stepsTitle": "Four steps, end to end",
-      "stepsSubtitle": "From the first search to the last-mile delivery, Silk Road handles the complexity.",
+      "stepsSubtitle": "From the first search to the last-mile delivery, Silk Road Africa handles the complexity.",
       "step1Title": "Discover & Source",
       "step1Desc": "Browse verified suppliers, compare products, and find the best deals across categories.",
       "step2Title": "Request Quotation",
@@ -336,7 +336,7 @@
       "title": "Trade infrastructure for two continents.",
       "subtitle": "We connect Chinese manufacturers with African businesses — and African producers with Chinese importers — on a single B2B platform built for how this trade actually works: mobile-money payments, bonded logistics, multi-language support, and trade assurance on every order.",
       "flowEyebrow": "Bidirectional Commerce",
-      "flowTitle": "How trade flows on Silk Road",
+      "flowTitle": "How trade flows on Silk Road Africa",
       "flowSubtitle": "Two source markets. One platform. Verified suppliers and importers on both sides of every transaction.",
       "chineseManufacturers": "Chinese Manufacturers",
       "chineseRegions": "Guangdong · Zhejiang · Fujian",
@@ -355,7 +355,7 @@
       "pillarsEyebrow": "What We Do",
       "pillarsTitle": "Four pillars of cross-continental B2B",
       "pillar1Title": "Trade Assurance",
-      "pillar1Body": "Every transaction is held in escrow until you confirm delivery and quality. Disputes are mediated by Silk Road operations.",
+      "pillar1Body": "Every transaction is held in escrow until you confirm delivery and quality. Disputes are mediated by Silk Road Africa operations.",
       "pillar2Title": "Owned Logistics",
       "pillar2Body": "Our own fleet, drivers, and bonded warehouses move goods door-to-door across 27+ African countries — not third-party carriers.",
       "pillar3Title": "Local-First Payments",
@@ -391,14 +391,14 @@
       "shopVerifiedSuppliers": "Verified suppliers",
       "shopNewArrivals": "New arrivals",
       "shopFeaturedDeals": "Featured deals",
-      "buyHeading": "Buy on Silk Road",
+      "buyHeading": "Buy on Silk Road Africa",
       "buyHowToBuy": "How to buy",
       "buyRfq": "Request for quotation",
       "buyTradeAssurance": "Trade assurance",
       "buyBuyerProtection": "Buyer protection",
       "buyPaymentMethods": "Payment methods",
       "buyCustoms": "Customs & duties",
-      "sellHeading": "Sell on Silk Road",
+      "sellHeading": "Sell on Silk Road Africa",
       "sellBecomeSupplier": "Become a supplier",
       "sellSupplierCenter": "Supplier center",
       "sellVerification": "Verification process",
@@ -419,7 +419,7 @@
       "companyContact": "Contact",
       "companyHelp": "Help center",
       "regionsHeading": "Active Trade Regions",
-      "copyright": "© {year} Silk Road Trade Co.",
+      "copyright": "© {year} Silk Road Africa Trade Co.",
       "privacy": "Privacy",
       "terms": "Terms",
       "compliance": "Trade compliance",

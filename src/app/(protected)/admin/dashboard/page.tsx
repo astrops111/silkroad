@@ -133,7 +133,7 @@ export default function DashboardPage() {
           Platform Dashboard
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Real-time overview of Silk Road operations
+          Real-time overview of Silk Road Africa operations
         </p>
       </div>
 

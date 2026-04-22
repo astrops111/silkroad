@@ -70,6 +70,58 @@
   --smoke: #8A8378;
   --onyx-soft: #2A2520;
 
+  /* Heritage Contemporary — Material 3 companion palette.
+     Paler, editorial counterpart to Kitenge. Use on long-form
+     content surfaces (resources, about, blog) where the cotton
+     background reads too warm. See BRAND.md §11. */
+  --heritage-surface: #fff8f6;
+  --heritage-surface-dim: #ead6ce;
+  --heritage-surface-bright: #fff8f6;
+  --heritage-surface-container-lowest: #ffffff;
+  --heritage-surface-container-low: #fff1ec;
+  --heritage-surface-container: #ffeae2;
+  --heritage-surface-container-high: #f9e4dc;
+  --heritage-surface-container-highest: #f3ded7;
+  --heritage-surface-variant: #f3ded7;
+  --heritage-on-surface: #241915;
+  --heritage-on-surface-variant: #57423a;
+  --heritage-inverse-surface: #3a2e29;
+  --heritage-inverse-on-surface: #ffede7;
+  --heritage-outline: #8a7268;
+  --heritage-outline-variant: #dec0b5;
+  --heritage-surface-tint: #a14009;
+  --heritage-background: #fff8f6;
+  --heritage-on-background: #241915;
+  --heritage-primary: #9f3e07;
+  --heritage-on-primary: #ffffff;
+  --heritage-primary-container: #c05621;
+  --heritage-on-primary-container: #fffeff;
+  --heritage-inverse-primary: #ffb596;
+  --heritage-primary-fixed: #ffdbcd;
+  --heritage-primary-fixed-dim: #ffb596;
+  --heritage-on-primary-fixed: #360f00;
+  --heritage-on-primary-fixed-variant: #7d2d00;
+  --heritage-secondary: #555f71;
+  --heritage-on-secondary: #ffffff;
+  --heritage-secondary-container: #d6e0f6;
+  --heritage-on-secondary-container: #596376;
+  --heritage-secondary-fixed: #d9e3f9;
+  --heritage-secondary-fixed-dim: #bdc7dc;
+  --heritage-on-secondary-fixed: #121c2c;
+  --heritage-on-secondary-fixed-variant: #3d4759;
+  --heritage-tertiary: #175fa2;
+  --heritage-on-tertiary: #ffffff;
+  --heritage-tertiary-container: #3a78bd;
+  --heritage-on-tertiary-container: #fffeff;
+  --heritage-tertiary-fixed: #d3e4ff;
+  --heritage-tertiary-fixed-dim: #a2c9ff;
+  --heritage-on-tertiary-fixed: #001c38;
+  --heritage-on-tertiary-fixed-variant: #004881;
+  --heritage-error: #ba1a1a;
+  --heritage-on-error: #ffffff;
+  --heritage-error-container: #ffdad6;
+  --heritage-on-error-container: #93000a;
+
   /* Core palette (SilkRoad namespace mapped to Kitenge) */
   --obsidian: #14110F;
   --obsidian-light: #1F1A15;
@@ -176,6 +228,37 @@
   --color-ash: var(--ash);
   --color-smoke: var(--smoke);
   --color-onyx-soft: var(--onyx-soft);
+
+  /* Heritage Contemporary — Material 3 utilities (bg-heritage-primary, etc.) */
+  --color-heritage-surface: var(--heritage-surface);
+  --color-heritage-surface-dim: var(--heritage-surface-dim);
+  --color-heritage-surface-bright: var(--heritage-surface-bright);
+  --color-heritage-surface-container-lowest: var(--heritage-surface-container-lowest);
+  --color-heritage-surface-container-low: var(--heritage-surface-container-low);
+  --color-heritage-surface-container: var(--heritage-surface-container);
+  --color-heritage-surface-container-high: var(--heritage-surface-container-high);
+  --color-heritage-surface-container-highest: var(--heritage-surface-container-highest);
+  --color-heritage-surface-variant: var(--heritage-surface-variant);
+  --color-heritage-on-surface: var(--heritage-on-surface);
+  --color-heritage-on-surface-variant: var(--heritage-on-surface-variant);
+  --color-heritage-outline: var(--heritage-outline);
+  --color-heritage-outline-variant: var(--heritage-outline-variant);
+  --color-heritage-primary: var(--heritage-primary);
+  --color-heritage-on-primary: var(--heritage-on-primary);
+  --color-heritage-primary-container: var(--heritage-primary-container);
+  --color-heritage-on-primary-container: var(--heritage-on-primary-container);
+  --color-heritage-secondary: var(--heritage-secondary);
+  --color-heritage-on-secondary: var(--heritage-on-secondary);
+  --color-heritage-secondary-container: var(--heritage-secondary-container);
+  --color-heritage-on-secondary-container: var(--heritage-on-secondary-container);
+  --color-heritage-tertiary: var(--heritage-tertiary);
+  --color-heritage-on-tertiary: var(--heritage-on-tertiary);
+  --color-heritage-tertiary-container: var(--heritage-tertiary-container);
+  --color-heritage-on-tertiary-container: var(--heritage-on-tertiary-container);
+  --color-heritage-error: var(--heritage-error);
+  --color-heritage-on-error: var(--heritage-on-error);
+  --color-heritage-error-container: var(--heritage-error-container);
+  --color-heritage-on-error-container: var(--heritage-on-error-container);
 
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
