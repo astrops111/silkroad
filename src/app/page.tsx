@@ -1,7 +1,6 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
+import { getLocale } from "next-intl/server";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
@@ -12,59 +11,35 @@ import {
   Baby,
   BedDouble,
   Sofa,
+  House,
+  Hotel,
+  Cpu,
+  ShoppingBag,
+  type LucideIcon,
 } from "lucide-react";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { ProductRail, type RailProduct } from "@/components/landing/product-rail";
 import { EditorialBand } from "@/components/landing/editorial-band";
 import { TwoUpValue } from "@/components/landing/two-up-value";
+import { HeroCarousel } from "@/components/landing/hero-carousel";
+import {
+  getTopLevelCategoriesWithCount,
+  type TopCategoryWithCount,
+} from "@/lib/queries/categories";
+import { imageForSlug } from "@/lib/category-images";
 
 /* ============================================================
-   HERO — Products portal (China → Africa, single big tile)
+   HERO — Products portal (China → Africa, rotating carousel)
    ============================================================ */
 function HeroSection() {
   const t = useTranslations("marketing.products");
   const tTrust = useTranslations("marketing.trust");
   return (
-    <section className="bg-[var(--surface-primary)] pt-[140px] pb-12 lg:pb-16">
+    <section className="bg-[var(--surface-primary)] pt-[176px] pb-12 lg:pb-16">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 lg:gap-5">
-          <div className="relative isolate flex flex-col justify-end overflow-hidden rounded-2xl min-h-[480px] lg:min-h-[600px] p-8 lg:p-14 border border-[var(--border-subtle)]">
-            <Image
-              src="https://images.pexels.com/photos/33626641/pexels-photo-33626641.jpeg?auto=compress&cs=tinysrgb&w=1800"
-              alt="Manufacturing factory floor with assembly line"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 65vw"
-              className="object-cover -z-10"
-            />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
-
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 mb-5 w-fit">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)]" />
-              <span className="text-[11px] font-semibold text-white tracking-wide uppercase">
-                {t("hero.badge")}
-              </span>
-            </span>
-            <h1
-              className="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white max-w-3xl"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {t("hero.headline")}
-            </h1>
-            <p className="mt-5 text-base lg:text-lg text-white/85 max-w-xl leading-relaxed">
-              {t("hero.tagline")}
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/marketplace"
-                className="btn-primary !py-3.5 !px-7 !text-sm"
-              >
-                {t("hero.browseCta")}
-                <ArrowUpRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
+          <HeroCarousel />
 
           {/* Secondary stack: trust badge + featured pitch */}
           <div className="flex flex-col gap-4 lg:gap-5">
@@ -140,60 +115,35 @@ function HeroSection() {
 }
 
 /* ============================================================
-   FEATURED CATEGORIES (Products only)
+   FEATURED CATEGORIES (DB-driven)
    ============================================================ */
-function FeaturedCategories() {
+const ICON_MAP: Record<string, LucideIcon> = {
+  House,
+  Hotel,
+  Cpu,
+  Sparkles,
+  ShoppingBag,
+  ShoppingBasket,
+  Baby,
+  BedDouble,
+  Sofa,
+  Smartphone,
+};
+
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k+`;
+  if (n >= 100) return `${Math.floor(n / 10) * 10}+`;
+  return String(n);
+}
+
+function FeaturedCategories({
+  categories,
+  locale,
+}: {
+  categories: TopCategoryWithCount[];
+  locale: string;
+}) {
   const t = useTranslations("marketing.products.categories");
-  const categories = [
-    {
-      name: t("cosmetics"),
-      count: "2,800+",
-      image:
-        "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Sparkles,
-      href: "/marketplace?category=cosmetics",
-    },
-    {
-      name: t("consumerElectronics"),
-      count: "3,400+",
-      image:
-        "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Smartphone,
-      href: "/marketplace?category=electronics",
-    },
-    {
-      name: t("groceries"),
-      count: "2,100+",
-      image:
-        "https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: ShoppingBasket,
-      href: "/marketplace?category=groceries",
-    },
-    {
-      name: t("babyProducts"),
-      count: "1,200+",
-      image:
-        "https://images.pexels.com/photos/3933250/pexels-photo-3933250.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Baby,
-      href: "/marketplace?category=baby",
-    },
-    {
-      name: t("hotelInteriors"),
-      count: "1,500+",
-      image:
-        "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: BedDouble,
-      href: "/marketplace?category=hotel",
-    },
-    {
-      name: t("furniture"),
-      count: "1,800+",
-      image:
-        "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=900",
-      icon: Sofa,
-      href: "/marketplace?category=furniture",
-    },
-  ];
 
   return (
     <section className="py-16 lg:py-20 bg-[var(--surface-secondary)]">
@@ -220,36 +170,45 @@ function FeaturedCategories() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map((cat) => (
-            <Link
-              key={cat.name}
-              href={cat.href}
-              className="group relative isolate flex flex-col justify-end p-6 h-48 lg:h-64 rounded-2xl overflow-hidden border border-[var(--border-subtle)] hover:shadow-lg transition-all duration-300"
-            >
-              <Image
-                src={cat.image}
-                alt={cat.name}
-                fill
-                sizes="(max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-[1.04] -z-10"
-              />
-              <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
+          {categories.map((cat) => {
+            const displayName =
+              locale === "zh" && cat.name_local ? cat.name_local : cat.name;
+            const Icon: LucideIcon =
+              (cat.icon ? ICON_MAP[cat.icon] : undefined) ?? ShoppingBag;
+            const image = imageForSlug(cat.slug);
+            return (
+              <Link
+                key={cat.id}
+                href={`/marketplace?category=${cat.slug}`}
+                className="group relative isolate flex flex-col justify-end p-6 h-48 lg:h-64 rounded-2xl overflow-hidden border border-[var(--border-subtle)] hover:shadow-lg transition-all duration-300"
+              >
+                <Image
+                  src={image}
+                  alt={displayName}
+                  fill
+                  sizes="(max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.04] -z-10"
+                />
+                <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
 
-              <cat.icon className="absolute top-5 right-5 w-7 h-7 text-white/85" />
+                <Icon className="absolute top-5 right-5 w-7 h-7 text-white/85" />
 
-              <div>
-                <h3
-                  className="text-lg font-bold text-white mb-1"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {cat.name}
-                </h3>
-                <p className="text-sm text-white/75">{t("products", { count: cat.count })}</p>
-              </div>
+                <div>
+                  <h3
+                    className="text-lg font-bold text-white mb-1"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {displayName}
+                  </h3>
+                  <p className="text-sm text-white/75">
+                    {t("products", { count: formatCount(cat.productCount) })}
+                  </p>
+                </div>
 
-              <ArrowUpRight className="absolute bottom-5 right-5 w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Link>
-          ))}
+                <ArrowUpRight className="absolute bottom-5 right-5 w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -425,7 +384,24 @@ function CTASection() {
   );
 }
 
-export default function ProductsPortalHome() {
+export default async function ProductsPortalHome() {
+  const [categories, locale] = await Promise.all([
+    getTopLevelCategoriesWithCount(),
+    getLocale(),
+  ]);
+
+  return (
+    <ProductsPortalHomeInner categories={categories} locale={locale} />
+  );
+}
+
+function ProductsPortalHomeInner({
+  categories,
+  locale,
+}: {
+  categories: TopCategoryWithCount[];
+  locale: string;
+}) {
   const tRail = useTranslations("marketing.products.rail");
   const tEditorial = useTranslations("marketing.products.editorial");
 
@@ -458,7 +434,7 @@ export default function ProductsPortalHome() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
-        <FeaturedCategories />
+        <FeaturedCategories categories={categories} locale={locale} />
         <ProductRail
           eyebrow={tRail("eyebrow")}
           title={tRail("title")}

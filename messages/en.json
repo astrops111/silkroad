@@ -55,14 +55,16 @@
     "accountHeading": "Account",
     "createAccount": "Create account",
     "regionHeading": "Region",
-    "categoryCosmetics": "Cosmetics",
+    "categoryHome": "Home",
+    "categoryHotels": "Hotels",
     "categoryConsumerElectronics": "Consumer Electronics",
+    "categoryBeauty": "Beauty",
     "categoryGroceries": "Groceries",
     "categoryBabyProducts": "Baby Products",
-    "categoryHotelInteriors": "Hotel Interiors",
-    "categoryFurniture": "Furniture",
     "featured": "Featured",
-    "seeAll": "See all {label}"
+    "seeAll": "See all {label}",
+    "bannerLead": "Can't find what you want?",
+    "bannerCta": "Send us a request"
   },
   "marketing": {
     "regions": {
@@ -85,7 +87,19 @@
         "headline": "Source from 12,000 verified Chinese factories.",
         "tagline": "Electronics, machinery, textiles, construction — direct from the factory floor with MOQ as low as 10 units, escrow protection, and door-to-door logistics across 27 African countries.",
         "browseCta": "Browse products",
-        "switchCta": "Or export from Africa"
+        "switchCta": "Or export from Africa",
+        "slide2": {
+          "badge": "Trade Assurance · Escrow",
+          "headline": "Pay only when your goods pass inspection.",
+          "tagline": "Every order is protected by platform-held escrow. Funds release to the supplier only after your inspection agent clears the cargo — zero risk on first-time orders.",
+          "cta": "How escrow works"
+        },
+        "slide3": {
+          "badge": "Logistics · 27 Countries",
+          "headline": "Door-to-door delivery across Africa.",
+          "tagline": "Consolidated sea freight, express air cargo, and last-mile clearance in Lagos, Nairobi, Johannesburg, Cairo and 23 more. Live tracking from Shenzhen to your warehouse.",
+          "cta": "View shipping options"
+        }
       },
       "promo": {
         "eyebrow": "New This Week",
@@ -258,12 +272,12 @@
       "filterChipLabel": "Filters",
       "clear": "Clear",
       "categoryAll": "All Categories",
-      "categoryCosmetics": "Cosmetics",
+      "categoryHome": "Home",
+      "categoryHotels": "Hotels",
       "categoryConsumerElectronics": "Consumer Electronics",
+      "categoryBeauty": "Beauty",
       "categoryGroceries": "Groceries",
       "categoryBabyProducts": "Baby Products",
-      "categoryHotelInteriors": "Hotel Interiors",
-      "categoryFurniture": "Furniture",
       "moqAny": "Any",
       "moqUnits": "{range} units",
       "filterVerified": "Verified Only",
@@ -554,6 +568,51 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "copyright": "All rights reserved."
+  },
+  "buyerRequest": {
+    "metaTitle": "Request what you need — Silk Road Africa",
+    "metaDescription": "Tell us what you're sourcing. Our team will find verified suppliers and come back to you within one business day.",
+    "eyebrow": "Sourcing Request",
+    "title": "Tell us what you're looking for.",
+    "subtitle": "If you can't find the product on our marketplace, describe it here. A sourcing manager will follow up with verified supplier options, usually within one business day.",
+    "backHome": "Back to home",
+    "sectionWhatTitle": "What you need",
+    "sectionWhatSubtitle": "The more detail, the faster we can match.",
+    "sectionWhoTitle": "How to reach you",
+    "sectionWhoSubtitle": "We'll email and/or call you — no spam.",
+    "name": "Your name",
+    "email": "Email",
+    "phone": "Phone / WhatsApp",
+    "company": "Company",
+    "country": "Country",
+    "countryPlaceholder": "e.g. KE, NG, ZA",
+    "category": "Category",
+    "categoryAny": "Any / Not sure",
+    "title": "Product or item",
+    "titlePlaceholder": "e.g. 5G smartphones, kitchen sofas, baby formula",
+    "description": "Describe what you need",
+    "descriptionPlaceholder": "Specs, brands you've seen, intended use, any packaging or certification requirements…",
+    "quantity": "Quantity",
+    "quantityPlaceholder": "e.g. 500 units, 1 container, 10 MT",
+    "budget": "Budget (USD)",
+    "budgetPlaceholder": "e.g. $5,000 total or $12 per unit",
+    "timeline": "Needed by",
+    "timelinePlaceholder": "e.g. within 30 days, Q3 2026",
+    "footnote": "By submitting you agree we may contact you about this request. We never share your details with third parties.",
+    "submit": "Send request",
+    "submitting": "Sending…",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "successTitle": "Request received.",
+    "successBody": "A sourcing manager will email you shortly with next steps. You can close this tab.",
+    "categories": {
+      "home": "Home",
+      "hotels": "Hotels",
+      "consumerElectronics": "Consumer Electronics",
+      "beauty": "Beauty",
+      "groceries": "Groceries",
+      "babyProducts": "Baby Products",
+      "other": "Something else"
+    }
   },
   "resources": {
     "nav": {

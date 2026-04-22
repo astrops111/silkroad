@@ -67,7 +67,7 @@ export type TaxType = "taxable" | "zero_rated" | "exempt" | "mixed"
 export type TaxSystem = "africa_vat" | "cn_vat" | "stripe_tax" | "manual"
 export type AddressFormat = "africa_landmark" | "cn_province" | "international"
 export type SupplierTier = "free" | "standard" | "gold" | "verified"
-export type CompanyType = "buyer_org" | "supplier" | "logistics"
+export type CompanyType = "buyer_org" | "supplier" | "logistics" | "both"
 
 // Table row types
 export interface Database {
@@ -361,6 +361,20 @@ export interface Database {
           dimensions_cm: Json | null
           hs_code: string | null
           origin_country: string | null
+          cogs: number | null
+          brand: string | null
+          jan_code: string | null
+          shelf_life_days: number | null
+          box_pack_qty: number | null
+          shipping_mode: string | null
+          legal_category: string | null
+          skin_hair_type: string | null
+          target_audience: string | null
+          scent: string | null
+          texture: string | null
+          usage_instructions: string | null
+          storage_instructions: string | null
+          warnings: string | null
           is_active: boolean
           is_featured: boolean
           search_vector: unknown | null
@@ -389,6 +403,20 @@ export interface Database {
           dimensions_cm?: Json | null
           hs_code?: string | null
           origin_country?: string | null
+          cogs?: number | null
+          brand?: string | null
+          jan_code?: string | null
+          shelf_life_days?: number | null
+          box_pack_qty?: number | null
+          shipping_mode?: string | null
+          legal_category?: string | null
+          skin_hair_type?: string | null
+          target_audience?: string | null
+          scent?: string | null
+          texture?: string | null
+          usage_instructions?: string | null
+          storage_instructions?: string | null
+          warnings?: string | null
           is_active?: boolean
           is_featured?: boolean
         }
@@ -415,6 +443,20 @@ export interface Database {
           dimensions_cm?: Json | null
           hs_code?: string | null
           origin_country?: string | null
+          cogs?: number | null
+          brand?: string | null
+          jan_code?: string | null
+          shelf_life_days?: number | null
+          box_pack_qty?: number | null
+          shipping_mode?: string | null
+          legal_category?: string | null
+          skin_hair_type?: string | null
+          target_audience?: string | null
+          scent?: string | null
+          texture?: string | null
+          usage_instructions?: string | null
+          storage_instructions?: string | null
+          warnings?: string | null
           is_active?: boolean
           is_featured?: boolean
           updated_at?: string

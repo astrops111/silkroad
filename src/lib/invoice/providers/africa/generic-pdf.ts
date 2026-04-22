@@ -74,7 +74,7 @@ function generateInvoiceHtml(data: InvoiceData, invoiceNumber: string): string {
   <style>
     body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 40px; font-size: 14px; }
     .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-    .logo { font-size: 24px; font-weight: 800; color: #D4A853; }
+    .logo { font-size: 24px; font-weight: 800; color: #D89F2E; }
     .invoice-number { font-size: 12px; color: #666; }
     .parties { display: flex; justify-content: space-between; margin-bottom: 30px; }
     .party { width: 45%; }

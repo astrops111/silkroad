@@ -17,25 +17,30 @@ import {
   ChevronRight,
   BarChart3,
   MessageSquare,
-  Sparkles,
+  Upload,
   TrendingUp,
   Megaphone,
   Crown,
+  Users,
 } from "lucide-react";
 
-const NAV_ITEMS = [
+const CORE_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/supplier/dashboard" },
   { icon: Package, label: "Products", href: "/supplier/products" },
-  { icon: Sparkles, label: "AI Listing", href: "/supplier/products/ai-listing" },
-  { icon: TrendingUp, label: "Smart Pricing", href: "/supplier/products/pricing" },
-  { icon: Megaphone, label: "Promoted", href: "/supplier/products/promote" },
-  { icon: ShoppingCart, label: "Orders", href: "/supplier/orders" },
+  { icon: Upload, label: "Bulk Import", href: "/supplier/products/bulk-import" },
   { icon: FileText, label: "RFQ Requests", href: "/supplier/rfq" },
   { icon: MessageSquare, label: "Messages", href: "/supplier/messages" },
+  { icon: Users, label: "Team & Contacts", href: "/supplier/contacts" },
+  { icon: Settings, label: "Settings", href: "/supplier/settings" },
+];
+
+const ADVANCED_ITEMS = [
+  { icon: Megaphone, label: "Promoted", href: "/supplier/products/promote" },
+  { icon: TrendingUp, label: "Smart Pricing", href: "/supplier/products/pricing" },
+  { icon: ShoppingCart, label: "Orders", href: "/supplier/orders" },
   { icon: Truck, label: "Shipments", href: "/supplier/shipments" },
   { icon: BarChart3, label: "Analytics", href: "/supplier/analytics" },
   { icon: Crown, label: "Subscription", href: "/supplier/subscription" },
-  { icon: Settings, label: "Settings", href: "/supplier/settings" },
 ];
 
 interface SupplierShellProps {
@@ -44,6 +49,7 @@ interface SupplierShellProps {
   companyName: string;
   userInitials: string;
   companyId: string;
+  isSuperAdmin?: boolean;
 }
 
 export function SupplierShell({
@@ -51,9 +57,26 @@ export function SupplierShell({
   userName,
   companyName,
   userInitials,
+  isSuperAdmin = false,
 }: SupplierShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+
+  // Pick the single most-specific nav entry for the current pathname. Using
+  // startsWith naively lights up both "Products" and "Bulk Import" when the
+  // URL is /supplier/products/bulk-import, since the latter is nested under
+  // the former. We match the longest href that is either exact or a path
+  // segment prefix, and mark only that one as active.
+  const allHrefs = [
+    ...CORE_ITEMS.map((i) => i.href),
+    ...(isSuperAdmin ? ADVANCED_ITEMS.map((i) => i.href) : []),
+  ];
+  const activeHref =
+    allHrefs
+      .filter(
+        (href) => pathname === href || pathname.startsWith(href + "/")
+      )
+      .sort((a, b) => b.length - a.length)[0] ?? null;
 
   return (
     <div className="flex min-h-screen bg-[var(--surface-secondary)]">
@@ -123,35 +146,72 @@ export function SupplierShell({
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/supplier/dashboard" &&
-                pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                  transition-all duration-200
-                  ${
-                    isActive
-                      ? "bg-[var(--amber)]/15 text-[var(--amber)]"
-                      : "text-[var(--ivory)]/60 hover:text-[var(--ivory)] hover:bg-white/5"
-                  }
-                `}
-              >
-                <item.icon size={18} />
-                <span>{item.label}</span>
-                {isActive && (
-                  <ChevronRight size={14} className="ml-auto opacity-60" />
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-3 overflow-y-auto">
+          <div className="space-y-1">
+            {CORE_ITEMS.map((item) => {
+              const isActive = activeHref === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    transition-all duration-200
+                    ${
+                      isActive
+                        ? "bg-[var(--amber)]/15 text-[var(--amber)]"
+                        : "text-[var(--ivory)]/60 hover:text-[var(--ivory)] hover:bg-white/5"
+                    }
+                  `}
+                >
+                  <item.icon size={18} />
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <ChevronRight size={14} className="ml-auto opacity-60" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          {isSuperAdmin && (
+            <div className="mt-6">
+              <div className="flex items-center gap-2 px-3 mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ivory)]/30">
+                  Advanced
+                </p>
+                <Crown size={10} className="text-[var(--amber)]/70" />
+              </div>
+              <div className="space-y-1">
+                {ADVANCED_ITEMS.map((item) => {
+                  const isActive = activeHref === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`
+                        flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                        transition-all duration-200
+                        ${
+                          isActive
+                            ? "bg-[var(--amber)]/15 text-[var(--amber)]"
+                            : "text-[var(--ivory)]/60 hover:text-[var(--ivory)] hover:bg-white/5"
+                        }
+                      `}
+                    >
+                      <item.icon size={18} />
+                      <span>{item.label}</span>
+                      {isActive && (
+                        <ChevronRight size={14} className="ml-auto opacity-60" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Logout */}

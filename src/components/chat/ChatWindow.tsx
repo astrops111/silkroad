@@ -304,12 +304,12 @@ export default function ChatWindow({
                       style={{
                         fontFamily: "var(--font-body)",
                         background: isMe
-                          ? "rgba(212, 168, 83, 0.10)"
+                          ? "rgba(216, 159, 46, 0.10)"
                           : "var(--surface-secondary)",
                         borderBottomRightRadius: isMe ? "6px" : undefined,
                         borderBottomLeftRadius: !isMe ? "6px" : undefined,
                         border: isMe
-                          ? "1px solid rgba(212, 168, 83, 0.20)"
+                          ? "1px solid rgba(216, 159, 46, 0.20)"
                           : "1px solid var(--border-subtle)",
                       }}
                     >

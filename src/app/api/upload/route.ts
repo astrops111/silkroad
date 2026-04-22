@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeStoragePath } from "@/lib/security/sanitize";
 
 /**
  * POST /api/upload — Upload a file to Supabase Storage
@@ -69,12 +70,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Generate unique path
-  const ext = file.name.split(".").pop() || "bin";
+  const rawExt = (file.name.split(".").pop() || "bin").toLowerCase();
+  const ext = /^[a-z0-9]{1,6}$/.test(rawExt) ? rawExt : "bin";
   const timestamp = Date.now();
   const rand = Math.random().toString(36).substring(2, 8);
   const safeName = `${timestamp}-${rand}.${ext}`;
-  const path = folder ? `${folder}${safeName}` : safeName;
+  const safeFolder = folder ? sanitizeStoragePath(folder) : "";
+  if (safeFolder.length > 200) {
+    return NextResponse.json({ error: "Folder path too long" }, { status: 400 });
+  }
+  const path = `${safeFolder}${safeName}`;
 
   // Upload to Supabase Storage
   const { data, error } = await supabase.storage

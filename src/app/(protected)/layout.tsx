@@ -1,22 +1,20 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/queries/user";
+import { createClient } from "@/lib/supabase/server";
 
+// Minimal auth gate. We only verify there is a valid session here.
+// Child layouts decide what to do with the session (render shells,
+// fetch company info, etc.) using their own queries.
 export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  // Check if user has a company — if not, redirect to onboarding
-  const hasCompany = user.company_members && user.company_members.length > 0;
-  if (!hasCompany) {
-    redirect("/onboarding");
-  }
+  if (!user) redirect("/auth/login");
 
   return <>{children}</>;
 }

@@ -8,10 +8,13 @@ export default async function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   const user = (await getCurrentUser()) as UserWithCompany;
-  const membership = user.company_members[0];
 
-  // Only admin_super can access the superadmin panel
-  if (!membership || membership.role !== "admin_super") {
+  // Filter by role rather than indexing [0] — superadmins may have
+  // other memberships (supplier/buyer) that come before the admin row.
+  const superadminMembership = user.company_members.find(
+    (m) => m.role === "admin_super"
+  );
+  if (!superadminMembership) {
     redirect("/admin/dashboard");
   }
 

@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 function PageHeader() {
   const t = useTranslations("marketing.about");
   return (
-    <section className="relative isolate overflow-hidden border-b border-[var(--border-subtle)] pt-[148px] pb-24 lg:pb-32">
+    <section className="relative isolate overflow-hidden border-b border-[var(--border-subtle)] pt-[184px] pb-24 lg:pb-32">
       <Image
         src="https://images.pexels.com/photos/18609057/pexels-photo-18609057.jpeg?auto=compress&cs=tinysrgb&w=1800"
         alt="Container ship at port"
@@ -236,7 +236,7 @@ function SocialProof() {
         className="absolute top-0 left-1/3 w-[500px] h-[500px] opacity-50 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse, rgba(212,168,83,0.06), transparent 70%)",
+            "radial-gradient(ellipse, rgba(216,159,46,0.06), transparent 70%)",
         }}
       />
 

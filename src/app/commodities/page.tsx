@@ -27,7 +27,7 @@ function HeroSection() {
   const t = useTranslations("marketing.commodities");
   const tTrust = useTranslations("marketing.trust");
   return (
-    <section className="bg-[var(--surface-primary)] pt-[140px] pb-12 lg:pb-16">
+    <section className="bg-[var(--surface-primary)] pt-[176px] pb-12 lg:pb-16">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 lg:gap-5">
           <div className="relative isolate flex flex-col justify-end overflow-hidden rounded-2xl min-h-[480px] lg:min-h-[600px] p-8 lg:p-14 border border-[var(--border-subtle)]">
@@ -387,7 +387,7 @@ function CTASection() {
             className="absolute top-0 right-0 w-[500px] h-[500px]"
             style={{
               background:
-                "radial-gradient(ellipse at top right, rgba(196,93,62,0.12), transparent 60%)",
+                "radial-gradient(ellipse at top right, rgba(184,60,48,0.12), transparent 60%)",
             }}
           />
 

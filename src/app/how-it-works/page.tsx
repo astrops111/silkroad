@@ -24,7 +24,7 @@ import { Footer } from "@/components/ui/footer";
 function PageHeader() {
   const t = useTranslations("marketing.howItWorks");
   return (
-    <section className="relative isolate overflow-hidden border-b border-[var(--border-subtle)] pt-[148px] pb-20 lg:pb-28">
+    <section className="relative isolate overflow-hidden border-b border-[var(--border-subtle)] pt-[184px] pb-20 lg:pb-28">
       <Image
         src="https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=1800"
         alt={t("title")}

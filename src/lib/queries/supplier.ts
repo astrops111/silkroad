@@ -21,6 +21,51 @@ export async function getSupplierProfile(companyId: string) {
   };
 }
 
+export type CompanyWithSupplierProfile = Tables<"companies"> & {
+  supplier_profile: Tables<"supplier_profiles"> | null;
+};
+
+export async function getCompanyWithProfile(
+  companyId: string
+): Promise<CompanyWithSupplierProfile | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("*, supplier_profiles (*)")
+    .eq("id", companyId)
+    .single();
+  if (!data) return null;
+  type Raw = Tables<"companies"> & {
+    supplier_profiles:
+      | Tables<"supplier_profiles">[]
+      | Tables<"supplier_profiles">
+      | null;
+  };
+  const raw = data as Raw;
+  const profile = Array.isArray(raw.supplier_profiles)
+    ? (raw.supplier_profiles[0] ?? null)
+    : (raw.supplier_profiles ?? null);
+  const { supplier_profiles: _ignored, ...company } = raw;
+  void _ignored;
+  return { ...company, supplier_profile: profile };
+}
+
+export type CompanyMemberWithUser = Tables<"company_members"> & {
+  user_profiles: Tables<"user_profiles"> | null;
+};
+
+export async function getCompanyMembers(
+  companyId: string
+): Promise<CompanyMemberWithUser[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("company_members")
+    .select("*, user_profiles:user_id (*)")
+    .eq("company_id", companyId)
+    .order("joined_at", { ascending: true });
+  return (data ?? []) as CompanyMemberWithUser[];
+}
+
 export async function getPublicSupplierProfile(companyId: string) {
   const supabase = await createClient();
   const { data: company } = await supabase

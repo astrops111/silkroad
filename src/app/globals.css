@@ -49,48 +49,69 @@
 }
 
 :root {
-  /* Core palette */
-  --obsidian: #0B0F1A;
-  --obsidian-light: #141925;
-  --obsidian-mid: #1E2433;
-  --ivory: #F5F0E8;
-  --ivory-warm: #EDE7DB;
-  --ivory-cool: #FAFAF7;
+  /* Kitenge dye palette — see BRAND.md §2 */
+  --kitenge-crimson: #B83C30;
+  --kitenge-crimson-deep: #9A2F25;
+  --kitenge-ochre: #D89F2E;
+  --kitenge-indigo: #1F3A8A;
+  --kitenge-emerald: #1F7A5A;
+  --kitenge-emerald-deep: #186144;
+  --kitenge-onyx: #14110F;
+  --kitenge-terracotta: #A0502E;
+  --kitenge-aubergine: #6B2D5C;
+  --kitenge-turquoise: #0FA6A6;
+  --kitenge-saffron: #E8B84C;
 
-  /* Brand accents */
-  --amber: #D4A853;
-  --amber-light: #E8C574;
-  --amber-dark: #B8923D;
-  --amber-glow: rgba(212, 168, 83, 0.15);
+  /* Unprinted selvedge — neutrals */
+  --cotton: #F6EFDC;
+  --cotton-warm: #ECE2C7;
+  --chalk: #FBF7ED;
+  --ash: #4C463D;
+  --smoke: #8A8378;
+  --onyx-soft: #2A2520;
 
-  /* Trade direction colors */
-  --terracotta: #C45D3E;
-  --terracotta-light: #E07A5F;
-  --terracotta-glow: rgba(196, 93, 62, 0.12);
-  --indigo: #3D5A99;
-  --indigo-light: #5B7EC2;
-  --indigo-glow: rgba(61, 90, 153, 0.12);
+  /* Core palette (SilkRoad namespace mapped to Kitenge) */
+  --obsidian: #14110F;
+  --obsidian-light: #1F1A15;
+  --obsidian-mid: #2A2520;
+  --ivory: #F6EFDC;
+  --ivory-warm: #ECE2C7;
+  --ivory-cool: #FBF7ED;
+
+  /* Brand accents — ochre */
+  --amber: #D89F2E;
+  --amber-light: #E8B84C;
+  --amber-dark: #B8832A;
+  --amber-glow: rgba(216, 159, 46, 0.15);
+
+  /* Trade direction colors — crimson + royal indigo */
+  --terracotta: #B83C30;
+  --terracotta-light: #D4594C;
+  --terracotta-glow: rgba(184, 60, 48, 0.12);
+  --indigo: #1F3A8A;
+  --indigo-light: #3B5AB0;
+  --indigo-glow: rgba(31, 58, 138, 0.12);
 
   /* Functional */
-  --success: #2A9D6E;
-  --warning: #E4A730;
-  --danger: #D04545;
-  --info: #4A8FD4;
+  --success: #1F7A5A;
+  --warning: #D89F2E;
+  --danger: #B83C30;
+  --info: #0FA6A6;
 
-  /* Surfaces */
-  --surface-primary: #FFFFFF;
-  --surface-secondary: #F8F6F1;
-  --surface-tertiary: #F0ECE3;
-  --surface-elevated: #FFFFFF;
-  --border-subtle: rgba(11, 15, 26, 0.08);
-  --border-default: rgba(11, 15, 26, 0.12);
-  --border-strong: rgba(11, 15, 26, 0.20);
+  /* Surfaces — cotton-first, no pure white */
+  --surface-primary: #F6EFDC;
+  --surface-secondary: #ECE2C7;
+  --surface-tertiary: #E5D9B9;
+  --surface-elevated: #FBF7ED;
+  --border-subtle: rgba(20, 17, 15, 0.08);
+  --border-default: rgba(20, 17, 15, 0.12);
+  --border-strong: rgba(20, 17, 15, 0.20);
 
   /* Text */
-  --text-primary: #0B0F1A;
-  --text-secondary: #4A4F5E;
-  --text-tertiary: #7A7F8E;
-  --text-inverse: #F5F0E8;
+  --text-primary: #14110F;
+  --text-secondary: #4C463D;
+  --text-tertiary: #8A8378;
+  --text-inverse: #F6EFDC;
 
   /* Spacing rhythm */
   --space-xs: 0.25rem;
@@ -109,12 +130,12 @@
   --radius-xl: 24px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(11, 15, 26, 0.05);
-  --shadow-md: 0 4px 12px rgba(11, 15, 26, 0.08);
-  --shadow-lg: 0 12px 32px rgba(11, 15, 26, 0.12);
-  --shadow-xl: 0 24px 64px rgba(11, 15, 26, 0.16);
-  --shadow-glow-amber: 0 0 40px rgba(212, 168, 83, 0.25);
+  /* Shadows — warm, tinted with onyx */
+  --shadow-sm: 0 1px 2px rgba(20, 17, 15, 0.05);
+  --shadow-md: 0 4px 12px rgba(20, 17, 15, 0.08);
+  --shadow-lg: 0 12px 32px rgba(20, 17, 15, 0.12);
+  --shadow-xl: 0 24px 64px rgba(20, 17, 15, 0.16);
+  --shadow-glow-amber: 0 0 40px rgba(216, 159, 46, 0.25);
 
   /* Typography */
   --font-display: 'Cabinet Grotesk', system-ui, sans-serif;
@@ -136,6 +157,26 @@
   --color-amber: var(--amber);
   --color-terracotta: var(--terracotta);
   --color-indigo: var(--indigo);
+
+  /* Kitenge dyes (Tailwind utilities: bg-kitenge-crimson, text-kitenge-emerald, etc.) */
+  --color-kitenge-crimson: var(--kitenge-crimson);
+  --color-kitenge-crimson-deep: var(--kitenge-crimson-deep);
+  --color-kitenge-ochre: var(--kitenge-ochre);
+  --color-kitenge-indigo: var(--kitenge-indigo);
+  --color-kitenge-emerald: var(--kitenge-emerald);
+  --color-kitenge-emerald-deep: var(--kitenge-emerald-deep);
+  --color-kitenge-onyx: var(--kitenge-onyx);
+  --color-kitenge-terracotta: var(--kitenge-terracotta);
+  --color-kitenge-aubergine: var(--kitenge-aubergine);
+  --color-kitenge-turquoise: var(--kitenge-turquoise);
+  --color-kitenge-saffron: var(--kitenge-saffron);
+  --color-cotton: var(--cotton);
+  --color-cotton-warm: var(--cotton-warm);
+  --color-chalk: var(--chalk);
+  --color-ash: var(--ash);
+  --color-smoke: var(--smoke);
+  --color-onyx-soft: var(--onyx-soft);
+
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 
@@ -312,10 +353,10 @@ body {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(212, 168, 83, 0.15);
+    box-shadow: 0 0 20px rgba(216, 159, 46, 0.15);
   }
   50% {
-    box-shadow: 0 0 40px rgba(212, 168, 83, 0.3);
+    box-shadow: 0 0 40px rgba(216, 159, 46, 0.3);
   }
 }
 
@@ -332,6 +373,21 @@ body {
 @keyframes draw-line {
   from { width: 0; }
   to { width: 100%; }
+}
+
+@keyframes ticker {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-ticker {
+  animation: ticker var(--ticker-duration, 45s) linear infinite;
+  will-change: transform;
+}
+
+.ticker-group:hover .animate-ticker,
+.animate-ticker:hover {
+  animation-play-state: paused;
 }
 
 .animate-fade-in-up {
@@ -397,17 +453,17 @@ body {
   height: 200%;
   background: radial-gradient(
     ellipse at 30% 50%,
-    rgba(196, 93, 62, 0.08) 0%,
+    rgba(184, 60, 48, 0.10) 0%,
     transparent 50%
   ),
   radial-gradient(
     ellipse at 70% 50%,
-    rgba(61, 90, 153, 0.08) 0%,
+    rgba(31, 58, 138, 0.10) 0%,
     transparent 50%
   ),
   radial-gradient(
     ellipse at 50% 30%,
-    rgba(212, 168, 83, 0.06) 0%,
+    rgba(216, 159, 46, 0.07) 0%,
     transparent 40%
   );
   pointer-events: none;

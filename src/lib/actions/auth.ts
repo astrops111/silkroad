@@ -11,6 +11,11 @@ import {
 } from "@/lib/validators/auth";
 import type { MarketRegion, PlatformRole } from "@/lib/supabase/database.types";
 import { logLoginAttempt } from "@/lib/logging/sessions";
+import {
+  getLockoutState,
+  MAX_FAILED_ATTEMPTS,
+  LOCKOUT_WINDOW_MINUTES,
+} from "@/lib/security/lockout";
 import { sendWelcomeEmail } from "@/lib/email";
 
 export type ActionResult = {
@@ -38,23 +43,51 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
     return { success: false, error: parsed.error.issues[0].message };
   }
 
+  const email = parsed.data.email.toLowerCase().trim();
+
+  const lockout = await getLockoutState(email);
+  if (lockout.locked) {
+    await logLoginAttempt({
+      email,
+      status: "blocked",
+      failureReason: "account_locked",
+    });
+    const mins = Math.max(1, Math.ceil(lockout.retryAfterSeconds / 60));
+    return {
+      success: false,
+      error: `Too many failed attempts. Account locked. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`,
+    };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
+    email,
     password: parsed.data.password,
   });
 
   if (error) {
     await logLoginAttempt({
-      email: parsed.data.email,
+      email,
       status: "failed",
       failureReason: error.message,
     });
-    return { success: false, error: error.message };
+
+    const totalFailures = lockout.failuresSinceSuccess + 1;
+    const remaining = MAX_FAILED_ATTEMPTS - totalFailures;
+    if (remaining <= 0) {
+      return {
+        success: false,
+        error: `Invalid credentials. Account locked for ${LOCKOUT_WINDOW_MINUTES} minutes.`,
+      };
+    }
+    return {
+      success: false,
+      error: `Invalid credentials. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before lockout.`,
+    };
   }
 
   await logLoginAttempt({
-    email: parsed.data.email,
+    email,
     status: "success",
   });
 

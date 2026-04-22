@@ -1,37 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
+import { Tooltip } from "@/components/ui/tooltip";
+import { imageForSlug } from "@/lib/category-images";
+import { regionMeta, tradeMeta } from "@/lib/product-labels";
 import {
-  Search,
   SlidersHorizontal,
   Grid3X3,
   List,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Star,
   Shield,
-  MapPin,
   Clock,
   Heart,
   ArrowUpRight,
   X,
   Package,
-  CheckCircle2,
+  Truck,
 } from "lucide-react";
+
+export interface MarketplaceSubcategory {
+  id: string;
+  slug: string;
+  name: string;
+  nameLocal: string | null;
+}
 
 export interface MarketplaceProduct {
   id: string;
   name: string;
-  supplier: string;
-  supplierVerified: boolean;
-  supplierCountry: string;
-  supplierProvince: string;
+  originCountry: string | null;
+  tradeTerm: string | null;
   price: number;
-  priceMax: number;
   moq: number;
   unit: string;
   rating: number;
@@ -43,26 +51,24 @@ export interface MarketplaceProduct {
   tags: string[];
 }
 
+
 const CATEGORIES = [
   { slug: null, key: "categoryAll", matchLabel: null },
-  { slug: "cosmetics", key: "categoryCosmetics", matchLabel: "Cosmetics" },
-  { slug: "electronics", key: "categoryConsumerElectronics", matchLabel: "Consumer Electronics" },
+  { slug: "home", key: "categoryHome", matchLabel: "Home" },
+  { slug: "hotels", key: "categoryHotels", matchLabel: "Hotels" },
+  { slug: "consumer-electronics", key: "categoryConsumerElectronics", matchLabel: "Consumer Electronics" },
+  { slug: "beauty", key: "categoryBeauty", matchLabel: "Beauty" },
   { slug: "groceries", key: "categoryGroceries", matchLabel: "Groceries" },
-  { slug: "baby", key: "categoryBabyProducts", matchLabel: "Baby Products" },
-  { slug: "hotel", key: "categoryHotelInteriors", matchLabel: "Hotel Interiors" },
-  { slug: "furniture", key: "categoryFurniture", matchLabel: "Furniture" },
+  { slug: "baby-products", key: "categoryBabyProducts", matchLabel: "Baby Products" },
 ] as const;
 
-const PRODUCTS = [
+const PRODUCTS: MarketplaceProduct[] = [
   {
     id: "1",
     name: "Modular 3-Seat Fabric Sofa — Living Room OEM",
-    supplier: "Foshan ComfortCraft Furniture Co.",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Guangdong",
+    originCountry: "CN",
+    tradeTerm: "fob",
     price: 320,
-    priceMax: 580,
     moq: 10,
     unit: "Sets",
     rating: 4.8,
@@ -76,12 +82,9 @@ const PRODUCTS = [
   {
     id: "2",
     name: "5G Android Smartphone 6.7\" AMOLED 256GB OEM Manufacturer",
-    supplier: "Shenzhen DigiTech Electronics Ltd.",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Guangdong",
+    originCountry: "CN",
+    tradeTerm: "ddp",
     price: 85,
-    priceMax: 120,
     moq: 100,
     unit: "Pieces",
     rating: 4.6,
@@ -95,12 +98,9 @@ const PRODUCTS = [
   {
     id: "3",
     name: "Remy Human-Hair Wigs Lace Front — OEM Bulk Packaging",
-    supplier: "Xuchang BeautyWave Hair Co.",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Henan",
+    originCountry: "CN",
+    tradeTerm: "cif",
     price: 18,
-    priceMax: 45,
     moq: 50,
     unit: "Pieces",
     rating: 4.9,
@@ -114,12 +114,9 @@ const PRODUCTS = [
   {
     id: "4",
     name: "Crystal Pendant Chandelier 12-Arm — Hotel Lobby Grade",
-    supplier: "Zhongshan GlowLux Lighting Co.",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Guangdong",
+    originCountry: "CN",
+    tradeTerm: "cif",
     price: 240,
-    priceMax: 620,
     moq: 5,
     unit: "Pieces",
     rating: 4.7,
@@ -133,12 +130,9 @@ const PRODUCTS = [
   {
     id: "5",
     name: "4-Star Guestroom Bed Frame + Headboard Set",
-    supplier: "Qingdao StayCraft Hospitality Furniture",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Shandong",
+    originCountry: "CN",
+    tradeTerm: "fob",
     price: 180,
-    priceMax: 320,
     moq: 20,
     unit: "Sets",
     rating: 4.5,
@@ -152,12 +146,9 @@ const PRODUCTS = [
   {
     id: "6",
     name: "Private-Label Instant Noodles — Assorted Flavors 85g",
-    supplier: "Fujian FreshTaste Foods Corp.",
-    supplierVerified: false,
-    supplierCountry: "CN",
-    supplierProvince: "Fujian",
+    originCountry: "CN",
+    tradeTerm: "exw",
     price: 0.18,
-    priceMax: 0.28,
     moq: 5000,
     unit: "Packs",
     rating: 4.3,
@@ -171,12 +162,9 @@ const PRODUCTS = [
   {
     id: "7",
     name: "LED Smart Home Bulb A60 9W E27 RGBW Tuya WiFi",
-    supplier: "Shenzhen BrightPath Lighting Co.",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Guangdong",
+    originCountry: "CN",
+    tradeTerm: "ddp",
     price: 2.4,
-    priceMax: 4.8,
     moq: 500,
     unit: "Pieces",
     rating: 4.8,
@@ -190,12 +178,9 @@ const PRODUCTS = [
   {
     id: "8",
     name: "OEM Ultra-Absorbent Baby Diapers Size M — Carton of 48",
-    supplier: "Quanzhou SoftBaby Hygiene Co.",
-    supplierVerified: true,
-    supplierCountry: "CN",
-    supplierProvince: "Fujian",
+    originCountry: "CN",
+    tradeTerm: "cif",
     price: 4.2,
-    priceMax: 6.8,
     moq: 100,
     unit: "Cartons",
     rating: 4.6,
@@ -207,6 +192,157 @@ const PRODUCTS = [
     tags: ["Hot Sale"],
   },
 ];
+
+/* ============================================================
+   SUBCATEGORY TICKER — auto-scrolling, seamless loop, pause on hover
+   ============================================================ */
+function SubcategoryGrid({
+  subcategories,
+  activeCategorySlug,
+  activeSubSlug,
+}: {
+  subcategories: MarketplaceSubcategory[];
+  activeCategorySlug: string;
+  activeSubSlug: string | null;
+}) {
+  const locale = useLocale();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hrefFor = (subSlug: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("category", activeCategorySlug);
+    if (subSlug) params.set("sub", subSlug);
+    else params.delete("sub");
+    return `${pathname}?${params.toString()}`;
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let rafId: number;
+    let last = performance.now();
+    const pxPerSec = 70;
+
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      if (!pausedRef.current && el.scrollWidth > el.clientWidth) {
+        el.scrollLeft += (pxPerSec * dt) / 1000;
+        const half = el.scrollWidth / 2;
+        if (el.scrollLeft >= half) el.scrollLeft -= half;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [subcategories.length]);
+
+  const pause = () => {
+    pausedRef.current = true;
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+  };
+  const scheduleResume = (delay = 1500) => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      pausedRef.current = false;
+    }, delay);
+  };
+
+  const scrollByDelta = (dx: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    pause();
+    el.scrollBy({ left: dx, behavior: "smooth" });
+    scheduleResume(2500);
+  };
+
+  if (subcategories.length === 0) return null;
+
+  const renderTile = (
+    sub: MarketplaceSubcategory,
+    keySuffix: string,
+    duplicate: boolean,
+  ) => {
+    const active = sub.slug === activeSubSlug;
+    const label = locale === "zh" && sub.nameLocal ? sub.nameLocal : sub.name;
+    return (
+      <Link
+        key={`${sub.id}-${keySuffix}`}
+        href={hrefFor(active ? null : sub.slug)}
+        scroll={false}
+        draggable={false}
+        aria-pressed={active}
+        aria-hidden={duplicate || undefined}
+        tabIndex={duplicate ? -1 : undefined}
+        className={`group relative shrink-0 block w-[120px] sm:w-[140px] aspect-square overflow-hidden rounded-xl border transition-all ${
+          active
+            ? "border-[var(--amber)] ring-2 ring-[var(--amber)]/30 shadow-sm"
+            : "border-[var(--border-subtle)] hover:border-[var(--amber)]/50 hover:shadow-sm"
+        }`}
+      >
+        <Image
+          src={imageForSlug(sub.slug)}
+          alt={duplicate ? "" : label}
+          fill
+          sizes="(max-width: 640px) 120px, 140px"
+          className="object-cover transition-transform duration-300 group-hover:scale-[1.04] pointer-events-none"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-2">
+          <p className="text-xs sm:text-[13px] font-semibold text-white leading-tight line-clamp-2">
+            {label}
+          </p>
+        </div>
+      </Link>
+    );
+  };
+
+  return (
+    <div className="relative mb-8 group/ticker">
+      {/* edge fades */}
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-[var(--surface-secondary)] to-transparent z-10" />
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[var(--surface-secondary)] to-transparent z-10" />
+
+      {/* Carousel arrows — desktop only */}
+      <button
+        type="button"
+        onClick={() => scrollByDelta(-360)}
+        aria-label="Previous"
+        className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-[var(--border-subtle)] items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover/ticker:opacity-100 transition-opacity"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => scrollByDelta(360)}
+        aria-label="Next"
+        className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-[var(--border-subtle)] items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover/ticker:opacity-100 transition-opacity"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      <div
+        ref={scrollRef}
+        onMouseEnter={pause}
+        onMouseLeave={() => scheduleResume(400)}
+        onTouchStart={pause}
+        onTouchEnd={() => scheduleResume(2500)}
+        onWheel={() => {
+          pause();
+          scheduleResume(1500);
+        }}
+        className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide"
+      >
+        {subcategories.map((sub) => renderTile(sub, "a", false))}
+        {subcategories.map((sub) => renderTile(sub, "b", true))}
+      </div>
+    </div>
+  );
+}
 
 function formatPrice(price: number) {
   if (price >= 1000) return `$${(price / 1000).toFixed(price >= 10000 ? 0 : 1)}K`;
@@ -416,22 +552,43 @@ function FilterSidebar({
 /* ============================================================
    PRODUCT CARD
    ============================================================ */
-function ProductCard({ product }: { product: (typeof PRODUCTS)[0] }) {
+function ProductCard({ product }: { product: MarketplaceProduct }) {
+  const region = regionMeta(product.originCountry);
+  const trade = tradeMeta(product.tradeTerm);
+  const isRealImage =
+    product.image.startsWith("http://") ||
+    product.image.startsWith("https://") ||
+    product.image.startsWith("/");
+
   return (
     <Link
       href={`/marketplace/${product.id}`}
-      className="group card-elevated block overflow-hidden"
+      className="group card-elevated flex sm:block overflow-hidden"
     >
       {/* Image area */}
       <div
-        className={`relative h-52 bg-gradient-to-br ${product.image} overflow-hidden`}
+        className={`relative w-32 shrink-0 self-stretch sm:self-auto sm:w-auto sm:h-52 overflow-hidden ${
+          isRealImage
+            ? "bg-[var(--surface-secondary)]"
+            : `bg-gradient-to-br ${product.image}`
+        }`}
       >
+        {isRealImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.image}
+            alt={product.name}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            loading="lazy"
+          />
+        )}
+
         {/* Tags */}
-        <div className="absolute top-3 left-3 flex gap-1.5 z-10">
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1 sm:gap-1.5 z-10">
           {product.tags.map((tag) => (
             <span
               key={tag}
-              className={`px-2.5 py-1 text-[10px] font-semibold rounded-full ${
+              className={`px-2 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold rounded-full ${
                 tag === "Trade Assurance"
                   ? "bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/20"
                   : tag === "Hot Sale"
@@ -446,58 +603,73 @@ function ProductCard({ product }: { product: (typeof PRODUCTS)[0] }) {
           ))}
         </div>
 
-        {/* Wishlist */}
+        {/* Wishlist — desktop only */}
         <button
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:scale-110"
+          className="hidden sm:flex absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:scale-110 z-10"
           onClick={(e) => e.preventDefault()}
         >
           <Heart className="w-4 h-4 text-[var(--text-secondary)]" />
         </button>
 
-        {/* Product icon placeholder */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Package className="w-16 h-16 text-[var(--text-primary)] opacity-[0.06]" />
-        </div>
+        {/* Placeholder only when there's no real image */}
+        {!isRealImage && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Package className="w-10 h-10 sm:w-16 sm:h-16 text-[var(--text-primary)] opacity-[0.06]" />
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <div className="p-5">
+      <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col">
         {/* Price */}
-        <div className="flex items-baseline gap-1.5 mb-2">
+        <div className="flex items-baseline gap-1.5 mb-1 sm:mb-2">
           <span
-            className="text-xl font-bold text-[var(--obsidian)]"
+            className="text-base sm:text-xl font-bold text-[var(--obsidian)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {formatPrice(product.price)}
           </span>
-          <span className="text-sm text-[var(--text-tertiary)]">
-            - {formatPrice(product.priceMax)}
-          </span>
-          <span className="text-xs text-[var(--text-tertiary)] ml-1">
+          <span className="text-[10px] sm:text-xs text-[var(--text-tertiary)]">
             / {product.unit}
           </span>
         </div>
 
         {/* Title */}
-        <h3 className="text-sm font-medium text-[var(--text-primary)] leading-snug line-clamp-2 mb-3 group-hover:text-[var(--amber-dark)] transition-colors">
+        <h3 className="text-[13px] sm:text-sm font-medium text-[var(--text-primary)] leading-snug line-clamp-2 mb-2 sm:mb-3 group-hover:text-[var(--amber-dark)] transition-colors">
           {product.name}
         </h3>
 
         {/* MOQ */}
-        <div className="text-xs text-[var(--text-tertiary)] mb-4">
+        <div className="text-[11px] sm:text-xs text-[var(--text-tertiary)] mb-2 sm:mb-4">
           MOQ: {product.moq} {product.unit}
         </div>
 
-        {/* Supplier info */}
-        <div className="pt-4 border-t border-[var(--border-subtle)]">
-          <div className="flex items-center gap-2 mb-2">
-            {product.supplierVerified && (
-              <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)]" />
+        {/* Origin + shipping label */}
+        <div className="mt-auto pt-2 sm:pt-4 border-t border-[var(--border-subtle)] space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Tooltip content="Region of origin — where this product is manufactured or sourced.">
+              <span
+                tabIndex={0}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] cursor-help"
+              >
+                <span aria-hidden className="text-sm leading-none">{region.flag}</span>
+                {region.label}
+              </span>
+            </Tooltip>
+
+            {trade && (
+              <Tooltip content={trade.tooltip}>
+                <span
+                  tabIndex={0}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold cursor-help ${trade.bg} ${trade.fg} ${trade.border}`}
+                >
+                  <Truck className="w-3 h-3" aria-hidden />
+                  {trade.short}
+                </span>
+              </Tooltip>
             )}
-            <span className="text-xs font-medium text-[var(--text-secondary)] truncate">
-              {product.supplier}
-            </span>
           </div>
+
           <div className="flex items-center gap-4 text-xs text-[var(--text-tertiary)]">
             <span className="flex items-center gap-1">
               <Star className="w-3 h-3 text-[var(--amber)] fill-[var(--amber)]" />
@@ -505,10 +677,6 @@ function ProductCard({ product }: { product: (typeof PRODUCTS)[0] }) {
               <span className="text-[var(--text-tertiary)]">
                 ({product.reviews})
               </span>
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {product.supplierProvince}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
@@ -524,7 +692,13 @@ function ProductCard({ product }: { product: (typeof PRODUCTS)[0] }) {
 /* ============================================================
    PAGE
    ============================================================ */
-export function MarketplaceClient({ initialProducts }: { initialProducts?: MarketplaceProduct[] }) {
+export function MarketplaceClient({
+  initialProducts,
+  subcategories = [],
+}: {
+  initialProducts?: MarketplaceProduct[];
+  subcategories?: MarketplaceSubcategory[];
+}) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const router = useRouter();
@@ -556,7 +730,7 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
   return (
     <>
       <Navbar />
-      <main className="pt-[68px] lg:pt-[148px] min-h-screen bg-[var(--surface-secondary)]">
+      <main className="pt-[104px] lg:pt-[184px] min-h-screen bg-[var(--surface-secondary)]">
         {/* Hero bar */}
         <div className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)]">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
@@ -602,19 +776,6 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
                 </button>
               </div>
             )}
-
-            {/* Search */}
-            <div className="mt-5 flex items-center h-12 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-secondary)] focus-within:border-[var(--amber)] transition-colors max-w-2xl">
-              <Search className="w-4 h-4 ml-4 text-[var(--text-tertiary)]" />
-              <input
-                type="text"
-                placeholder={t("searchPlaceholder")}
-                className="w-full bg-transparent px-3 text-sm outline-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-              />
-              <button className="h-full px-6 text-sm font-semibold bg-[var(--amber)] text-[var(--obsidian)] rounded-xl hover:bg-[var(--amber-light)] transition-colors">
-                {t("searchButton")}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -630,6 +791,13 @@ export function MarketplaceClient({ initialProducts }: { initialProducts?: Marke
 
             {/* Main content */}
             <div className="flex-1 min-w-0">
+              {categorySlug && subcategories.length > 0 && (
+                <SubcategoryGrid
+                  subcategories={subcategories}
+                  activeCategorySlug={categorySlug}
+                  activeSubSlug={subSlug}
+                />
+              )}
               {/* Toolbar */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">

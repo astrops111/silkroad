@@ -2,17 +2,22 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, type UserWithCompany } from "@/lib/queries/user";
 import { AdminShell } from "@/components/layouts/admin-shell";
 
+const ADMIN_ROLES = ["admin_super", "admin_moderator", "admin_support"] as const;
+type AdminRole = (typeof ADMIN_ROLES)[number];
+
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const user = (await getCurrentUser()) as UserWithCompany;
-  const membership = user.company_members[0];
 
-  // Only admin roles can access
-  const adminRoles = ["admin_super", "admin_moderator", "admin_support"];
-  if (!membership || !adminRoles.includes(membership.role)) {
+  // Filter by role, not by array index — a user can have both
+  // admin + supplier/buyer memberships, and the admin one may not be first.
+  const adminMembership = user.company_members.find((m) =>
+    (ADMIN_ROLES as readonly string[]).includes(m.role)
+  );
+  if (!adminMembership) {
     redirect("/dashboard");
   }
 
@@ -20,7 +25,7 @@ export default async function AdminLayout({
     <AdminShell
       userName={user.full_name ?? user.email ?? "Admin"}
       userInitials={getInitials(user.full_name ?? user.email ?? "A")}
-      role={membership.role}
+      role={adminMembership.role as AdminRole}
     >
       {children}
     </AdminShell>

@@ -566,7 +566,7 @@ function SupplierHero() {
         <div
           className="absolute bottom-0 right-0 w-[500px] h-[300px]"
           style={{
-            background: "radial-gradient(ellipse at bottom right, rgba(212,168,83,0.1), transparent 60%)",
+            background: "radial-gradient(ellipse at bottom right, rgba(216,159,46,0.1), transparent 60%)",
           }}
         />
       </div>
@@ -1321,7 +1321,7 @@ export function StorefrontClient({ supplierData }: StorefrontProps) {
   return (
     <>
       <Navbar />
-      <main className="pt-[68px] lg:pt-[148px] bg-[var(--surface-secondary)] min-h-screen">
+      <main className="pt-[104px] lg:pt-[184px] bg-[var(--surface-secondary)] min-h-screen">
         <SupplierHero />
         <PerformanceStrip />
 

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateOrderTax } from "@/lib/tax";
 import { calculateShippingCost } from "@/lib/logistics/rates/calculator";
 import { createOrderSchema } from "@/lib/validators/order";
+import { onOrderPlacedOpsNotify } from "@/lib/email/events";
 import { randomBytes } from "crypto";
 
 /**
@@ -217,6 +218,11 @@ export async function POST(request: NextRequest) {
 
     await supabase.from("supplier_order_items").insert(orderItems);
   }
+
+  // Fire-and-forget ops notification — do not block the response.
+  onOrderPlacedOpsNotify(purchaseOrder.id).catch((err) => {
+    console.error("[orders] ops notification failed:", err);
+  });
 
   return NextResponse.json({
     success: true,

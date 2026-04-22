@@ -186,7 +186,7 @@ export function SupportChat({
         <div className="flex items-center gap-2.5">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(212,168,83,0.2)" }}
+            style={{ background: "rgba(216,159,46,0.2)" }}
           >
             <Sparkles className="w-4 h-4" style={{ color: "var(--amber)" }} />
           </div>

@@ -1,5 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeText, isUuid } from "@/lib/security/sanitize";
+
+const messagePostSchema = z
+  .object({
+    conversationId: z.string().uuid().optional(),
+    content: z.string().min(1, "Message cannot be empty").max(10000),
+    messageType: z.enum(["text", "image", "file", "system"]).default("text"),
+    metadata: z.record(z.string(), z.any()).optional(),
+    supplierCompanyId: z.string().uuid().optional(),
+    buyerCompanyId: z.string().uuid().optional(),
+    contextType: z
+      .string()
+      .max(50)
+      .regex(/^[a-z_]+$/, "Invalid context type")
+      .optional(),
+    contextId: z.string().uuid().optional(),
+    contextTitle: z.string().max(200).optional(),
+  })
+  .refine(
+    (d) => d.conversationId || d.supplierCompanyId || d.buyerCompanyId,
+    { message: "conversationId or a participant company is required" }
+  );
 
 /**
  * GET /api/messages — List conversations or messages within a conversation
@@ -21,9 +44,13 @@ export async function GET(request: NextRequest) {
   const conversationId = searchParams.get("conversationId");
 
   if (conversationId) {
-    // Get messages for a conversation
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
+    if (!isUuid(conversationId)) {
+      return NextResponse.json({ error: "Invalid conversationId" }, { status: 400 });
+    }
+    const rawLimit = parseInt(searchParams.get("limit") || "50", 10);
+    const rawOffset = parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 50;
+    const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
 
     const { data: messages, error, count } = await supabase
       .from("messages")
@@ -119,19 +146,37 @@ export async function POST(request: NextRequest) {
     .single();
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
-  const body = await request.json();
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = messagePostSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
+  }
+
   const {
     conversationId,
-    content,
-    messageType = "text",
+    messageType,
     metadata,
-    // For new conversation
     supplierCompanyId,
     buyerCompanyId,
     contextType,
     contextId,
-    contextTitle,
-  } = body;
+  } = parsed.data;
+  const content = sanitizeText(parsed.data.content);
+  const contextTitle = parsed.data.contextTitle
+    ? sanitizeText(parsed.data.contextTitle)
+    : undefined;
+  if (!content) {
+    return NextResponse.json({ error: "Message cannot be empty" }, { status: 400 });
+  }
 
   const { data: membership } = await supabase
     .from("company_members")

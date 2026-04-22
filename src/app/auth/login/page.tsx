@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { signIn } from "@/lib/actions/auth";
@@ -15,7 +14,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LogIn, Loader2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogIn, Loader2, ShoppingCart, Factory, Shield } from "lucide-react";
+
+type PortalKey = "buyer" | "supplier" | "admin";
+const PORTAL_REDIRECT: Record<PortalKey, string> = {
+  buyer: "/dashboard",
+  supplier: "/supplier/dashboard",
+  admin: "/admin/dashboard",
+};
 
 export default function LoginPage() {
   return (
@@ -29,9 +36,7 @@ function LoginForm() {
   const t = useTranslations("auth");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
+  const [portal, setPortal] = useState<PortalKey>("buyer");
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -45,8 +50,8 @@ function LoginForm() {
       return;
     }
 
-    router.push(redirect);
-    router.refresh();
+    // Hard-navigate so the new session cookies take effect on the next request.
+    window.location.href = PORTAL_REDIRECT[portal];
   }
 
   return (
@@ -56,6 +61,27 @@ function LoginForm() {
         <CardDescription>{t("signInToAccount")}</CardDescription>
       </CardHeader>
       <CardContent>
+        <Tabs
+          value={portal}
+          onValueChange={(v) => setPortal(v as PortalKey)}
+          className="mb-4"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="buyer" className="gap-2">
+              <ShoppingCart className="size-4" />
+              Buyer
+            </TabsTrigger>
+            <TabsTrigger value="supplier" className="gap-2">
+              <Factory className="size-4" />
+              Supplier
+            </TabsTrigger>
+            <TabsTrigger value="admin" className="gap-2">
+              <Shield className="size-4" />
+              Admin
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <form action={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">

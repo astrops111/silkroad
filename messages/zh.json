@@ -55,14 +55,16 @@
     "accountHeading": "账户",
     "createAccount": "创建账号",
     "regionHeading": "地区",
-    "categoryCosmetics": "美妆日化",
+    "categoryHome": "家居",
+    "categoryHotels": "酒店",
     "categoryConsumerElectronics": "消费电子",
+    "categoryBeauty": "美容",
     "categoryGroceries": "食品杂货",
     "categoryBabyProducts": "母婴用品",
-    "categoryHotelInteriors": "酒店软装",
-    "categoryFurniture": "家具",
     "featured": "精选",
-    "seeAll": "查看全部 {label}"
+    "seeAll": "查看全部 {label}",
+    "bannerLead": "找不到您想要的商品？",
+    "bannerCta": "提交采购需求"
   },
   "marketing": {
     "regions": {
@@ -85,7 +87,19 @@
         "headline": "对接 12,000 家认证中国工厂",
         "tagline": "电子、机械、纺织、建筑——直接对接工厂，最低起订量低至 10 件，资金托管保障，覆盖 27 个非洲国家的门到门物流。",
         "browseCta": "浏览产品",
-        "switchCta": "或从非洲出口"
+        "switchCta": "或从非洲出口",
+        "slide2": {
+          "badge": "贸易保障 · 资金托管",
+          "headline": "验货合格后再放款",
+          "tagline": "每一笔订单由平台托管资金，验货代理放行货物后款项才会支付给供应商，首次下单零风险。",
+          "cta": "了解托管流程"
+        },
+        "slide3": {
+          "badge": "物流 · 覆盖 27 国",
+          "headline": "门到门送达非洲各地",
+          "tagline": "整柜海运、空运快件、末端清关直达拉各斯、内罗毕、约翰内斯堡、开罗等 27 城。深圳到您仓库全程实时追踪。",
+          "cta": "查看运输方案"
+        }
       },
       "promo": {
         "eyebrow": "本周新品",
@@ -258,12 +272,12 @@
       "filterChipLabel": "筛选",
       "clear": "清除",
       "categoryAll": "全部分类",
-      "categoryCosmetics": "美妆日化",
+      "categoryHome": "家居",
+      "categoryHotels": "酒店",
       "categoryConsumerElectronics": "消费电子",
+      "categoryBeauty": "美容",
       "categoryGroceries": "食品杂货",
       "categoryBabyProducts": "母婴用品",
-      "categoryHotelInteriors": "酒店软装",
-      "categoryFurniture": "家具",
       "moqAny": "任意",
       "moqUnits": "{range} 件",
       "filterVerified": "仅认证供应商",
@@ -554,6 +568,51 @@
     "terms": "服务条款",
     "privacy": "隐私政策",
     "copyright": "版权所有。"
+  },
+  "buyerRequest": {
+    "metaTitle": "提交采购需求 — 非洲丝路",
+    "metaDescription": "告诉我们您想采购的商品，我们的团队将在一个工作日内为您匹配经过核实的供应商。",
+    "eyebrow": "采购需求",
+    "title": "告诉我们您在寻找什么。",
+    "subtitle": "如果您在商城中没有找到合适的商品，请在此描述您的需求。我们的采购经理将在一个工作日内为您提供经过核实的供应商选项。",
+    "backHome": "返回首页",
+    "sectionWhatTitle": "您的需求",
+    "sectionWhatSubtitle": "信息越详细，我们匹配的速度就越快。",
+    "sectionWhoTitle": "联系方式",
+    "sectionWhoSubtitle": "我们会通过邮件或电话与您联系，不会发送垃圾信息。",
+    "name": "您的姓名",
+    "email": "邮箱",
+    "phone": "电话 / WhatsApp",
+    "company": "公司",
+    "country": "国家 / 地区",
+    "countryPlaceholder": "例如 KE、NG、ZA",
+    "category": "类目",
+    "categoryAny": "任意 / 不确定",
+    "title": "商品或物品",
+    "titlePlaceholder": "例如 5G 智能手机、酒店家具、婴儿配方奶粉",
+    "description": "请描述您的需求",
+    "descriptionPlaceholder": "规格、参考品牌、用途、包装或认证要求……",
+    "quantity": "数量",
+    "quantityPlaceholder": "例如 500 件、1 个集装箱、10 吨",
+    "budget": "预算（美元）",
+    "budgetPlaceholder": "例如 总预算 5,000 美元 或 单价 12 美元",
+    "timeline": "期望时间",
+    "timelinePlaceholder": "例如 30 天内、2026 年第三季度",
+    "footnote": "提交即表示您同意我们就该需求与您联系。我们绝不会将您的信息分享给第三方。",
+    "submit": "提交需求",
+    "submitting": "提交中…",
+    "errorGeneric": "出了点问题，请重试。",
+    "successTitle": "需求已收到。",
+    "successBody": "采购经理稍后会通过邮件与您联系。您可以关闭此页面。",
+    "categories": {
+      "home": "家居",
+      "hotels": "酒店",
+      "consumerElectronics": "消费电子",
+      "beauty": "美妆",
+      "groceries": "食品杂货",
+      "babyProducts": "母婴用品",
+      "other": "其他"
+    }
   },
   "resources": {
     "nav": {

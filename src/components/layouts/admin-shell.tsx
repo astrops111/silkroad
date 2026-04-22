@@ -19,6 +19,8 @@ import {
   ShieldCheck,
   Crown,
   ScrollText,
+  Inbox,
+  UserPlus,
 } from "lucide-react";
 
 const navSections = [
@@ -35,6 +37,19 @@ const navSections = [
       { name: "Suppliers", href: "/admin/suppliers", icon: Users },
       { name: "Products", href: "/admin/products", icon: Package },
       { name: "Categories", href: "/admin/categories", icon: FolderTree },
+    ],
+  },
+  {
+    label: "Inbox",
+    items: [
+      { name: "Supplier applications", href: "/admin/supplier-applications", icon: Inbox },
+    ],
+  },
+  {
+    label: "Accounts",
+    items: [
+      { name: "Users", href: "/admin/users", icon: Users },
+      { name: "Create user", href: "/admin/users/create", icon: UserPlus },
     ],
   },
   {
@@ -90,7 +105,7 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
           <span className="text-base font-bold tracking-tight" style={{ color: "var(--ivory)", fontFamily: "var(--font-display)" }}>
             Silk Road
           </span>
-          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(212,168,83,0.15)", color: "var(--amber)" }}>
+          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(216,159,46,0.15)", color: "var(--amber)" }}>
             Admin
           </span>
         </div>
@@ -112,7 +127,7 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
                         className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
                         style={{
                           color: isActive ? "var(--amber)" : "rgba(245,240,232,0.5)",
-                          background: isActive ? "rgba(212,168,83,0.08)" : "transparent",
+                          background: isActive ? "rgba(216,159,46,0.08)" : "transparent",
                         }}
                       >
                         {isActive && (
@@ -136,9 +151,9 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
               href="/admin/system"
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
               style={{
-                background: "linear-gradient(135deg, rgba(212,168,83,0.08), rgba(196,93,62,0.08))",
+                background: "linear-gradient(135deg, rgba(216,159,46,0.08), rgba(184,60,48,0.08))",
                 color: "var(--amber)",
-                border: "1px solid rgba(212,168,83,0.12)",
+                border: "1px solid rgba(216,159,46,0.12)",
               }}
             >
               <Crown className="w-[18px] h-[18px] shrink-0" />
@@ -150,7 +165,7 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
         {/* User */}
         <div className="border-t border-white/[0.06] p-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "rgba(212,168,83,0.15)", color: "var(--amber)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "rgba(216,159,46,0.15)", color: "var(--amber)" }}>
               {userInitials}
             </div>
             <div className="min-w-0">

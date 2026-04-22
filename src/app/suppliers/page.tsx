@@ -59,7 +59,7 @@ export default async function SuppliersPage() {
   return (
     <>
       <Navbar />
-      <main className="pt-[68px] lg:pt-[148px] min-h-screen bg-[var(--surface-secondary)]">
+      <main className="pt-[104px] lg:pt-[184px] min-h-screen bg-[var(--surface-secondary)]">
         {/* Header */}
         <div className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)]">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">

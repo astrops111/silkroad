@@ -39,7 +39,10 @@ export default async function NewResourceRfqPage({
       type: string;
     } | null)
     .filter((c): c is NonNullable<typeof c> => !!c)
-    .filter((c) => c.type === "buyer_org" || c.type === "supplier")
+    .filter(
+      (c) =>
+        c.type === "buyer_org" || c.type === "supplier" || c.type === "both"
+    )
     .map((c) => ({
       id: c.id,
       name: c.name,

@@ -19,10 +19,11 @@ import {
   Smartphone,
   ShoppingBasket,
   Baby,
-  BedDouble,
-  Sofa,
+  Hotel,
+  House,
   FileText,
   ArrowRight,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { RegionPicker } from "@/components/ui/region-picker";
@@ -42,47 +43,78 @@ type CategoryGroup = {
 const PRODUCT_CATEGORIES: CategoryGroup[] = [
   { label: "All", href: "/marketplace", icon: Package },
   {
-    label: "Cosmetics",
-    href: "/marketplace?category=cosmetics",
-    icon: Sparkles,
+    label: "Home",
+    href: "/marketplace?category=home",
+    icon: House,
     subgroups: [
-      { label: "Skincare", href: "/marketplace?category=cosmetics&sub=skincare" },
-      { label: "Haircare & Wigs", href: "/marketplace?category=cosmetics&sub=haircare" },
-      { label: "Makeup", href: "/marketplace?category=cosmetics&sub=makeup" },
-      { label: "Fragrance", href: "/marketplace?category=cosmetics&sub=fragrance" },
-      { label: "Nail Care", href: "/marketplace?category=cosmetics&sub=nail" },
-      { label: "Personal Hygiene", href: "/marketplace?category=cosmetics&sub=hygiene" },
-      { label: "Beauty Tools & Devices", href: "/marketplace?category=cosmetics&sub=tools" },
-      { label: "Cosmetic Packaging (OEM)", href: "/marketplace?category=cosmetics&sub=packaging" },
+      { label: "Decor", href: "/marketplace?category=home&sub=home-decor" },
+      { label: "Furniture", href: "/marketplace?category=home&sub=home-furniture" },
+      { label: "Supplies", href: "/marketplace?category=home&sub=home-supplies" },
+      { label: "Fragrance", href: "/marketplace?category=home&sub=home-fragrance" },
+      { label: "Kitchen", href: "/marketplace?category=home&sub=home-kitchen" },
+      { label: "Bedroom", href: "/marketplace?category=home&sub=home-bedroom" },
+      { label: "Bathroom", href: "/marketplace?category=home&sub=home-bathroom" },
+      { label: "Outdoors", href: "/marketplace?category=home&sub=home-outdoors" },
     ],
     featured: {
-      title: "Human-hair wigs OEM",
-      description: "MOQ 50 units · From $18",
+      title: "Modular 3-seat fabric sofa",
+      description: "MOQ 10 sets · From $320",
       image:
-        "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=cosmetics&promo=wigs",
+        "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=home&sub=home-furniture",
+    },
+  },
+  {
+    label: "Hotels",
+    href: "/marketplace?category=hotels",
+    icon: Hotel,
+    subgroups: [
+      { label: "Bath", href: "/marketplace?category=hotels&sub=hotel-bath" },
+      { label: "Beds", href: "/marketplace?category=hotels&sub=hotel-beds" },
+      { label: "Furnishing", href: "/marketplace?category=hotels&sub=hotel-furnishing" },
+      { label: "Decor", href: "/marketplace?category=hotels&sub=hotel-decor" },
+    ],
+    featured: {
+      title: "4-star guestroom set",
+      description: "Full room · From $1,280",
+      image:
+        "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=hotels&sub=hotel-beds",
     },
   },
   {
     label: "Consumer Electronics",
-    href: "/marketplace?category=electronics",
+    href: "/marketplace?category=consumer-electronics",
     icon: Smartphone,
     subgroups: [
-      { label: "Mobile Phones & Accessories", href: "/marketplace?category=electronics&sub=phones" },
-      { label: "Audio (speakers, earbuds)", href: "/marketplace?category=electronics&sub=audio" },
-      { label: "TVs & Displays", href: "/marketplace?category=electronics&sub=tvs" },
-      { label: "Small Appliances", href: "/marketplace?category=electronics&sub=appliances" },
-      { label: "Computing & Tablets", href: "/marketplace?category=electronics&sub=computing" },
-      { label: "Chargers & Power Banks", href: "/marketplace?category=electronics&sub=power" },
-      { label: "LED & Solar Lighting", href: "/marketplace?category=electronics&sub=lighting" },
-      { label: "Security & Cameras", href: "/marketplace?category=electronics&sub=security" },
+      { label: "Home Appliance", href: "/marketplace?category=consumer-electronics&sub=home-appliance" },
+      { label: "Computer", href: "/marketplace?category=consumer-electronics&sub=computer" },
+      { label: "Computer Peripherals", href: "/marketplace?category=consumer-electronics&sub=computer-peripherals" },
     ],
     featured: {
       title: "5G smartphone OEM bulk",
       description: "MOQ 100 units · From $85",
       image:
         "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=electronics&promo=oem",
+      href: "/marketplace?category=consumer-electronics&sub=computer",
+    },
+  },
+  {
+    label: "Beauty",
+    href: "/marketplace?category=beauty",
+    icon: Sparkles,
+    subgroups: [
+      { label: "Facial", href: "/marketplace?category=beauty&sub=beauty-facial" },
+      { label: "Body", href: "/marketplace?category=beauty&sub=beauty-body" },
+      { label: "Hair", href: "/marketplace?category=beauty&sub=beauty-hair" },
+      { label: "Tools", href: "/marketplace?category=beauty&sub=beauty-tools" },
+    ],
+    featured: {
+      title: "Hair care private label",
+      description: "MOQ 500 units · From $2.10",
+      image:
+        "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=beauty&sub=beauty-hair",
     },
   },
   {
@@ -90,87 +122,34 @@ const PRODUCT_CATEGORIES: CategoryGroup[] = [
     href: "/marketplace?category=groceries",
     icon: ShoppingBasket,
     subgroups: [
-      { label: "Rice & Grains", href: "/marketplace?category=groceries&sub=grains" },
-      { label: "Cooking Oil", href: "/marketplace?category=groceries&sub=oil" },
-      { label: "Instant Noodles", href: "/marketplace?category=groceries&sub=noodles" },
-      { label: "Canned & Packaged Foods", href: "/marketplace?category=groceries&sub=canned" },
-      { label: "Beverages", href: "/marketplace?category=groceries&sub=beverages" },
-      { label: "Snacks & Confectionery", href: "/marketplace?category=groceries&sub=snacks" },
-      { label: "Condiments & Sauces", href: "/marketplace?category=groceries&sub=condiments" },
-      { label: "Sugar, Salt & Dry Goods", href: "/marketplace?category=groceries&sub=dry" },
+      { label: "Snacks — Sweets", href: "/marketplace?category=groceries&sub=snacks-sweets" },
+      { label: "Snacks — Salty & Savoury", href: "/marketplace?category=groceries&sub=snacks-savoury" },
+      { label: "Drink", href: "/marketplace?category=groceries&sub=drink" },
+      { label: "Canned Goods", href: "/marketplace?category=groceries&sub=canned-goods" },
+      { label: "Frozen", href: "/marketplace?category=groceries&sub=frozen" },
     ],
     featured: {
       title: "Instant noodles private label",
       description: "MOQ 1 pallet · From $0.18/pack",
       image:
         "https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=groceries&promo=noodles",
+      href: "/marketplace?category=groceries&sub=snacks-savoury",
     },
   },
   {
     label: "Baby Products",
-    href: "/marketplace?category=baby",
+    href: "/marketplace?category=baby-products",
     icon: Baby,
     subgroups: [
-      { label: "Diapers", href: "/marketplace?category=baby&sub=diapers" },
-      { label: "Wipes", href: "/marketplace?category=baby&sub=wipes" },
-      { label: "Formula & Baby Food", href: "/marketplace?category=baby&sub=food" },
-      { label: "Feeding (bottles, bibs)", href: "/marketplace?category=baby&sub=feeding" },
-      { label: "Baby Clothing", href: "/marketplace?category=baby&sub=clothing" },
-      { label: "Strollers & Car Seats", href: "/marketplace?category=baby&sub=strollers" },
-      { label: "Toys (0–3, 3–6)", href: "/marketplace?category=baby&sub=toys" },
-      { label: "Bath & Skincare", href: "/marketplace?category=baby&sub=bath" },
+      { label: "Diapers", href: "/marketplace?category=baby-products&sub=diapers" },
+      { label: "Baby Formula", href: "/marketplace?category=baby-products&sub=baby-formula" },
     ],
     featured: {
       title: "OEM ultra-absorbent diapers",
       description: "MOQ 10 cartons · From $4.20/pack",
       image:
         "https://images.pexels.com/photos/3933250/pexels-photo-3933250.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=baby&promo=diapers",
-    },
-  },
-  {
-    label: "Hotel Interiors",
-    href: "/marketplace?category=hotel",
-    icon: BedDouble,
-    subgroups: [
-      { label: "Guestroom Furniture", href: "/marketplace?category=hotel&sub=guestroom" },
-      { label: "Bathroom Fixtures", href: "/marketplace?category=hotel&sub=bathroom" },
-      { label: "Lighting & Chandeliers", href: "/marketplace?category=hotel&sub=lighting" },
-      { label: "Bedding & Towels", href: "/marketplace?category=hotel&sub=bedding" },
-      { label: "Curtains & Drapes", href: "/marketplace?category=hotel&sub=curtains" },
-      { label: "Decor & Mirrors", href: "/marketplace?category=hotel&sub=decor" },
-      { label: "Lobby / Reception", href: "/marketplace?category=hotel&sub=lobby" },
-      { label: "F&B Equipment", href: "/marketplace?category=hotel&sub=fb" },
-    ],
-    featured: {
-      title: "4-star guestroom set",
-      description: "Full room · From $1,280",
-      image:
-        "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=hotel&promo=guestroom",
-    },
-  },
-  {
-    label: "Furniture",
-    href: "/marketplace?category=furniture",
-    icon: Sofa,
-    subgroups: [
-      { label: "Living Room", href: "/marketplace?category=furniture&sub=living" },
-      { label: "Bedroom", href: "/marketplace?category=furniture&sub=bedroom" },
-      { label: "Dining", href: "/marketplace?category=furniture&sub=dining" },
-      { label: "Office", href: "/marketplace?category=furniture&sub=office" },
-      { label: "Outdoor / Garden", href: "/marketplace?category=furniture&sub=outdoor" },
-      { label: "Kids'", href: "/marketplace?category=furniture&sub=kids" },
-      { label: "Storage & Shelving", href: "/marketplace?category=furniture&sub=storage" },
-      { label: "Commercial / Retail", href: "/marketplace?category=furniture&sub=commercial" },
-    ],
-    featured: {
-      title: "Modular 3-seat fabric sofa",
-      description: "MOQ 10 sets · From $320",
-      image:
-        "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=furniture&promo=sofa",
+      href: "/marketplace?category=baby-products&sub=diapers",
     },
   },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
@@ -184,19 +163,19 @@ export function Navbar() {
   // Map a category English label to its translation key under nav.*.
   const labelKeyMap: Record<string, string> = {
     All: "all",
-    Cosmetics: "categoryCosmetics",
+    Home: "categoryHome",
+    Hotels: "categoryHotels",
     "Consumer Electronics": "categoryConsumerElectronics",
+    Beauty: "categoryBeauty",
     Groceries: "categoryGroceries",
     "Baby Products": "categoryBabyProducts",
-    "Hotel Interiors": "categoryHotelInteriors",
-    Furniture: "categoryFurniture",
     RFQ: "rfq",
   };
   const tCat = (label: string) =>
     labelKeyMap[label] ? t(labelKeyMap[label]) : label;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
-  const [scope, setScope] = useState<"all" | "products">("all");
+  const [scope, setScope] = useState<string>("all");
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
   const categoryStripRef = useRef<HTMLDivElement>(null);
@@ -237,31 +216,69 @@ export function Navbar() {
     setOpenCategory(null);
   }, [pathname]);
 
-  const scopeLabel: Record<typeof scope, string> = {
-    all: t("scopeAll"),
-    products: t("scopeProducts"),
+  // Scope options for the search bar — first entry is "all" (no filter),
+  // then one per top-level category (slugs match DB).
+  const SCOPE_OPTIONS: { value: string; labelKey: string }[] = [
+    { value: "all", labelKey: "scopeAll" },
+    { value: "home", labelKey: "categoryHome" },
+    { value: "hotels", labelKey: "categoryHotels" },
+    { value: "consumer-electronics", labelKey: "categoryConsumerElectronics" },
+    { value: "beauty", labelKey: "categoryBeauty" },
+    { value: "groceries", labelKey: "categoryGroceries" },
+    { value: "baby-products", labelKey: "categoryBabyProducts" },
+  ];
+  const scopeLabelFor = (value: string) => {
+    const opt = SCOPE_OPTIONS.find((o) => o.value === value);
+    return opt ? t(opt.labelKey) : t("scopeAll");
   };
 
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[var(--border-subtle)]">
-        {/* Utility row - small links above main bar */}
+        {/* Mobile-only request banner (on lg+ it lives in the utility row below) */}
+        <Link
+          href="/request"
+          className="lg:hidden group flex items-center justify-center gap-2 h-9 px-4 bg-gradient-to-r from-[var(--obsidian)] via-[var(--obsidian-light)] to-[var(--obsidian)] text-[var(--ivory)] text-[12px] sm:text-[13px] font-medium hover:brightness-110 transition-[filter]"
+        >
+          <Megaphone className="w-3.5 h-3.5 text-[var(--amber)] shrink-0" />
+          <span className="truncate">{t("bannerLead")}</span>
+          <span className="inline-flex items-center gap-1 font-semibold text-[var(--amber)] underline-offset-4 group-hover:underline whitespace-nowrap">
+            {t("bannerCta")}
+            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </Link>
+
+        {/* Utility row — request banner on the left, utility links on the right */}
         <div className="hidden lg:block border-b border-[var(--border-subtle)] bg-[var(--surface-secondary)]">
-          <div className="max-w-[1400px] mx-auto px-6 lg:px-10 h-9 flex items-center justify-end gap-6 text-[12px] text-[var(--text-tertiary)]">
-            <Link href="/about" className="hover:text-[var(--text-primary)] transition-colors">
-              {t("about")}
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-10 h-9 flex items-center justify-between gap-6 text-[12px] text-[var(--text-tertiary)]">
+            <Link
+              href="/request"
+              className="group inline-flex items-center gap-2 min-w-0 hover:text-[var(--text-primary)] transition-colors"
+            >
+              <Megaphone className="w-3.5 h-3.5 text-[var(--amber)] shrink-0" />
+              <span className="truncate">{t("bannerLead")}</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-[var(--amber-dark)] underline-offset-4 group-hover:underline whitespace-nowrap">
+                {t("bannerCta")}
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </Link>
-            <Link href="/how-it-works" className="hover:text-[var(--text-primary)] transition-colors">
-              {t("howItWorks")}
-            </Link>
-            <Link href="/sell" className="hover:text-[var(--text-primary)] transition-colors">
-              {t("sell")}
-            </Link>
-            <Link href="/help" className="hover:text-[var(--text-primary)] transition-colors">
-              {t("help")}
-            </Link>
-            <span className="w-px h-3 bg-[var(--border-default)]" />
-            <RegionPicker variant="compact" />
+
+            <div className="flex items-center gap-6 shrink-0">
+              <Link href="/about" className="hover:text-[var(--text-primary)] transition-colors">
+                {t("about")}
+              </Link>
+              <Link href="/how-it-works" className="hover:text-[var(--text-primary)] transition-colors">
+                {t("howItWorks")}
+              </Link>
+              <Link href="/sell" className="hover:text-[var(--text-primary)] transition-colors">
+                {t("sell")}
+              </Link>
+              <Link href="/help" className="hover:text-[var(--text-primary)] transition-colors">
+                {t("help")}
+              </Link>
+              <span className="w-px h-3 bg-[var(--border-default)]" />
+              <RegionPicker variant="compact" />
+            </div>
           </div>
         </div>
 
@@ -270,7 +287,7 @@ export function Navbar() {
           <div className="flex items-center gap-4 lg:gap-6 h-[68px]">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-              <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--amber)] to-[var(--amber-dark)] flex items-center justify-center group-hover:shadow-md transition-shadow">
+              <div className="hidden sm:flex relative w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--amber)] to-[var(--amber-dark)] items-center justify-center group-hover:shadow-md transition-shadow">
                 <span
                   className="font-black text-[var(--obsidian)] text-sm tracking-tight"
                   style={{ fontFamily: "var(--font-display)" }}
@@ -278,7 +295,7 @@ export function Navbar() {
                   SR
                 </span>
               </div>
-              <div className="hidden sm:flex flex-col">
+              <div className="flex flex-col">
                 <span
                   className="text-[16px] font-bold tracking-tight leading-none text-[var(--obsidian)]"
                   style={{ fontFamily: "var(--font-display)" }}
@@ -294,36 +311,43 @@ export function Navbar() {
             {/* Search bar — IKEA-style: scope + input + button */}
             <form
               action="/marketplace"
-              className="hidden md:flex flex-1 max-w-[760px] h-12 rounded-full border border-[var(--border-default)] hover:border-[var(--text-tertiary)] focus-within:border-[var(--obsidian)] focus-within:shadow-[0_0_0_3px_rgba(216,159,46,0.15)] bg-white transition-all overflow-hidden"
+              className="hidden md:flex flex-1 max-w-[760px] h-12 rounded-full border border-[var(--border-default)] hover:border-[var(--text-tertiary)] focus-within:border-[var(--obsidian)] focus-within:shadow-[0_0_0_3px_rgba(216,159,46,0.15)] bg-white transition-all"
             >
               {/* Scope selector */}
               <div className="relative" ref={scopeRef}>
                 <button
                   type="button"
                   onClick={() => setScopeOpen(!scopeOpen)}
-                  className="h-full pl-5 pr-3 flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-subtle)]"
+                  className="h-full pl-5 pr-3 flex items-center gap-1.5 rounded-l-full text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-subtle)]"
                 >
-                  {scopeLabel[scope]}
+                  {scopeLabelFor(scope)}
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
                 {scopeOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-[var(--border-subtle)] py-2 animate-scale-in z-10">
-                    {(["all", "products"] as const).map((s) => (
+                  <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-[var(--border-subtle)] py-2 animate-scale-in z-10 max-h-80 overflow-y-auto">
+                    {SCOPE_OPTIONS.map((opt) => (
                       <button
                         type="button"
-                        key={s}
+                        key={opt.value}
                         onClick={() => {
-                          setScope(s);
+                          setScope(opt.value);
                           setScopeOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                          scope === opt.value
+                            ? "bg-[var(--amber)]/10 text-[var(--amber-dark)] font-semibold"
+                            : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                        }`}
                       >
-                        {scopeLabel[s]}
+                        {t(opt.labelKey)}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
+              {scope !== "all" && (
+                <input type="hidden" name="category" value={scope} />
+              )}
               <input
                 type="search"
                 name="q"
@@ -333,7 +357,7 @@ export function Navbar() {
               <button
                 type="submit"
                 aria-label={t("searchButton")}
-                className="h-full px-5 bg-[var(--obsidian)] text-[var(--ivory)] hover:bg-[var(--obsidian-light)] transition-colors flex items-center justify-center"
+                className="h-full px-5 rounded-r-full bg-[var(--obsidian)] text-[var(--ivory)] hover:bg-[var(--obsidian-light)] transition-colors flex items-center justify-center"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -366,6 +390,14 @@ export function Navbar() {
               >
                 <User className="w-5 h-5" />
                 <span className="text-[10px] mt-0.5">{tc("signIn")}</span>
+              </Link>
+
+              <Link
+                href="/auth/login"
+                aria-label={tc("signIn")}
+                className="md:hidden p-2.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+              >
+                <User className="w-5 h-5" />
               </Link>
 
               <Link
@@ -537,7 +569,7 @@ export function Navbar() {
 
       {/* Mobile menu overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-white pt-[68px] overflow-y-auto">
+        <div className="fixed inset-0 z-40 bg-white pt-[104px] overflow-y-auto">
           <div className="px-6 py-6 space-y-2">
             <form action="/marketplace" className="flex items-center h-12 rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] mb-6 px-4">
               <Search className="w-4 h-4 text-[var(--text-tertiary)]" />

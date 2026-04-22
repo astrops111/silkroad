@@ -313,7 +313,7 @@ export function ResourceQuoteForm({
         }
         .input:focus {
           outline: none;
-          border-color: rgba(212, 168, 83, 0.5);
+          border-color: rgba(216, 159, 46, 0.5);
         }
       `}</style>
     </form>

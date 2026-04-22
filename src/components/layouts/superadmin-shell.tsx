@@ -20,6 +20,7 @@ import {
   ImagePlus,
   TrendingUp,
   MessageSquare,
+  FolderTree,
 } from "lucide-react";
 
 const navSections = [
@@ -27,6 +28,12 @@ const navSections = [
     label: "Overview",
     items: [
       { name: "Dashboard", href: "/superadmin/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Platform",
+    items: [
+      { name: "Categories", href: "/superadmin/categories", icon: FolderTree },
     ],
   },
   {
@@ -58,7 +65,7 @@ export function SuperAdminShell({ children, userName, userInitials }: SuperAdmin
       {/* Sidebar */}
       <aside
         className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col shrink-0"
-        style={{ background: "linear-gradient(180deg, #0B0F1A 0%, #111827 100%)" }}
+        style={{ background: "linear-gradient(180deg, #14110F 0%, #1F1A15 100%)" }}
       >
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 px-6 border-b border-white/[0.06]">
@@ -81,7 +88,7 @@ export function SuperAdminShell({ children, userName, userInitials }: SuperAdmin
           <span
             className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
             style={{
-              background: "linear-gradient(135deg, rgba(212,168,83,0.2), rgba(196,93,62,0.2))",
+              background: "linear-gradient(135deg, rgba(216,159,46,0.2), rgba(184,60,48,0.2))",
               color: "var(--amber)",
             }}
           >
@@ -121,7 +128,7 @@ export function SuperAdminShell({ children, userName, userInitials }: SuperAdmin
                         className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
                         style={{
                           color: isActive ? "var(--amber)" : "rgba(245,240,232,0.5)",
-                          background: isActive ? "rgba(212,168,83,0.08)" : "transparent",
+                          background: isActive ? "rgba(216,159,46,0.08)" : "transparent",
                         }}
                       >
                         {isActive && (
@@ -149,7 +156,7 @@ export function SuperAdminShell({ children, userName, userInitials }: SuperAdmin
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
               style={{
-                background: "linear-gradient(135deg, rgba(212,168,83,0.2), rgba(196,93,62,0.2))",
+                background: "linear-gradient(135deg, rgba(216,159,46,0.2), rgba(184,60,48,0.2))",
                 color: "var(--amber)",
               }}
             >
@@ -201,7 +208,7 @@ export function SuperAdminShell({ children, userName, userInitials }: SuperAdmin
             <div
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-semibold"
               style={{
-                background: "linear-gradient(135deg, rgba(212,168,83,0.1), rgba(196,93,62,0.1))",
+                background: "linear-gradient(135deg, rgba(216,159,46,0.1), rgba(184,60,48,0.1))",
                 color: "var(--amber-dark)",
               }}
             >

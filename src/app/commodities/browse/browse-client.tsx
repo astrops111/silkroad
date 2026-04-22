@@ -373,7 +373,7 @@ export function CommoditiesBrowseClient() {
   return (
     <>
       <Navbar />
-      <main className="pt-[68px] lg:pt-[148px] min-h-screen bg-[var(--surface-secondary)]">
+      <main className="pt-[104px] lg:pt-[184px] min-h-screen bg-[var(--surface-secondary)]">
         <div className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)]">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
             <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] mb-3">
@@ -476,31 +476,31 @@ export function CommoditiesBrowseClient() {
                     <Link
                       key={c.id}
                       href={`/commodities/${c.id}`}
-                      className="group bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] hover:shadow-lg overflow-hidden transition-shadow"
+                      className="group bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] hover:shadow-lg overflow-hidden transition-shadow flex sm:block"
                     >
-                      <div className="relative aspect-[4/3] overflow-hidden">
+                      <div className="relative w-32 shrink-0 self-stretch sm:self-auto sm:w-auto sm:aspect-[4/3] overflow-hidden">
                         <Image
                           src={c.image}
                           alt={c.name}
                           fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                          sizes="(max-width: 640px) 128px, (max-width: 1280px) 50vw, 33vw"
                           className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                         />
-                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1 sm:gap-1.5">
                           {c.badges.slice(0, 2).map((b) => (
                             <span
                               key={b}
-                              className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-white/95 text-[var(--obsidian)] tracking-wide"
+                              className="px-1.5 py-0.5 sm:px-2 text-[9px] sm:text-[10px] font-bold rounded-md bg-white/95 text-[var(--obsidian)] tracking-wide"
                             >
                               {b}
                             </span>
                           ))}
                         </div>
                       </div>
-                      <div className="p-5">
+                      <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col">
                         <div className="flex items-baseline gap-1">
                           <span
-                            className="text-lg font-bold text-[var(--obsidian)]"
+                            className="text-base sm:text-lg font-bold text-[var(--obsidian)]"
                             style={{ fontFamily: "var(--font-display)" }}
                           >
                             {formatConvertedPriceWithCode(
@@ -510,32 +510,32 @@ export function CommoditiesBrowseClient() {
                               locale,
                             )}
                           </span>
-                          <span className="text-xs text-[var(--text-tertiary)]">
+                          <span className="text-[10px] sm:text-xs text-[var(--text-tertiary)]">
                             / {c.unit}
                           </span>
                         </div>
-                        <h3 className="mt-1 text-sm font-medium text-[var(--text-primary)] line-clamp-2 leading-snug">
+                        <h3 className="mt-1 text-[13px] sm:text-sm font-medium text-[var(--text-primary)] line-clamp-2 leading-snug">
                           {c.name}
                         </h3>
-                        <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+                        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 text-[11px] sm:text-xs text-[var(--text-tertiary)]">
                           <MapPin className="w-3 h-3 shrink-0" />
                           <span className="truncate">{c.origin}</span>
                         </div>
-                        <div className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                        <div className="mt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-[var(--text-secondary)]">
                           {c.certified && (
                             <CheckCircle2 className="w-3 h-3 text-[var(--success)] shrink-0" />
                           )}
                           <span className="truncate">{c.cooperative}</span>
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                        <div className="mt-2 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-[var(--text-tertiary)]">
                           <span className="inline-flex items-center gap-1">
                             <Star className="w-3 h-3 fill-[var(--amber)] text-[var(--amber)]" />
                             {c.rating} ({c.reviews})
                           </span>
                           <span>MOQ {c.moq}</span>
                         </div>
-                        <div className="mt-4 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-[var(--terracotta)]">
+                        <div className="mt-auto pt-2 sm:pt-4 flex items-center justify-between">
+                          <span className="text-[11px] sm:text-xs font-semibold text-[var(--terracotta)]">
                             {t("viewLot")}
                           </span>
                           <ArrowUpRight className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--terracotta)] transition-colors" />

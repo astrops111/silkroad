@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MarketplaceLoading() {
   return (
-    <div className="pt-[76px] min-h-screen bg-[var(--surface-secondary)]">
+    <div className="pt-[112px] min-h-screen bg-[var(--surface-secondary)]">
       <div className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)]">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
           <Skeleton className="h-8 w-48" />

@@ -19,6 +19,20 @@ export const productSchema = z.object({
   weightKg: z.number().positive().optional(),
   hsCode: z.string().optional(),
   originCountry: z.string().length(2).optional(),
+  cogs: z.number().positive().optional(),
+  brand: z.string().optional(),
+  janCode: z.string().optional(),
+  shelfLifeDays: z.number().int().positive().optional(),
+  boxPackQty: z.number().int().positive().optional(),
+  shippingMode: z.enum(["air", "sea", "either"]).optional(),
+  legalCategory: z.string().optional(),
+  skinHairType: z.string().optional(),
+  targetAudience: z.string().optional(),
+  scent: z.string().optional(),
+  texture: z.string().optional(),
+  usageInstructions: z.string().optional(),
+  storageInstructions: z.string().optional(),
+  warnings: z.string().optional(),
 });
 
 export const pricingTierSchema = z.object({
