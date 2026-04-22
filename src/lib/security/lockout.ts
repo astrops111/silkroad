@@ -1,5 +1,3 @@
-"use server";
-
 import { createServiceClient } from "@/lib/supabase/server";
 
 export const MAX_FAILED_ATTEMPTS = 4;
