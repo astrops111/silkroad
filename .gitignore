@@ -42,3 +42,15 @@ next-env.d.ts
 
 # local debug artifacts
 _docs/screenshots*/
+
+# editor / agent local state
+.claude/
+desktop.ini
+
+# graphify tool output
+.graphify_trace.py
+graphify-out/
+src/graphify-out/
+
+# personal / local-only assets
+personal-*.webp
