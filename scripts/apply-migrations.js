@@ -1,6 +1,7 @@
 // One-off helper to apply specific Supabase migration files via DATABASE_URL.
 // Usage: node scripts/apply-migrations.js <migration-file> [<migration-file> ...]
 // Reads DATABASE_URL from .env, runs each file as a single transaction.
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const fs = require("fs");
 const path = require("path");

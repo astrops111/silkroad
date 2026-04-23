@@ -26,20 +26,9 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
-    const csp = [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' blob: data: https:",
-      "font-src 'self' data:",
-      "connect-src 'self' https: wss:",
-      "frame-ancestors 'self'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'",
-      "upgrade-insecure-requests",
-    ].join("; ");
-
+    // Content-Security-Policy is emitted per-request by src/middleware.ts so
+    // each response carries a unique nonce. Only static security headers live
+    // here; CSP intentionally omitted to avoid conflicting with the nonce one.
     return [
       {
         source: "/:path*",
@@ -56,7 +45,6 @@ const nextConfig: NextConfig = {
             value: "max-age=63072000; includeSubDomains; preload",
           },
           { key: "X-DNS-Prefetch-Control", value: "on" },
-          { key: "Content-Security-Policy", value: csp },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
         ],

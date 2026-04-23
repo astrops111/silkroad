@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   // Get supplier order counts per purchase order
   const poIds = (orders || []).map((o) => o.id);
-  let supplierOrderMap: Record<string, { count: number; suppliers: string[] }> = {};
+  const supplierOrderMap: Record<string, { count: number; suppliers: string[] }> = {};
 
   if (poIds.length > 0) {
     const { data: sos } = await supabase
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Get payment info
-  let paymentMap: Record<string, string> = {};
+  const paymentMap: Record<string, string> = {};
   if (poIds.length > 0) {
     const { data: payments } = await supabase
       .from("payment_transactions")

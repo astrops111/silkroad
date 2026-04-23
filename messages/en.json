@@ -89,10 +89,13 @@
         "browseCta": "Browse products",
         "switchCta": "Or export from Africa",
         "slide2": {
-          "badge": "Trade Assurance · Escrow",
-          "headline": "Pay only when your goods pass inspection.",
-          "tagline": "Every order is protected by platform-held escrow. Funds release to the supplier only after your inspection agent clears the cargo — zero risk on first-time orders.",
-          "cta": "How escrow works"
+          "badge": "Easy Steps · 1 · 2 · 3",
+          "headline": "Request. Order. Delivered.",
+          "tagline": "Three steps from quote to your door — we handle sourcing, payment, customs, and last-mile across Africa.",
+          "cta": "See how to buy",
+          "step1": "Request for Quote",
+          "step2": "Make Order",
+          "step3": "Delivered to You"
         },
         "slide3": {
           "badge": "Logistics · 27 Countries",
@@ -354,8 +357,8 @@
       "metaDescription": "How Silk Road Africa connects Chinese manufacturers with African businesses, and African producers with Chinese importers.",
       "pillarsEyebrow": "What We Do",
       "pillarsTitle": "Four pillars of cross-continental B2B",
-      "pillar1Title": "Trade Assurance",
-      "pillar1Body": "Every transaction is held in escrow until you confirm delivery and quality. Disputes are mediated by Silk Road Africa operations.",
+      "pillar1Title": "Trusted & Reliable Businesses",
+      "pillar1Body": "Every supplier is vetted, KYC-verified, and audited for production capacity before joining the platform. Your order sits with Silk Road Africa — not a stranger — so you're backed by escrow, third-party inspection, and a team that answers when things go wrong.",
       "pillar2Title": "Owned Logistics",
       "pillar2Body": "Our own fleet, drivers, and bonded warehouses move goods door-to-door across 27+ African countries — not third-party carriers.",
       "pillar3Title": "Local-First Payments",

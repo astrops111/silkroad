@@ -157,6 +157,7 @@ export default function PromotePage() {
         ) : (
           <div className="space-y-3">
             {activePromos.map((promo) => {
+              // eslint-disable-next-line react-hooks/purity
               const daysLeft = Math.ceil((new Date(promo.ends_at).getTime() - Date.now()) / 86400000);
               const ctr = promo.impressions > 0 ? ((promo.clicks / promo.impressions) * 100).toFixed(1) : "0.0";
 

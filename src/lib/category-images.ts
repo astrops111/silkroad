@@ -4,10 +4,10 @@ const PEXELS = (id: string, w = 900) =>
 export const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
   // Top-level
   home: PEXELS("276583"),
-  hotels: PEXELS("271624"),
-  "consumer-electronics": PEXELS("7864622"),
-  beauty: PEXELS("3762871"),
-  groceries: PEXELS("4518843"),
+  hotels: "/hotels-cat.jpg",
+  "consumer-electronics": "/electronic-cat.jpg",
+  beauty: PEXELS("6663369"),
+  groceries: "/groceries-cat.jpg",
   "baby-products": PEXELS("3933250"),
 
   // Home

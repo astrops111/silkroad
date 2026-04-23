@@ -96,8 +96,8 @@ export default function CategoryManager({ tree, productCounts, canDelete }: Prop
       description: cat.description ?? "",
       icon: cat.icon ?? "",
       parentId: cat.parent_id,
-      sortOrder: cat.sort_order,
-      isActive: cat.is_active,
+      sortOrder: cat.sort_order ?? 0,
+      isActive: cat.is_active ?? true,
     });
     setParentName(parent?.name ?? null);
     setDialogOpen(true);

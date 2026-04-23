@@ -22,7 +22,7 @@ export default async function BulkImportPage() {
       categories={categories.map((c) => ({
         id: c.id,
         name: c.name,
-        level: c.level,
+        level: c.level ?? 0,
         parentId: c.parent_id,
       }))}
     />

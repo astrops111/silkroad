@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 
 type Slide = {
   image: string;
@@ -14,6 +14,7 @@ type Slide = {
   tagline: string;
   ctaLabel: string;
   ctaHref: string;
+  steps?: { num: string; label: string }[];
 };
 
 const AUTOPLAY_MS = 6000;
@@ -40,7 +41,12 @@ export function HeroCarousel() {
       headline: t("slide2.headline"),
       tagline: t("slide2.tagline"),
       ctaLabel: t("slide2.cta"),
-      ctaHref: "/how-it-works#escrow",
+      ctaHref: "/how-to-buy",
+      steps: [
+        { num: "1", label: t("slide2.step1") },
+        { num: "2", label: t("slide2.step2") },
+        { num: "3", label: t("slide2.step3") },
+      ],
     },
     {
       image:
@@ -115,6 +121,25 @@ export function HeroCarousel() {
               <p className="mt-5 text-base lg:text-lg text-white/85 max-w-xl leading-relaxed">
                 {slide.tagline}
               </p>
+              {slide.steps && (
+                <div className="mt-6 flex flex-wrap items-center gap-2 max-w-2xl">
+                  {slide.steps.map((step, si) => (
+                    <div key={step.num} className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5 pl-2 pr-4 py-2 rounded-full bg-white/12 backdrop-blur-md border border-white/20">
+                        <span className="w-6 h-6 rounded-full bg-[var(--amber)] text-[var(--obsidian)] text-xs font-black flex items-center justify-center">
+                          {step.num}
+                        </span>
+                        <span className="text-sm font-semibold text-white">
+                          {step.label}
+                        </span>
+                      </div>
+                      {si < slide.steps!.length - 1 && (
+                        <ArrowRight className="w-4 h-4 text-white/50" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href={slide.ctaHref}

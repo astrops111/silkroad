@@ -11,8 +11,8 @@ const CATEGORY_KEYS = [
   "hotels",
   "consumerElectronics",
   "beauty",
-  "groceries",
   "babyProducts",
+  "groceries",
   "other",
 ] as const;
 

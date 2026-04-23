@@ -11,7 +11,7 @@ import {
   Leaf,
   Package,
   Globe,
-  Shield,
+  Handshake,
   Star,
   TrendingUp,
   Truck,
@@ -155,7 +155,7 @@ function TradeFlowDiagram() {
 function Pillars() {
   const t = useTranslations("marketing.about");
   const pillars = [
-    { icon: Shield, title: t("pillar1Title"), desc: t("pillar1Body") },
+    { icon: Handshake, title: t("pillar1Title"), desc: t("pillar1Body") },
     { icon: Truck, title: t("pillar2Title"), desc: t("pillar2Body") },
     { icon: Globe, title: t("pillar3Title"), desc: t("pillar3Body") },
     { icon: Users, title: t("pillar4Title"), desc: t("pillar4Body") },

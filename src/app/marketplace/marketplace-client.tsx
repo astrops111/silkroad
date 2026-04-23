@@ -58,8 +58,8 @@ const CATEGORIES = [
   { slug: "hotels", key: "categoryHotels", matchLabel: "Hotels" },
   { slug: "consumer-electronics", key: "categoryConsumerElectronics", matchLabel: "Consumer Electronics" },
   { slug: "beauty", key: "categoryBeauty", matchLabel: "Beauty" },
-  { slug: "groceries", key: "categoryGroceries", matchLabel: "Groceries" },
   { slug: "baby-products", key: "categoryBabyProducts", matchLabel: "Baby Products" },
+  { slug: "groceries", key: "categoryGroceries", matchLabel: "Groceries" },
 ] as const;
 
 const PRODUCTS: MarketplaceProduct[] = [

@@ -24,7 +24,7 @@ export default async function NewProductPage() {
       categories={categories.map((c) => ({
         id: c.id,
         name: c.name,
-        level: c.level,
+        level: c.level ?? 0,
         parentId: c.parent_id,
       }))}
       supplierCompanyId={membership.company_id}

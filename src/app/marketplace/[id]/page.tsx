@@ -38,7 +38,7 @@ export default async function ProductDetailPage({
       minQuantity: t.min_quantity,
       maxQuantity: t.max_quantity,
       unitPrice: t.unit_price / 100,
-      currency: t.currency,
+      currency: t.currency ?? "USD",
     }));
 
   const certifications = (product.product_certifications ?? []).map((c) => ({

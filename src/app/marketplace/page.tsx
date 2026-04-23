@@ -39,7 +39,7 @@ export default async function MarketplacePage({
         null,
       tradeTerm: p.trade_term ?? null,
       price: applyMarkup(p.base_price / 100),
-      moq: p.moq,
+      moq: p.moq ?? 1,
       unit: "Pieces",
       rating: 4.5,
       reviews: 0,

@@ -58,7 +58,7 @@ export default async function SupplierSettingsPage() {
         },
       }}
       verification={{
-        status: company.verification_status,
+        status: company.verification_status ?? "unverified",
         tier: p?.tier ?? "free",
       }}
     />

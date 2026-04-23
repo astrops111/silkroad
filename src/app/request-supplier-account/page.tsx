@@ -19,7 +19,7 @@ export default async function RequestSupplierAccountPage() {
   const categories = await getCategories();
   const topLevel = categories
     .filter((c) => c.parent_id === null)
-    .sort((a, b) => a.sort_order - b.sort_order);
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   const hdrs = await headers();
   const locale = hdrs.get("x-next-intl-locale") ?? undefined;

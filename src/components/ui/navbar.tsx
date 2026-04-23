@@ -118,6 +118,22 @@ const PRODUCT_CATEGORIES: CategoryGroup[] = [
     },
   },
   {
+    label: "Baby Products",
+    href: "/marketplace?category=baby-products",
+    icon: Baby,
+    subgroups: [
+      { label: "Diapers", href: "/marketplace?category=baby-products&sub=diapers" },
+      { label: "Baby Formula", href: "/marketplace?category=baby-products&sub=baby-formula" },
+    ],
+    featured: {
+      title: "OEM ultra-absorbent diapers",
+      description: "MOQ 10 cartons · From $4.20/pack",
+      image:
+        "https://images.pexels.com/photos/3933250/pexels-photo-3933250.jpeg?auto=compress&cs=tinysrgb&w=600",
+      href: "/marketplace?category=baby-products&sub=diapers",
+    },
+  },
+  {
     label: "Groceries",
     href: "/marketplace?category=groceries",
     icon: ShoppingBasket,
@@ -134,22 +150,6 @@ const PRODUCT_CATEGORIES: CategoryGroup[] = [
       image:
         "https://images.pexels.com/photos/4518843/pexels-photo-4518843.jpeg?auto=compress&cs=tinysrgb&w=600",
       href: "/marketplace?category=groceries&sub=snacks-savoury",
-    },
-  },
-  {
-    label: "Baby Products",
-    href: "/marketplace?category=baby-products",
-    icon: Baby,
-    subgroups: [
-      { label: "Diapers", href: "/marketplace?category=baby-products&sub=diapers" },
-      { label: "Baby Formula", href: "/marketplace?category=baby-products&sub=baby-formula" },
-    ],
-    featured: {
-      title: "OEM ultra-absorbent diapers",
-      description: "MOQ 10 cartons · From $4.20/pack",
-      image:
-        "https://images.pexels.com/photos/3933250/pexels-photo-3933250.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/marketplace?category=baby-products&sub=diapers",
     },
   },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
@@ -212,9 +212,12 @@ export function Navbar() {
   }, []);
 
   // Close any open mega-menu when the route changes.
-  useEffect(() => {
+  // Derived "store-previous-prop" pattern avoids setState-in-effect.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setOpenCategory(null);
-  }, [pathname]);
+  }
 
   // Scope options for the search bar — first entry is "all" (no filter),
   // then one per top-level category (slugs match DB).
@@ -224,8 +227,8 @@ export function Navbar() {
     { value: "hotels", labelKey: "categoryHotels" },
     { value: "consumer-electronics", labelKey: "categoryConsumerElectronics" },
     { value: "beauty", labelKey: "categoryBeauty" },
-    { value: "groceries", labelKey: "categoryGroceries" },
     { value: "baby-products", labelKey: "categoryBabyProducts" },
+    { value: "groceries", labelKey: "categoryGroceries" },
   ];
   const scopeLabelFor = (value: string) => {
     const opt = SCOPE_OPTIONS.find((o) => o.value === value);

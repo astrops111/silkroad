@@ -69,9 +69,9 @@ export default async function EditProductPage({
       images={product.product_images.map((img) => ({
         id: img.id,
         url: img.url,
-        altText: img.alt_text,
+        altText: img.alt_text ?? null,
         isPrimary: img.is_primary ?? false,
-        sortOrder: img.sort_order,
+        sortOrder: img.sort_order ?? 0,
       }))}
       docs={product.product_certifications.map((d) => ({
         id: d.id,
@@ -90,7 +90,7 @@ export default async function EditProductPage({
       categories={categories.map((c) => ({
         id: c.id,
         name: c.name,
-        level: c.level,
+        level: c.level ?? 0,
         parentId: c.parent_id,
       }))}
       supplierCompanyId={membership.company_id}

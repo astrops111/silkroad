@@ -40,6 +40,7 @@ export function RegionProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<Region>;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRegionState({
           country: parsed.country ?? DEFAULT_REGION.country,
           currency: parsed.currency ?? DEFAULT_REGION.currency,
@@ -48,6 +49,7 @@ export function RegionProvider({ children }: { children: ReactNode }) {
     } catch {
       // localStorage unavailable or corrupted — stick with defaults.
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
 

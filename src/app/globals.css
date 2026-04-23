@@ -665,3 +665,63 @@ body {
   color: var(--amber-dark);
   background: var(--amber-glow);
 }
+
+/* Legal / long-form prose (privacy, terms, compliance, cookies). */
+.prose-legal {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+.prose-legal .lead {
+  font-size: 1.0625rem;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+}
+.prose-legal h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--obsidian);
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+.prose-legal h3 {
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--obsidian);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.prose-legal p {
+  margin: 0.9rem 0;
+}
+.prose-legal ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.75rem 0 1rem;
+}
+.prose-legal li {
+  margin: 0.35rem 0;
+}
+.prose-legal a {
+  color: var(--amber-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-legal a:hover {
+  color: var(--obsidian);
+}
+.prose-legal strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.prose-legal code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  color: var(--text-primary);
+}
