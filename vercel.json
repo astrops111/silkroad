@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/exchange-rates",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/carrier-tracking-poll",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
