@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { CookiePrefsLink } from "@/components/ui/cookie-prefs-link";
 import {
   ArrowUpRight,
   Mail,
@@ -237,10 +238,14 @@ export function Footer() {
               <Link href="/compliance" className="hover:text-[var(--text-primary)] transition-colors">
                 {t("compliance")}
               </Link>
-              <Link href="/cookies" className="hover:text-[var(--text-primary)] transition-colors">
-                {t("cookies")}
-              </Link>
+              <CookiePrefsLink label={t("cookies")} />
             </div>
+            <Link
+              href="/privacy/california"
+              className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Do Not Sell or Share My Personal Information
+            </Link>
           </div>
         </div>
       </div>

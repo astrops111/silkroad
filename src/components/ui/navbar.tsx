@@ -24,6 +24,11 @@ import {
   FileText,
   ArrowRight,
   Megaphone,
+  Coffee,
+  Leaf,
+  Sprout,
+  Gem,
+  Wheat,
   type LucideIcon,
 } from "lucide-react";
 import { RegionPicker } from "@/components/ui/region-picker";
@@ -152,7 +157,18 @@ const PRODUCT_CATEGORIES: CategoryGroup[] = [
       href: "/marketplace?category=groceries&sub=snacks-savoury",
     },
   },
-  { label: "RFQ", href: "/dashboard/rfq", icon: FileText },
+  { label: "RFQ", href: "/request", icon: FileText },
+];
+
+const COMMODITY_CATEGORIES: CategoryGroup[] = [
+  { label: "All", href: "/commodities/browse", icon: Package },
+  { label: "Coffee", href: "/commodities/browse?category=coffee", icon: Coffee },
+  { label: "Cocoa", href: "/commodities/browse?category=cocoa", icon: Leaf },
+  { label: "Tea & Spices", href: "/commodities/browse?category=tea", icon: Sprout },
+  { label: "Minerals", href: "/commodities/browse?category=minerals", icon: Gem },
+  { label: "Cereals", href: "/commodities/browse?category=cereals", icon: Wheat },
+  { label: "Specialty", href: "/commodities/browse?category=specialty", icon: Sparkles },
+  { label: "Export RFQ", href: "/request-export", icon: FileText },
 ];
 
 export function Navbar() {
@@ -180,11 +196,13 @@ export function Navbar() {
   const scopeRef = useRef<HTMLDivElement>(null);
   const categoryStripRef = useRef<HTMLDivElement>(null);
 
-  const activeCategoryGroups: CategoryGroup[] = PRODUCT_CATEGORIES;
+  const isSell =
+    pathname.startsWith("/commodities") || pathname.startsWith("/request-export");
+  const activeCategoryGroups: CategoryGroup[] = isSell ? COMMODITY_CATEGORIES : PRODUCT_CATEGORIES;
 
   const TOP_LINKS = [
     { label: t("products"), href: "/marketplace" },
-    { label: t("rfq"), href: "/dashboard/rfq" },
+    { label: t("rfq"), href: "/request" },
     { label: t("tradeAssurance"), href: "/trade-assurance" },
   ];
 
@@ -303,6 +321,30 @@ export function Navbar() {
                 </span>
               </div>
             </Link>
+
+            {/* Buy / Sell portal toggle */}
+            <div className="flex items-center shrink-0 h-8 rounded-full border border-[var(--border-default)] bg-[var(--surface-secondary)] p-0.5 text-[12px] font-semibold">
+              <Link
+                href="/"
+                className={`px-3 h-full flex items-center rounded-full transition-colors ${
+                  !isSell
+                    ? "bg-[var(--obsidian)] text-[var(--ivory)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Buy
+              </Link>
+              <Link
+                href="/commodities"
+                className={`px-3 h-full flex items-center rounded-full transition-colors ${
+                  isSell
+                    ? "bg-[var(--obsidian)] text-[var(--ivory)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Sell
+              </Link>
+            </div>
 
             {/* Search bar — IKEA-style: scope + input + button */}
             <form

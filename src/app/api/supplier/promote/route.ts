@@ -14,11 +14,28 @@ const TIER_LIMITS: Record<string, number> = {
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const companyId = request.nextUrl.searchParams.get("companyId");
 
   if (!companyId) {
     return NextResponse.json({ error: "companyId required" }, { status: 400 });
   }
+
+  // Verify caller belongs to this company
+  const { data: userProfile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  const { data: membership } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", userProfile?.id)
+    .eq("company_id", companyId)
+    .single();
+  if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Get active promotions
   const { data: promotions } = await supabase
@@ -31,13 +48,13 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false });
 
   // Get supplier tier
-  const { data: profile } = await supabase
+  const { data: supplierProfile } = await supabase
     .from("supplier_profiles")
     .select("tier")
     .eq("company_id", companyId)
     .single();
 
-  const tier = profile?.tier || "free";
+  const tier = (supplierProfile as { tier?: string } | null)?.tier || "free";
   const limit = TIER_LIMITS[tier] || 0;
 
   // Get current month usage
@@ -173,11 +190,34 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { promotionId } = await request.json();
 
   if (!promotionId) {
     return NextResponse.json({ error: "promotionId required" }, { status: 400 });
   }
+
+  // Verify caller owns this promotion via company membership
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  const { data: promoCheck } = await supabase
+    .from("promoted_listings")
+    .select("supplier_id")
+    .eq("id", promotionId)
+    .single();
+  if (!promoCheck) return NextResponse.json({ error: "Promotion not found" }, { status: 404 });
+  const { data: memberCheck } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", profile?.id)
+    .eq("company_id", promoCheck.supplier_id)
+    .single();
+  if (!memberCheck) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Get promotion to un-feature the product
   const { data: promo } = await supabase

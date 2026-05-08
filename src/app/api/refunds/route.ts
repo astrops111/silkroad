@@ -18,7 +18,12 @@ export async function POST(request: NextRequest) {
 
   const serviceClient = createServiceClient();
 
-  // Fetch the supplier order
+  const { data: callerProfile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+
   const { data: order } = await serviceClient
     .from("supplier_orders")
     .select("id, status, total_amount, currency, purchase_order_id, supplier_id")
@@ -26,6 +31,17 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  // Ownership check: verify caller owns the parent purchase order
+  const { data: purchaseOrder } = await supabase
+    .from("purchase_orders")
+    .select("id")
+    .eq("id", order.purchase_order_id)
+    .eq("buyer_user_id", callerProfile?.id)
+    .single();
+  if (!purchaseOrder) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 

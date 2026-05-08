@@ -17,7 +17,7 @@ export async function GET(
     .eq("product_id", id)
     .order("min_quantity", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error("[products/pricing]", error); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Get base product price for reference
   const { data: product } = await supabase
@@ -76,7 +76,7 @@ export async function POST(
     }));
 
     const { error } = await supabase.from("product_pricing_tiers").insert(rows);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error("[products/pricing]", error); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
   }
 
   return NextResponse.json({ success: true, productId: id, tierCount: tiers.length });

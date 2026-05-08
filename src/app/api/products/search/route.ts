@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
   const verified = searchParams.get("verified");
   const featured = searchParams.get("featured");
   const sort = searchParams.get("sort") || "relevance";
-  const limit = parseInt(searchParams.get("limit") || "24", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "24", 10), 1), 100);
+  const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
 
   // Base query — only active, approved products
   let query = supabase
@@ -153,7 +153,8 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[products/search]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Get available categories for filter sidebar

@@ -134,6 +134,11 @@ export async function runCarrierTrackingPoll(
     if (stampErr) errors.push({ adapter: adapter.id, message: `last_polled_at stamp failed: ${stampErr.message}` });
   }
 
+  // Demurrage / detention check runs after every poll so detection
+  // latency matches the poll cadence (30 min) rather than needing a
+  // separate cron job.
+  const demurrageFlagged = await detectDemurrage(supabase);
+
   const status = errors.length === 0 ? "success" : "partial";
   const result: PollRunResult = {
     shipmentsConsidered: rows.length,
@@ -142,8 +147,79 @@ export async function runCarrierTrackingPoll(
     eventsSkippedDedup,
     errors,
   };
-  await recordRun(supabase, startedAt, status, { ...result });
+  await recordRun(supabase, startedAt, status, { ...result, demurrageFlagged });
   return result;
+}
+
+// ── Demurrage / detention auto-detection ─────────────────────────────────────
+//
+// Selects at_hub shipments whose at_hub_since has exceeded free_time_days.
+// On first detection: stamps demurrage_flagged_at, emits a tracking event,
+// and opens a customs hold so the ops queue surfaces it immediately.
+
+async function detectDemurrage(
+  supabase: ReturnType<typeof createServiceClient>,
+): Promise<number> {
+  // Pull candidates that have been at_hub for at least 2 days (cheap pre-filter)
+  // then apply the per-shipment free_time_days check in JS to avoid RPC.
+  const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: candidates, error } = await supabase
+    .from("b2b_shipments")
+    .select("id, free_time_days, at_hub_since")
+    .eq("status", "at_hub")
+    .is("demurrage_flagged_at", null)
+    .not("at_hub_since", "is", null)
+    .lt("at_hub_since", cutoff)
+    .limit(100);
+
+  if (error) {
+    console.error("detectDemurrage: query failed", error);
+    return 0;
+  }
+
+  const now = new Date();
+  let flagged = 0;
+
+  for (const s of candidates ?? []) {
+    const hubSince = new Date(s.at_hub_since as string);
+    const freeDays = (s.free_time_days as number) ?? 5;
+    const elapsedDays = (now.getTime() - hubSince.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (elapsedDays <= freeDays) continue;
+
+    // Stamp demurrage_flagged_at first; the is(null) guard makes this idempotent
+    // under concurrent runs.
+    const { error: flagErr } = await supabase
+      .from("b2b_shipments")
+      .update({ demurrage_flagged_at: now.toISOString() })
+      .eq("id", s.id)
+      .is("demurrage_flagged_at", null);
+    if (flagErr) {
+      console.error("detectDemurrage: flag update failed", flagErr, s.id);
+      continue;
+    }
+
+    const daysStr = Math.floor(elapsedDays).toString();
+
+    await supabase.from("shipment_tracking_events").insert({
+      shipment_id: s.id,
+      event_type: "demurrage_detected",
+      description: `Container at port ${daysStr} days — free time (${freeDays} days) exceeded. Demurrage charges likely accruing.`,
+      source_adapter_id: "system",
+      created_at: now.toISOString(),
+    });
+
+    await supabase.from("customs_holds").insert({
+      shipment_id: s.id,
+      reason: "demurrage",
+      notes: `Auto-detected: container at port for ${daysStr} days (free time: ${freeDays} days). Arrange pickup and check for demurrage/detention charges.`,
+      opened_by: null,
+    });
+
+    flagged++;
+  }
+
+  return flagged;
 }
 
 async function recordRun(

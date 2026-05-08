@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Dispute analysis error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Analysis failed" },
+      { error: "Analysis failed" },
       { status: 500 }
     );
   }

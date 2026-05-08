@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     .select("company_id")
     .eq("user_id", profile.id);
 
-  const companyIds = (companies || []).map((c) => c.company_id);
+  const companyIds = (companies || []).map((c) => c.company_id).filter(isUuid);
 
   if (companyIds.length === 0) {
     return NextResponse.json({ conversations: [], total: 0 });

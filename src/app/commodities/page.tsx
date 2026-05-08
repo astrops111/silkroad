@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
-  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   Coffee,
@@ -19,6 +18,7 @@ import { Footer } from "@/components/ui/footer";
 import { ProductRail, type RailProduct } from "@/components/landing/product-rail";
 import { EditorialBand } from "@/components/landing/editorial-band";
 import { TwoUpValue } from "@/components/landing/two-up-value";
+import { SellHeroCarousel } from "@/components/landing/sell-hero-carousel";
 
 /* ============================================================
    HERO — Commodities portal (Africa → China)
@@ -30,49 +30,7 @@ function HeroSection() {
     <section className="bg-[var(--surface-primary)] pt-[176px] pb-12 lg:pb-16">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 lg:gap-5">
-          <div className="relative isolate flex flex-col justify-end overflow-hidden rounded-2xl min-h-[480px] lg:min-h-[600px] p-8 lg:p-14 border border-[var(--border-subtle)]">
-            <Image
-              src="https://images.pexels.com/photos/29892493/pexels-photo-29892493.jpeg?auto=compress&cs=tinysrgb&w=1800"
-              alt="African coffee farmer holding freshly harvested cherries"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 65vw"
-              className="object-cover -z-10"
-            />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
-
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 mb-5 w-fit">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--terracotta-light)]" />
-              <span className="text-[11px] font-semibold text-white tracking-wide uppercase">
-                {t("hero.badge")}
-              </span>
-            </span>
-            <h1
-              className="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white max-w-3xl"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {t("hero.headline")}
-            </h1>
-            <p className="mt-5 text-base lg:text-lg text-white/85 max-w-xl leading-relaxed">
-              {t("hero.tagline")}
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/commodities/browse"
-                className="btn-primary !py-3.5 !px-7 !text-sm"
-              >
-                {t("hero.browseCta")}
-                <ArrowUpRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="/"
-                className="text-sm font-semibold text-white/85 hover:text-white inline-flex items-center gap-1.5 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t("hero.switchCta")}
-              </Link>
-            </div>
-          </div>
+          <SellHeroCarousel />
 
           {/* Secondary stack */}
           <div className="flex flex-col gap-4 lg:gap-5">

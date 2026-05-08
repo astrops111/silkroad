@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Compliance scan error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Compliance scan failed" },
+      { error: "Compliance scan failed" },
       { status: 500 }
     );
   }

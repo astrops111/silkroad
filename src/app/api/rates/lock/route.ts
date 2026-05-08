@@ -86,6 +86,14 @@ export async function GET(request: NextRequest) {
   if (!lockId) return NextResponse.json({ error: "Missing lockId" }, { status: 400 });
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: callerProfile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
 
   const { data: lock, error } = await supabase
     .from("rate_locks")
@@ -94,6 +102,10 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (error || !lock) {
+    return NextResponse.json({ error: "Lock not found" }, { status: 404 });
+  }
+
+  if (lock.user_id !== callerProfile?.id) {
     return NextResponse.json({ error: "Lock not found" }, { status: 404 });
   }
 

@@ -8,8 +8,18 @@ const FLW_HASH = process.env.FLUTTERWAVE_WEBHOOK_HASH;
 export async function POST(req: NextRequest) {
   // ── Signature verification ──────────────────────────────────────────────
   const signature = req.headers.get("verif-hash");
-  if (!FLW_HASH || signature !== FLW_HASH) {
-    console.error("[flutterwave/webhook] Invalid or missing verif-hash");
+  if (!FLW_HASH) {
+    console.error("[flutterwave/webhook] FLUTTERWAVE_WEBHOOK_HASH not configured");
+    return NextResponse.json({ error: "Misconfigured" }, { status: 500 });
+  }
+  if (!signature) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { timingSafeEqual } = await import("crypto");
+  const sigBuf = Buffer.from(signature);
+  const hashBuf = Buffer.from(FLW_HASH);
+  if (sigBuf.length !== hashBuf.length || !timingSafeEqual(sigBuf, hashBuf)) {
+    console.error("[flutterwave/webhook] Invalid verif-hash");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

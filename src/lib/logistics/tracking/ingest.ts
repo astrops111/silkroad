@@ -82,11 +82,26 @@ export async function ingestTrackingEvent(
     if (event.newStatus === "dispatched") update.dispatched_at = new Date().toISOString();
     if (event.newStatus === "delivered") update.delivered_at = new Date().toISOString();
     if (event.location) update.current_location = event.location;
-    const { error: upErr } = await supabase
+
+    // Stamp at_hub_since the first time a shipment reaches a hub so the
+    // demurrage cron can measure free-time overrun from this baseline.
+    // We update unconditionally here; the SQL filter below ensures we
+    // only write it when the column is still null (first arrival wins).
+    if (event.newStatus === "at_hub") update.at_hub_since = new Date().toISOString();
+
+    let q = supabase
       .from("b2b_shipments")
       .update(update)
       .eq("id", shipmentId)
       .not("status", "in", `(${TERMINAL_STATUSES.map((s) => `"${s}"`).join(",")})`);
+
+    // For at_hub transitions only: don't overwrite an existing at_hub_since
+    // (a transshipment hub shouldn't reset the destination-arrival clock).
+    if (event.newStatus === "at_hub") {
+      q = q.is("at_hub_since", null);
+    }
+
+    const { error: upErr } = await q;
     if (upErr) console.error("ingestTrackingEvent: status advance failed", upErr);
   }
 

@@ -158,7 +158,22 @@
         "headline": "Export Africa's finest to the world's largest market.",
         "tagline": "Coffee, cocoa, tea, minerals, spices, specialty crops — connect cooperatives and producers directly with verified Chinese importers. Fair-trade certified, full traceability, escrow paid in your local currency.",
         "browseCta": "Browse commodities",
-        "switchCta": "Or source from China"
+        "switchCta": "Or source from China",
+        "slide2": {
+          "badge": "Cooperatives · Fair Trade · Traceable",
+          "headline": "List. Receive offers. Get paid in MoMo.",
+          "tagline": "Three steps from listing to payout — we handle buyer matching, escrow, customs documentation, and settlement into MTN MoMo or Airtel Money.",
+          "cta": "List your commodity",
+          "step1": "List Your Lot",
+          "step2": "Receive Bids",
+          "step3": "Paid via Mobile Money"
+        },
+        "slide3": {
+          "badge": "Traceability · 27 Source Countries",
+          "headline": "Full chain of custody from farm to importer.",
+          "tagline": "Blockchain-backed lot traceability earns 18–24% premium from verified Chinese importers. Every bag, every batch, every cooperative — visible from harvest to port.",
+          "cta": "View how traceability works"
+        }
       },
       "promo": {
         "eyebrow": "Cooperative Onboarding",
@@ -576,7 +591,7 @@
     "metaTitle": "Request what you need — Silk Road Africa",
     "metaDescription": "Tell us what you're sourcing. Our team will find verified suppliers and come back to you within one business day.",
     "eyebrow": "Sourcing Request",
-    "title": "Tell us what you're looking for.",
+    "title": "Buying from Africa — Product or item",
     "subtitle": "If you can't find the product on our marketplace, describe it here. A sourcing manager will follow up with verified supplier options, usually within one business day.",
     "backHome": "Back to home",
     "sectionWhatTitle": "What you need",
@@ -591,7 +606,7 @@
     "countryPlaceholder": "e.g. KE, NG, ZA",
     "category": "Category",
     "categoryAny": "Any / Not sure",
-    "title": "Product or item",
+    "title": "Buying from Africa — Product or Item",
     "titlePlaceholder": "e.g. 5G smartphones, kitchen sofas, baby formula",
     "description": "Describe what you need",
     "descriptionPlaceholder": "Specs, brands you've seen, intended use, any packaging or certification requirements…",

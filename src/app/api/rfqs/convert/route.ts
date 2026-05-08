@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { calculateOrderTax } from "@/lib/tax";
 
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
 
   // Generate order numbers
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const rand = randomBytes(3).toString("hex").toUpperCase().substring(0, 6);
   const orderNumber = `ORD-${date}-${rand}`;
   const soNumber = `${orderNumber}-S1`;
 
@@ -105,7 +106,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (poError) {
-    return NextResponse.json({ error: `Failed to create order: ${poError.message}` }, { status: 500 });
+    console.error("[rfqs/convert] PO error:", poError);
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 
   // Create supplier order
@@ -131,7 +133,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (soError) {
-    return NextResponse.json({ error: `Failed to create supplier order: ${soError.message}` }, { status: 500 });
+    console.error("[rfqs/convert] SO error:", soError);
+    return NextResponse.json({ error: "Failed to create supplier order" }, { status: 500 });
   }
 
   // Create order items from quotation items

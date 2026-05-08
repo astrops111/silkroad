@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAIFeature } from "@/lib/ai/feature-flags";
 import { matchSuppliersToRFQ } from "@/lib/ai/rfq-matcher";
 import type { RFQData, SupplierCandidate } from "@/lib/ai/rfq-matcher";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/ai/rfq-match — AI-powered supplier matching for an RFQ
  * Body: { rfqId }
  */
 export async function POST(request: NextRequest) {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const blocked = await requireAIFeature("ai_rfq_matcher");
   if (blocked) {
     return NextResponse.json({ error: blocked }, { status: 403 });
@@ -142,9 +146,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error("RFQ matching error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "RFQ matching failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "RFQ matching failed" }, { status: 500 });
   }
 }

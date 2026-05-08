@@ -1,5 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
+import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeSearchTerm } from "@/lib/security/sanitize";
+
+const rfqCreateSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters").max(200),
+  description: z.string().max(5000).optional(),
+  categoryId: z.string().uuid().optional().nullable(),
+  quantity: z.number({ error: "Quantity is required" }).positive(),
+  unit: z.string().max(50).optional(),
+  targetPrice: z.number().positive().optional().nullable(),
+  currency: z.string().length(3).optional(),
+  deliveryCountry: z.string().length(2).optional(),
+  deliveryCity: z.string().max(100).optional().nullable(),
+  requiredBy: z.string().max(50).optional().nullable(),
+  tradeTerm: z.enum(["fob", "cif", "exw", "ddp", "dap", "cpt", "fca"]).optional().nullable(),
+  specifications: z.record(z.string(), z.unknown()).optional(),
+  certificationsRequired: z.array(z.string().max(100)).max(20).optional(),
+  sampleRequired: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  deadline: z.string().max(50).optional().nullable(),
+  items: z
+    .array(
+      z.object({
+        productName: z.string().min(1).max(200),
+        description: z.string().max(1000).optional(),
+        quantity: z.number().positive(),
+        unit: z.string().max(50).optional(),
+        targetUnitPrice: z.number().positive().optional(),
+        hsCode: z.string().max(20).optional(),
+      })
+    )
+    .max(50)
+    .optional(),
+  publish: z.boolean().optional(),
+});
 
 /**
  * GET /api/rfqs — List RFQs
@@ -8,14 +44,18 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status");
   const buyerOnly = searchParams.get("buyerOnly") === "true";
   const supplierView = searchParams.get("supplierView") === "true";
   const category = searchParams.get("category");
-  const search = searchParams.get("search");
-  const limit = parseInt(searchParams.get("limit") || "20", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const rawSearch = searchParams.get("search");
+  const search = rawSearch ? sanitizeSearchTerm(rawSearch) : null;
+  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "20", 10), 1), 100);
+  const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
 
   let query = supabase
     .from("rfqs")
@@ -35,10 +75,6 @@ export async function GET(request: NextRequest) {
     .range(offset, offset + limit - 1);
 
   if (buyerOnly) {
-    // Buyer's own RFQs
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("id")
@@ -60,7 +96,8 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[rfqs/GET]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ rfqs: data || [], total: count || 0, limit, offset });
@@ -83,21 +120,31 @@ export async function POST(request: NextRequest) {
 
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
-  const body = await request.json();
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = rfqCreateSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
+  }
+
   const {
     title, description, categoryId, quantity, unit,
     targetPrice, currency, deliveryCountry, deliveryCity,
     requiredBy, tradeTerm, specifications, certificationsRequired,
     sampleRequired, isPublic, deadline, items, publish,
-  } = body;
-
-  if (!title || !quantity) {
-    return NextResponse.json({ error: "Title and quantity are required" }, { status: 400 });
-  }
+  } = parsed.data;
 
   // Generate RFQ number
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const rand = randomBytes(3).toString("hex").toUpperCase().substring(0, 6);
   const rfqNumber = `RFQ-${date}-${rand}`;
 
   // Get buyer company info
@@ -139,7 +186,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[rfqs/POST]", error);
+    return NextResponse.json({ error: "Failed to create RFQ" }, { status: 500 });
   }
 
   // Create RFQ line items
@@ -208,7 +256,7 @@ export async function PATCH(request: NextRequest) {
         .eq("id", rfqId)
         .eq("status", "draft");
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) { console.error("[rfqs/PATCH]", error); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
       await supabase.from("rfq_activity_log").insert({
         rfq_id: rfqId,
@@ -226,7 +274,7 @@ export async function PATCH(request: NextRequest) {
         .eq("id", rfqId)
         .in("status", ["draft", "open", "quoted"]);
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) { console.error("[rfqs/PATCH]", error); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
       await supabase.from("rfq_activity_log").insert({
         rfq_id: rfqId,
@@ -251,7 +299,8 @@ export async function PATCH(request: NextRequest) {
           awarded_quotation_id: quotationId,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", rfqId);
+        .eq("id", rfqId)
+        .eq("buyer_user_id", profile?.id);
 
       if (rfqError) return NextResponse.json({ error: rfqError.message }, { status: 500 });
 

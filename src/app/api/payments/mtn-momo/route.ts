@@ -25,16 +25,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Determine buyer's country from profile if not provided
-  let countryCode = buyerCountry;
-  if (!countryCode) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("country_code")
-      .eq("auth_id", user.id)
-      .single();
-    countryCode = profile?.country_code || "GH";
-  }
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id, country_code")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
+  // Verify caller owns this order and it awaits payment
+  const { data: order } = await supabase
+    .from("purchase_orders")
+    .select("id, status")
+    .eq("id", orderId)
+    .eq("buyer_user_id", profile.id)
+    .single();
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  if (order.status !== "pending_payment")
+    return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 400 });
+
+  const countryCode = buyerCountry || profile.country_code || "GH";
 
   let conversion;
 

@@ -22,11 +22,8 @@ export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized calls
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Allow without secret in dev
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const apiKey = process.env.EXCHANGE_RATE_API_KEY;

@@ -12,6 +12,8 @@ const publicRoutes = [
   "/cookies",
   "/commodities",
   "/marketplace",
+  "/request",
+  "/request-export",
   "/suppliers",
   "/resources",
   "/auth/login",
@@ -27,6 +29,8 @@ const publicPrefixes = [
   "/resources/",
   "/commodities/",
   "/api/webhooks/",
+  "/privacy/",
+  "/api/privacy/",
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -67,7 +71,7 @@ function buildCspHeader(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://js.stripe.com https://api.stripe.com https://api.flutterwave.com https://sandbox.momoapi.mtn.com https://proxy.momoapi.mtn.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "frame-ancestors 'self'",

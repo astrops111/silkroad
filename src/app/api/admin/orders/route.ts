@@ -112,6 +112,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Missing orderId or status" }, { status: 400 });
   }
 
+  const PURCHASE_STATUSES = ["pending_payment","paid","processing","shipped","delivered","completed","cancelled","refunded"];
+  const SUPPLIER_STATUSES = ["pending_payment","paid","processing","shipped","delivered","completed","cancelled","refunded","disputed"];
+  const allowed = type === "supplier" ? SUPPLIER_STATUSES : PURCHASE_STATUSES;
+  if (!allowed.includes(newStatus)) {
+    return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
+  }
+
   const table = type === "supplier" ? "supplier_orders" : "purchase_orders";
 
   const { error } = await supabase

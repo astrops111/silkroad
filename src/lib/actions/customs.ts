@@ -7,6 +7,7 @@ import { addTrackingEvent } from "@/lib/actions/tracking";
 import { recomputeActuals } from "@/lib/actions/cost-actuals";
 import type { TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 import type { CustomsHoldReason, CustomsStatus } from "@/lib/queries/customs";
+import { submitCustomsDeclarationToAuthority } from "@/lib/customs";
 
 const SHIPMENTS_PATH = "/admin/logistics/shipments";
 const CUSTOMS_PATH = "/admin/logistics/customs";
@@ -305,4 +306,133 @@ export async function markCustomsCleared(input: MarkClearedInput): Promise<Actio
   revalidatePath(`${SHIPMENTS_PATH}/${input.shipmentId}`);
   revalidatePath(CUSTOMS_PATH);
   return { success: true };
+}
+
+// ============================================================
+// Submit an electronic customs declaration to the national
+// authority (Kenya iCMS or Nigeria NICIS2). Stamps
+// customs_api_submitted_at / provider / ref on the shipment
+// and records a tracking event. Falls through to success=false
+// with a clear error for countries without API integration.
+// ============================================================
+export interface SubmitDeclarationInput {
+  shipmentId: string;
+  // Optional overrides — derived from DB if omitted.
+  portOfEntry?: string;    // UN/LOCODE of destination port
+  arrivalDate?: string;    // ISO date YYYY-MM-DD
+}
+
+export async function submitCustomsDeclaration(
+  input: SubmitDeclarationInput,
+): Promise<ActionResult<{ provider: string; declarationRef: string }>> {
+  const gate = await requireAdminWrite();
+  if (!gate.success) return gate;
+
+  const supabase = await createClient();
+
+  // ── Load shipment + related data ──────────────────────────
+  const { data: shipment, error: shipErr } = await supabase
+    .from("b2b_shipments")
+    .select(`
+      id, supplier_order_id, hs_codes, total_weight_kg, package_count,
+      bill_of_lading, container_number, shipping_method, delivery_country,
+      customs_api_submitted_at,
+      pod_port:pod_port_id ( code )
+    `)
+    .eq("id", input.shipmentId)
+    .maybeSingle();
+
+  if (shipErr || !shipment) {
+    return { success: false, error: shipErr?.message ?? "Shipment not found" };
+  }
+  if (shipment.customs_api_submitted_at) {
+    return { success: false, error: "Electronic declaration already submitted for this shipment" };
+  }
+
+  const { data: supplierOrder } = await supabase
+    .from("supplier_orders")
+    .select("purchase_order_id, supplier_id")
+    .eq("id", shipment.supplier_order_id)
+    .maybeSingle();
+
+  if (!supplierOrder) return { success: false, error: "Supplier order not found" };
+
+  const { data: po } = await supabase
+    .from("purchase_orders")
+    .select("buyer_company_id")
+    .eq("id", supplierOrder.purchase_order_id)
+    .maybeSingle();
+
+  const { data: buyerCompany } = po?.buyer_company_id
+    ? await supabase
+        .from("companies")
+        .select("name, tax_id, country_code, city, address")
+        .eq("id", po.buyer_company_id)
+        .maybeSingle()
+    : { data: null };
+
+  if (!buyerCompany?.tax_id) {
+    return { success: false, error: "Buyer company tax ID (KRA PIN / TIN) is required for e-declaration" };
+  }
+
+  const destinationCountry =
+    buyerCompany.country_code ?? shipment.delivery_country ?? "";
+
+  const podPort = Array.isArray(shipment.pod_port)
+    ? shipment.pod_port[0]
+    : shipment.pod_port;
+
+  // ── Submit to authority ───────────────────────────────────
+  const result = await submitCustomsDeclarationToAuthority({
+    destinationCountry,
+    importerTaxId: buyerCompany.tax_id,
+    importerName: buyerCompany.name,
+    importerAddress: buyerCompany.address ?? "",
+    importerCity: buyerCompany.city ?? undefined,
+    billOfLading: shipment.bill_of_lading ?? undefined,
+    containerNumbers: shipment.container_number ? [shipment.container_number] : undefined,
+    portOfEntry: input.portOfEntry ?? podPort?.code ?? "",
+    portOfOrigin: "CNSHA",        // Platform is CN-origin only (Phase 3)
+    shippingMethod: String(shipment.shipping_method),
+    arrivalDate: input.arrivalDate,
+    hsCodes: (shipment.hs_codes as string[] | null) ?? [],
+    goodsDescription: "General merchandise — see commercial invoice",
+    grossWeightKg: Number(shipment.total_weight_kg ?? 0),
+    packageCount: Number(shipment.package_count ?? 1),
+    cifValueUsd: 0,               // Ops must confirm; placeholder until actuals are available
+    currency: "USD",
+    supplierOrderId: supplierOrder.purchase_order_id,
+    shipmentId: input.shipmentId,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error ?? "Declaration submission failed" };
+  }
+
+  const now = new Date().toISOString();
+
+  // ── Stamp shipment ────────────────────────────────────────
+  await supabase.from("b2b_shipments").update({
+    customs_api_submitted_at: now,
+    customs_api_provider: result.provider ?? null,
+    customs_api_ref: result.declarationRef ?? null,
+    customs_declaration_no: result.declarationRef ?? null,
+  }).eq("id", input.shipmentId);
+
+  await addTrackingEvent({
+    shipmentId: input.shipmentId,
+    eventType: "customs_declaration_submitted",
+    description: `E-declaration submitted via ${result.provider}: ${result.declarationRef}`,
+  });
+
+  revalidatePath(`${SHIPMENTS_PATH}/${input.shipmentId}`);
+  revalidatePath(CUSTOMS_PATH);
+
+  return {
+    success: true,
+    data: {
+      provider: result.provider ?? "",
+      declarationRef: result.declarationRef ?? "",
+    },
+  };
 }
