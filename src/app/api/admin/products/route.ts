@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     supplierId, categoryId, shippingGroupId, name, nameLocal, description,
     basePriceDollars, comparePriceDollars, currency,
     moq, leadTimeDays, tradeTerm, originCountry, hsCode,
-    sampleAvailable, samplePriceDollars,
+    sampleAvailable, samplePriceDollars, allowMixShipping, minOrderAmountDollars,
   } = body;
 
   if (!supplierId || !name || basePriceDollars == null) {
@@ -176,6 +176,8 @@ export async function POST(request: NextRequest) {
       hs_code: hsCode || null,
       sample_available: sampleAvailable || false,
       sample_price: samplePriceDollars != null ? Math.round(samplePriceDollars * 100) : null,
+      allow_mix_shipping: allowMixShipping || false,
+      min_order_amount: minOrderAmountDollars ? Math.round(Number(minOrderAmountDollars) * 100) : null,
       moderation_status: "approved",
       is_active: true,
       moderated_at: new Date().toISOString(),
@@ -199,13 +201,13 @@ export async function PUT(request: NextRequest) {
 
   const supabase = await createClient();
   const body = await request.json();
-  const { productId, basePriceDollars, comparePriceDollars, samplePriceDollars, ...rest } = body;
+  const { productId, basePriceDollars, comparePriceDollars, samplePriceDollars, minOrderAmountDollars, ...rest } = body;
 
   if (!productId) return NextResponse.json({ error: "productId required" }, { status: 400 });
 
   const allowed = ["name", "name_local", "description", "currency", "moq", "lead_time_days",
     "trade_term", "origin_country", "hs_code", "category_id", "is_featured", "is_active",
-    "sample_available", "shipping_group_id"];
+    "sample_available", "shipping_group_id", "allow_mix_shipping"];
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   for (const key of allowed) {
@@ -214,6 +216,7 @@ export async function PUT(request: NextRequest) {
   if (basePriceDollars != null) update.base_price = Math.round(basePriceDollars * 100);
   if (comparePriceDollars != null) update.compare_price = Math.round(comparePriceDollars * 100);
   if (samplePriceDollars != null) update.sample_price = Math.round(samplePriceDollars * 100);
+  if (minOrderAmountDollars != null) update.min_order_amount = minOrderAmountDollars === "" ? null : Math.round(Number(minOrderAmountDollars) * 100);
 
   const { error } = await supabase.from("products").update(update).eq("id", productId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

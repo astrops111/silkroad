@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from("products")
         .select(
-          `id, name, base_price, currency, moq, moderation_status, is_active,
+          `id, name, brand, base_price, currency, moq, moderation_status, is_active,
            supplier_id,
            companies!products_supplier_id_fkey(name),
            categories(name)`

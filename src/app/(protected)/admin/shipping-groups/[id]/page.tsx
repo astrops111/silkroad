@@ -39,7 +39,7 @@ interface GroupDetail {
 }
 
 interface ProductInGroup {
-  id: string; name: string; base_price: number; currency: string;
+  id: string; name: string; brand: string | null; base_price: number; currency: string;
   moq: number; moderation_status: string; is_active: boolean; supplier_id: string;
   companies: { name: string } | null;
   categories: { name: string } | null;
@@ -55,6 +55,9 @@ export default function ShippingGroupDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [filterSupplier, setFilterSupplier] = useState("");
+  const [filterBrand, setFilterBrand] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
 
   const [form, setForm] = useState({
     name: "", code: "", group_type: "custom", description: "",
@@ -304,32 +307,64 @@ export default function ShippingGroupDetailPage() {
       </form>
 
       {/* Products in this group */}
-      <section className="rounded-2xl border overflow-hidden" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
-        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Products in this group
-            <span className="ml-2 text-xs font-normal" style={{ color: "var(--text-tertiary)" }}>({products.length})</span>
-          </h2>
-          <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-            Assign via product edit page →
-          </span>
-        </div>
-        {products.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No products assigned to this group yet</p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>Open a product's edit page and select this group</p>
+      {(() => {
+        const supplierOpts = Array.from(new Set(products.map((p) => p.companies?.name).filter(Boolean))) as string[];
+        const brandOpts = Array.from(new Set(products.map((p) => p.brand).filter(Boolean))) as string[];
+        const categoryOpts = Array.from(new Set(products.map((p) => p.categories?.name).filter(Boolean))) as string[];
+        const filtered = products.filter((p) =>
+          (!filterSupplier || p.companies?.name === filterSupplier) &&
+          (!filterBrand || p.brand === filterBrand) &&
+          (!filterCategory || p.categories?.name === filterCategory)
+        );
+        const selectStyle = { background: "var(--surface-secondary)", borderColor: "var(--border-subtle)", color: "var(--text-secondary)" };
+        return (
+        <section className="rounded-2xl border overflow-hidden" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
+          <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+            <h2 className="text-sm font-semibold shrink-0" style={{ color: "var(--text-primary)" }}>
+              Products in this group
+              <span className="ml-2 text-xs font-normal" style={{ color: "var(--text-tertiary)" }}>({filtered.length}{filtered.length !== products.length ? `/${products.length}` : ""})</span>
+            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select value={filterSupplier} onChange={(e) => setFilterSupplier(e.target.value)}
+                className="px-3 py-1.5 rounded-lg text-xs border outline-none" style={selectStyle}>
+                <option value="">All Suppliers</option>
+                {supplierOpts.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={filterBrand} onChange={(e) => setFilterBrand(e.target.value)}
+                className="px-3 py-1.5 rounded-lg text-xs border outline-none" style={selectStyle}>
+                <option value="">All Brands</option>
+                {brandOpts.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-3 py-1.5 rounded-lg text-xs border outline-none" style={selectStyle}>
+                <option value="">All Categories</option>
+                {categoryOpts.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <span className="text-xs shrink-0" style={{ color: "var(--text-tertiary)" }}>
+              Assign via product edit page →
+            </span>
           </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                {["Product", "Supplier", "Price", "Status", ""].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => {
+          {products.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No products assigned to this group yet</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>Open a product's edit page and select this group</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No products match the selected filters</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {["Product", "Supplier", "Price", "Status", ""].map((h) => (
+                    <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+              {filtered.map((p) => {
                 const sc = STATUS_CONFIG[p.moderation_status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
                 const isRemoving = removingId === p.id;
                 return (
@@ -373,7 +408,9 @@ export default function ShippingGroupDetailPage() {
             </tbody>
           </table>
         )}
-      </section>
+        </section>
+        );
+      })()}
     </div>
   );
 }

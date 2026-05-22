@@ -20,6 +20,7 @@ interface ProductDetail {
   trade_term: string | null; origin_country: string | null; hs_code: string | null;
   category_id: string | null; moderation_status: string; is_active: boolean;
   is_featured: boolean; sample_available: boolean; sample_price: number | null;
+  allow_mix_shipping: boolean; min_order_amount: number | null;
   supplier_id: string; shipping_group_id: string | null; created_at: string;
   companies: { name: string; country_code: string } | null;
   categories: { name: string } | null;
@@ -43,6 +44,7 @@ export default function ProductDetailPage() {
     originCountry: "", hsCode: "", categoryId: "", shippingGroupId: "",
     moderationStatus: "approved", isActive: true, isFeatured: false,
     sampleAvailable: false, samplePriceDollars: "",
+    allowMixShipping: false, minOrderAmountDollars: "",
   });
 
   const load = useCallback(async () => {
@@ -76,6 +78,8 @@ export default function ProductDetailPage() {
         moderationStatus: p.moderation_status, isActive: p.is_active,
         isFeatured: p.is_featured, sampleAvailable: p.sample_available,
         samplePriceDollars: p.sample_price != null ? (p.sample_price / 100).toFixed(2) : "",
+        allowMixShipping: p.allow_mix_shipping ?? false,
+        minOrderAmountDollars: p.min_order_amount != null ? (p.min_order_amount / 100).toFixed(2) : "",
       });
     } catch {
       toast.error("Failed to load product");
@@ -111,6 +115,8 @@ export default function ProductDetailPage() {
           is_active: form.isActive, is_featured: form.isFeatured,
           sample_available: form.sampleAvailable,
           samplePriceDollars: form.samplePriceDollars ? Number(form.samplePriceDollars) : null,
+          allow_mix_shipping: form.allowMixShipping,
+          minOrderAmountDollars: form.minOrderAmountDollars || "",
         }),
       });
 
@@ -208,15 +214,6 @@ export default function ProductDetailPage() {
                 ))}
               </select>
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Shipping Group</label>
-              <select value={form.shippingGroupId} onChange={(e) => set("shippingGroupId", e.target.value)} className={inputCls} style={inputStyle}>
-                <option value="">— No group —</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}{g.code ? ` (${g.code})` : ""}</option>
-                ))}
-              </select>
-            </div>
             <div className="flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
                 <input type="checkbox" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} className="w-4 h-4 rounded" />
@@ -309,6 +306,25 @@ export default function ProductDetailPage() {
                 <input type="number" min={0} step={0.01} value={form.samplePriceDollars} onChange={(e) => set("samplePriceDollars", e.target.value)} className={inputCls} style={inputStyle} />
               </div>
             )}
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Shipping Group</label>
+              <select value={form.shippingGroupId} onChange={(e) => set("shippingGroupId", e.target.value)} className={inputCls} style={inputStyle}>
+                <option value="">— No group —</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}{g.code ? ` (${g.code})` : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Minimum Purchase Amount</label>
+              <input type="number" min={0} step={0.01} value={form.minOrderAmountDollars} onChange={(e) => set("minOrderAmountDollars", e.target.value)} placeholder="0.00" className={inputCls} style={inputStyle} />
+            </div>
+            <div className="flex items-center gap-3 pt-6">
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                <input type="checkbox" checked={form.allowMixShipping} onChange={(e) => set("allowMixShipping", e.target.checked)} className="w-4 h-4 rounded" />
+                Mix Shipping
+              </label>
+            </div>
           </div>
         </section>
 

@@ -31,6 +31,7 @@ export default function NewProductPage() {
     moq: "1", leadTimeDays: "", tradeTerm: "FOB",
     originCountry: "", hsCode: "",
     sampleAvailable: false, samplePriceDollars: "",
+    allowMixShipping: false, minOrderAmountDollars: "",
   });
 
   useEffect(() => {
@@ -77,6 +78,8 @@ export default function NewProductPage() {
           hsCode: form.hsCode || undefined,
           sampleAvailable: form.sampleAvailable,
           samplePriceDollars: form.samplePriceDollars ? Number(form.samplePriceDollars) : undefined,
+          allowMixShipping: form.allowMixShipping,
+          minOrderAmountDollars: form.minOrderAmountDollars || undefined,
         }),
       });
       const data = await res.json();
@@ -130,15 +133,6 @@ export default function NewProductPage() {
                 <option value="">— Select category —</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{"  ".repeat(Math.max(0, c.level - 1))}{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Shipping Group</label>
-              <select value={form.shippingGroupId} onChange={(e) => set("shippingGroupId", e.target.value)} className={inputCls} style={inputStyle}>
-                <option value="">— No group —</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}{g.code ? ` (${g.code})` : ""}</option>
                 ))}
               </select>
             </div>
@@ -229,6 +223,25 @@ export default function NewProductPage() {
                 <input type="number" min={0} step={0.01} value={form.samplePriceDollars} onChange={(e) => set("samplePriceDollars", e.target.value)} placeholder="25.00" className={inputCls} style={inputStyle} />
               </div>
             )}
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Shipping Group</label>
+              <select value={form.shippingGroupId} onChange={(e) => set("shippingGroupId", e.target.value)} className={inputCls} style={inputStyle}>
+                <option value="">— No group —</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}{g.code ? ` (${g.code})` : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Minimum Purchase Amount</label>
+              <input type="number" min={0} step={0.01} value={form.minOrderAmountDollars} onChange={(e) => set("minOrderAmountDollars", e.target.value)} placeholder="0.00" className={inputCls} style={inputStyle} />
+            </div>
+            <div className="flex items-center gap-3 pt-6">
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                <input type="checkbox" checked={form.allowMixShipping} onChange={(e) => set("allowMixShipping", e.target.checked)} className="w-4 h-4 rounded" />
+                Mix Shipping
+              </label>
+            </div>
           </div>
         </section>
 
