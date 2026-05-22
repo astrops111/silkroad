@@ -12,6 +12,7 @@ import {
   Landmark,
   Gavel,
   FolderTree,
+  Layers,
   Bell,
   Search,
   LogOut,
@@ -37,6 +38,7 @@ const navSections = [
       { name: "Suppliers", href: "/admin/suppliers", icon: Users },
       { name: "Products", href: "/admin/products", icon: Package },
       { name: "Categories", href: "/admin/categories", icon: FolderTree },
+      { name: "Shipping Groups", href: "/admin/shipping-groups", icon: Layers },
     ],
   },
   {

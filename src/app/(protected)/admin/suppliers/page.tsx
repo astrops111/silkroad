@@ -3,19 +3,28 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Search,
-  Filter,
-  MoreHorizontal,
   CheckCircle2,
   Clock,
   XCircle,
   ShieldCheck,
-  ChevronDown,
   Download,
   Plus,
   Loader2,
   AlertTriangle,
   RefreshCw,
+  Pencil,
+  Trash2,
+  Mail,
 } from "lucide-react";
+import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -98,6 +107,40 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCompany, setInviteCompany] = useState("");
+  const [inviteCountry, setInviteCountry] = useState("CN");
+  const [inviting, setInviting] = useState(false);
+
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      const res = await fetch("/api/admin/suppliers/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          companyName: inviteCompany.trim() || undefined,
+          countryCode: inviteCountry.trim().toUpperCase() || "CN",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Invite failed");
+      toast.success(`Invite sent to ${inviteEmail.trim()}`);
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteCompany("");
+      setInviteCountry("CN");
+      await fetchSuppliers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send invite");
+    } finally {
+      setInviting(false);
+    }
+  }
+
   const tabToStatus: Record<string, string | null> = {
     All: null,
     Pending: "pending",
@@ -129,6 +172,24 @@ export default function SuppliersPage() {
     const debounce = setTimeout(fetchSuppliers, search ? 300 : 0);
     return () => clearTimeout(debounce);
   }, [fetchSuppliers]);
+
+  const handleDelete = async (supplierId: string, supplierName: string) => {
+    if (!confirm(`Delete "${supplierName}"? This will deactivate all their products.`)) return;
+    setActionLoading(supplierId);
+    try {
+      const res = await fetch(`/api/admin/suppliers?id=${supplierId}`, { method: "DELETE" });
+      const result = await res.json();
+      if (result.success) {
+        await fetchSuppliers();
+      } else {
+        alert(`Delete failed: ${result.error}`);
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleAction = async (supplierId: string, action: string) => {
     setActionLoading(supplierId);
@@ -175,10 +236,17 @@ export default function SuppliersPage() {
             <Download className="w-4 h-4" />
             Export
           </button>
-          <button className="btn-primary !py-2 !px-4 !text-sm">
-            <Plus className="w-4 h-4" />
+          <button
+            onClick={() => setInviteOpen(true)}
+            className="btn-outline !py-2 !px-4 !text-sm flex items-center gap-2"
+          >
+            <Mail className="w-4 h-4" />
             Invite Supplier
           </button>
+          <Link href="/admin/suppliers/new" className="btn-primary !py-2 !px-4 !text-sm flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Supplier
+          </Link>
         </div>
       </div>
 
@@ -395,11 +463,19 @@ export default function SuppliersPage() {
                                   Reinstate
                                 </button>
                               )}
-                              <button
+                              <Link
+                                href={`/admin/suppliers/${s.id}`}
                                 className="p-1.5 rounded-lg transition-colors"
                                 style={{ color: "var(--text-tertiary)" }}
                               >
-                                <MoreHorizontal className="w-4 h-4" />
+                                <Pencil className="w-4 h-4" />
+                              </Link>
+                              <button
+                                onClick={() => handleDelete(s.id, s.name)}
+                                className="p-1.5 rounded-lg transition-colors"
+                                style={{ color: "var(--danger)" }}
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -422,6 +498,90 @@ export default function SuppliersPage() {
           </p>
         </div>
       </div>
+
+      {/* Invite Supplier Dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Supplier</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                Email <span style={{ color: "var(--danger)" }}>*</span>
+              </label>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                placeholder="supplier@example.com"
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                Company Name <span className="text-xs font-normal" style={{ color: "var(--text-tertiary)" }}>(optional — pre-creates record)</span>
+              </label>
+              <input
+                type="text"
+                value={inviteCompany}
+                onChange={(e) => setInviteCompany(e.target.value)}
+                placeholder="Shenzhen Tech Co."
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                Country Code
+              </label>
+              <input
+                type="text"
+                value={inviteCountry}
+                onChange={(e) => setInviteCountry(e.target.value.toUpperCase())}
+                placeholder="CN"
+                maxLength={2}
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setInviteOpen(false)}
+              className="btn-outline !py-2 !px-4 !text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleInvite}
+              disabled={inviting || !inviteEmail.trim()}
+              className="btn-primary !py-2 !px-4 !text-sm flex items-center gap-2"
+            >
+              {inviting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Send Invite
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

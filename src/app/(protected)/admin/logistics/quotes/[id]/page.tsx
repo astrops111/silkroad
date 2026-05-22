@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { getOpsFreightQuote } from "@/lib/queries/ops-freight-quotes";
-import { readCostBreakdown } from "@/lib/actions/ops-freight-quotes";
+import { readCostBreakdown } from "@/lib/logistics/quote-utils";
 import { listPorts } from "@/lib/queries/logistics-reference";
 import { OpsFreightQuoteForm } from "@/components/admin/logistics/OpsFreightQuoteForm";
 

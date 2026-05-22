@@ -364,12 +364,6 @@ export async function setOpsQuoteStatus(
   return { success: true };
 }
 
-// Convenience: pull the cost_components JSONB back as a CostBreakdown.
-// Stored shape is identical so the cast is safe.
-export function readCostBreakdown(row: OpsFreightQuoteRow): CostBreakdown | null {
-  if (!row.cost_components) return null;
-  return row.cost_components as unknown as CostBreakdown;
-}
 
 // ============================================================
 // convertOpsQuoteToShipment — materialize a b2b_shipments row

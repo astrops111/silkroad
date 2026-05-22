@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 
+function slugify(text: string) {
+  return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_]+/g, "-").replace(/^-+|-+$/g, "") +
+    "-" + Math.random().toString(36).slice(2, 7);
+}
+
 /**
  * GET /api/admin/products — List products with moderation status
  * Query params: status (pending|approved|rejected|suspended), search, supplierId, limit, offset
@@ -22,12 +27,17 @@ export async function GET(request: NextRequest) {
     .from("products")
     .select(
       `
-      id, name, slug, base_price, currency, moq, moderation_status,
-      is_active, is_featured, origin_country, created_at,
-      supplier_id,
+      id, name, name_local, slug, description,
+      base_price, compare_price, currency,
+      moq, lead_time_days, trade_term,
+      origin_country, hs_code, category_id,
+      sample_available, sample_price,
+      moderation_status, is_active, is_featured, created_at,
+      supplier_id, shipping_group_id,
       companies!products_supplier_id_fkey ( name, country_code, verification_status ),
       categories ( name, slug ),
-      product_images ( url, is_primary )
+      product_images ( url, is_primary ),
+      product_shipping_groups ( name, code )
     `,
       { count: "exact" }
     )
@@ -115,4 +125,111 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, productId, action });
+}
+
+/**
+ * POST /api/admin/products — Create a product for any supplier (admin bypass)
+ * Body: { supplierId, name, basePriceDollars, ...optional fields }
+ */
+export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+
+  const supabase = await createClient();
+  const body = await request.json();
+  const {
+    supplierId, categoryId, shippingGroupId, name, nameLocal, description,
+    basePriceDollars, comparePriceDollars, currency,
+    moq, leadTimeDays, tradeTerm, originCountry, hsCode,
+    sampleAvailable, samplePriceDollars,
+  } = body;
+
+  if (!supplierId || !name || basePriceDollars == null) {
+    return NextResponse.json({ error: "supplierId, name, basePriceDollars required" }, { status: 400 });
+  }
+
+  const { data: product, error } = await supabase
+    .from("products")
+    .insert({
+      supplier_id: supplierId,
+      category_id: categoryId || null,
+      shipping_group_id: shippingGroupId || null,
+      name,
+      name_local: nameLocal || null,
+      slug: slugify(name),
+      description: description || null,
+      base_price: Math.round(basePriceDollars * 100),
+      compare_price: comparePriceDollars != null ? Math.round(comparePriceDollars * 100) : null,
+      currency: currency || "USD",
+      moq: moq || 1,
+      lead_time_days: leadTimeDays || null,
+      trade_term: tradeTerm || "FOB",
+      origin_country: originCountry || null,
+      hs_code: hsCode || null,
+      sample_available: sampleAvailable || false,
+      sample_price: samplePriceDollars != null ? Math.round(samplePriceDollars * 100) : null,
+      moderation_status: "approved",
+      is_active: true,
+      moderated_at: new Date().toISOString(),
+      moderated_by: auth.profile.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true, productId: product.id }, { status: 201 });
+}
+
+/**
+ * PUT /api/admin/products — Edit product fields (admin bypass)
+ * Body: { productId, basePriceDollars?, comparePriceDollars?, ...other fields }
+ */
+export async function PUT(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+
+  const supabase = await createClient();
+  const body = await request.json();
+  const { productId, basePriceDollars, comparePriceDollars, samplePriceDollars, ...rest } = body;
+
+  if (!productId) return NextResponse.json({ error: "productId required" }, { status: 400 });
+
+  const allowed = ["name", "name_local", "description", "currency", "moq", "lead_time_days",
+    "trade_term", "origin_country", "hs_code", "category_id", "is_featured", "is_active",
+    "sample_available", "shipping_group_id"];
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  for (const key of allowed) {
+    if (rest[key] !== undefined) update[key] = rest[key];
+  }
+  if (basePriceDollars != null) update.base_price = Math.round(basePriceDollars * 100);
+  if (comparePriceDollars != null) update.compare_price = Math.round(comparePriceDollars * 100);
+  if (samplePriceDollars != null) update.sample_price = Math.round(samplePriceDollars * 100);
+
+  const { error } = await supabase.from("products").update(update).eq("id", productId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}
+
+/**
+ * DELETE /api/admin/products?id= — Soft-delete (suspend) a product
+ */
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+
+  const productId = request.nextUrl.searchParams.get("id");
+  if (!productId) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ is_active: false, moderation_status: "suspended" })
+    .eq("id", productId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
 }

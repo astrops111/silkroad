@@ -1,145 +1,256 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Eye, Package, Clock, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Search, Plus, Loader2, Package, CheckCircle2, Clock,
+  XCircle, AlertTriangle, Pencil, Trash2, RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { approveProduct, rejectProduct, getPendingProductModeration } from "@/lib/actions/admin";
 
-interface PendingProduct {
-  id: string;
-  name: string;
-  supplier: string;
-  category: string;
-  price: string;
-  moq: number;
-  submittedAt: string;
+type ModerationStatus = "pending" | "approved" | "rejected" | "suspended";
+
+interface ProductRow {
+  id: string; name: string; base_price: number; currency: string;
+  moq: number; moderation_status: ModerationStatus; is_active: boolean;
+  is_featured: boolean; supplier_id: string; created_at: string;
+  companies: { name: string; country_code: string } | null;
+  categories: { name: string } | null;
+  product_images: { url: string; is_primary: boolean }[];
 }
 
+const tabs = ["All", "Pending", "Approved", "Rejected", "Suspended"] as const;
+
+const statusConfig: Record<ModerationStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
+  approved: { label: "Approved", color: "var(--success)", bg: "color-mix(in srgb, var(--success) 10%, transparent)", icon: CheckCircle2 },
+  pending: { label: "Pending", color: "var(--warning)", bg: "color-mix(in srgb, var(--warning) 10%, transparent)", icon: Clock },
+  rejected: { label: "Rejected", color: "var(--danger)", bg: "color-mix(in srgb, var(--danger) 10%, transparent)", icon: XCircle },
+  suspended: { label: "Suspended", color: "var(--danger)", bg: "color-mix(in srgb, var(--danger) 10%, transparent)", icon: AlertTriangle },
+};
+
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<PendingProduct[]>([]);
+  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("All");
+  const [search, setSearch] = useState("");
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const tabToStatus: Record<string, string | null> = {
+    All: null, Pending: "pending", Approved: "approved",
+    Rejected: "rejected", Suspended: "suspended",
+  };
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    const status = tabToStatus[activeTab];
+    if (status) params.set("status", status);
+    if (search) params.set("search", search);
+    params.set("limit", "100");
+
+    try {
+      const res = await fetch(`/api/admin/products?${params}`);
+      const data = await res.json();
+      setProducts(data.products ?? []);
+      setTotal(data.total ?? 0);
+    } catch {
+      toast.error("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, search]);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await getPendingProductModeration();
-        setProducts(
-          data.map((p: Record<string, unknown>) => ({
-            id: p.id as string,
-            name: p.name as string,
-            supplier: ((p.companies as Record<string, unknown>)?.name as string) ?? "Unknown",
-            category: "General",
-            price: `$${((p.base_price as number) / 100).toFixed(2)}`,
-            moq: (p.moq as number) ?? 1,
-            submittedAt: (p.created_at as string)?.slice(0, 10) ?? "",
-          }))
-        );
-      } catch {
-        // Fallback to empty — DB may not have data yet
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+    const t = setTimeout(fetchProducts, search ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [fetchProducts]);
 
-  async function handleAction(productId: string, action: "approve" | "reject") {
-    setProcessingId(productId);
-    const result = action === "approve"
-      ? await approveProduct(productId, "admin")
-      : await rejectProduct(productId, "admin");
-
-    if (result.success) {
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
-      toast.success(action === "approve" ? "Product approved" : "Product rejected");
-    } else {
-      toast.error(result.error ?? "Action failed");
+  async function handleModerate(productId: string, action: string) {
+    setActionLoading(productId);
+    try {
+      const res = await fetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, action }),
+      });
+      const data = await res.json();
+      if (data.success) { await fetchProducts(); toast.success(`Product ${action}d`); }
+      else toast.error(data.error ?? "Action failed");
+    } catch {
+      toast.error("Action failed");
+    } finally {
+      setActionLoading(null);
     }
-    setProcessingId(null);
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--amber)" }} />
-      </div>
-    );
+  async function handleDelete(productId: string, productName: string) {
+    if (!confirm(`Remove "${productName}"?`)) return;
+    setActionLoading(productId);
+    try {
+      const res = await fetch(`/api/admin/products?id=${productId}`, { method: "DELETE" });
+      if (res.ok) {
+        setProducts((p) => p.filter((x) => x.id !== productId));
+        setTotal((t) => t - 1);
+        toast.success("Product removed");
+      } else {
+        toast.error("Failed");
+      }
+    } finally {
+      setActionLoading(null);
+    }
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
-            Product Moderation
+          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>
+            Product Management
           </h1>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">
-            {products.length} products pending review
-          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>{total} products on the platform</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={fetchProducts} className="btn-outline !py-2 !px-4 !text-sm flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+          <Link href="/admin/products/new" className="btn-primary !py-2 !px-4 !text-sm flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Product
+          </Link>
         </div>
       </div>
 
-      {products.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <CheckCircle2 className="w-12 h-12 text-[var(--success)] mx-auto mb-4" />
-            <p className="text-lg font-semibold text-[var(--obsidian)]">All caught up!</p>
-            <p className="text-sm text-[var(--text-tertiary)]">No products pending moderation.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {products.map((product) => (
-            <Card key={product.id}>
-              <CardContent className="flex items-center gap-6 py-4">
-                <div className="w-14 h-14 rounded-lg bg-[var(--surface-tertiary)] flex items-center justify-center shrink-0">
-                  <Package className="w-6 h-6 text-[var(--text-tertiary)]" />
-                </div>
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+        {tabs.map((tab) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
+            style={{ background: activeTab === tab ? "var(--obsidian)" : "transparent", color: activeTab === tab ? "var(--ivory)" : "var(--text-tertiary)" }}>
+            {tab}
+          </button>
+        ))}
+      </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[var(--obsidian)] truncate">{product.name}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">{product.supplier}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <Badge variant="secondary">{product.category}</Badge>
-                    <span className="text-xs text-[var(--text-tertiary)]">{product.price} · MOQ: {product.moq}</span>
-                    <span className="text-xs text-[var(--text-tertiary)]">
-                      <Clock className="w-3 h-3 inline mr-1" />{product.submittedAt}
-                    </span>
-                  </div>
-                </div>
+      {/* Search */}
+      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl max-w-md"
+        style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+        <Search className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+        <input type="text" placeholder="Search by product name..." value={search} onChange={(e) => setSearch(e.target.value)}
+          className="bg-transparent border-none outline-none text-sm w-full"
+          style={{ color: "var(--text-primary)", fontFamily: "var(--font-body)" }} />
+      </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="outline" size="sm">
-                    <Eye className="w-4 h-4" />
-                    Preview
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleAction(product.id, "approve")}
-                    disabled={processingId === product.id}
-                  >
-                    {processingId === product.id ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                    Approve
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleAction(product.id, "reject")}
-                    disabled={processingId === product.id}
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Reject
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Table */}
+      <div className="rounded-2xl border overflow-hidden" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--amber)" }} />
+            <span className="ml-3 text-sm" style={{ color: "var(--text-tertiary)" }}>Loading products...</span>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="flex flex-col items-center py-20">
+            <Package className="w-12 h-12 mb-3" style={{ color: "var(--text-tertiary)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>No products found</p>
+            <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
+              {search ? "Try a different search term" : "Products will appear here once submitted"}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {["Product", "Supplier", "Category", "Price", "MOQ", "Status", "Submitted", ""].map((h) => (
+                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p) => {
+                  const status = statusConfig[p.moderation_status] ?? statusConfig.pending;
+                  const isActioning = actionLoading === p.id;
+                  return (
+                    <tr key={p.id} className="transition-colors" style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{p.name}</span>
+                        {p.is_featured && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded font-medium"
+                            style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber-dark)" }}>
+                            Featured
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link href={`/admin/suppliers/${p.supplier_id}`} className="text-sm hover:underline" style={{ color: "var(--text-secondary)" }}>
+                          {p.companies?.name ?? "—"}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm" style={{ color: "var(--text-tertiary)" }}>{p.categories?.name ?? "—"}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                          ${(p.base_price / 100).toFixed(2)}{p.currency !== "USD" ? ` ${p.currency}` : ""}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{p.moq}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                          style={{ color: status.color, background: status.bg }}>
+                          <status.icon className="w-3 h-3" />
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+                          {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {isActioning ? (
+                          <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--amber)" }} />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {p.moderation_status === "pending" && (
+                              <>
+                                <button onClick={() => handleModerate(p.id, "approve")}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                                  style={{ background: "color-mix(in srgb, var(--success) 12%, transparent)", color: "var(--success)" }}>
+                                  Approve
+                                </button>
+                                <button onClick={() => handleModerate(p.id, "reject")}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                                  style={{ background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger)" }}>
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            <Link href={`/admin/products/${p.id}`} className="p-1.5 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Link>
+                            <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 rounded-lg" style={{ color: "var(--danger)" }}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Showing {products.length} of {total} products</p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

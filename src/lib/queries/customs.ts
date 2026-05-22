@@ -1,5 +1,3 @@
-"use server";
-
 import { createClient } from "@/lib/supabase/server";
 import type { Enums, Tables } from "@/lib/supabase/database.types";
 
@@ -7,9 +5,7 @@ export type CustomsStatus = Enums<"customs_status_enum">;
 export type CustomsHoldReason = Enums<"customs_hold_reason">;
 export type CustomsHoldRow = Tables<"customs_holds">;
 
-// Status the customs queue page filters on by default — anything
-// that needs an ops human to push it forward.
-export const ACTIVE_CUSTOMS_STATUSES: CustomsStatus[] = [
+const ACTIVE_CUSTOMS_STATUSES: CustomsStatus[] = [
   "pending", "preparing", "submitted", "on_hold",
 ];
 

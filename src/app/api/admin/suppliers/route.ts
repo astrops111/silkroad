@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdmin, isAuthError } from "@/lib/auth/guard";
+import { requireAdmin, requireSuperAdmin, isAuthError } from "@/lib/auth/guard";
+
+function slugify(text: string) {
+  return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_]+/g, "-").replace(/^-+|-+$/g, "") +
+    "-" + Math.random().toString(36).slice(2, 7);
+}
 
 /**
  * GET /api/admin/suppliers — List all suppliers with profiles and stats
@@ -155,4 +160,129 @@ export async function PATCH(request: NextRequest) {
     action,
     newStatus,
   });
+}
+
+/**
+ * POST /api/admin/suppliers — Create a new supplier company + profile
+ */
+export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+
+  const supabase = await createClient();
+  const body = await request.json();
+  const {
+    name, nameLocal, countryCode, city, stateProvince, industry,
+    website, description, marketRegion, taxId,
+    factoryCountry, moqDefault, leadTimeDays, tradeTerms, commissionRate,
+  } = body;
+
+  if (!name || !countryCode) {
+    return NextResponse.json({ error: "name and countryCode are required" }, { status: 400 });
+  }
+
+  const { data: company, error: companyErr } = await supabase
+    .from("companies")
+    .insert({
+      name,
+      name_local: nameLocal || null,
+      slug: slugify(name),
+      type: "supplier",
+      country_code: countryCode,
+      city: city || null,
+      state_province: stateProvince || null,
+      industry: industry || null,
+      website: website || null,
+      description: description || null,
+      market_region: marketRegion || "global",
+      tax_id: taxId || null,
+      verification_status: "unverified",
+      is_active: true,
+    })
+    .select("id")
+    .single();
+
+  if (companyErr) return NextResponse.json({ error: companyErr.message }, { status: 500 });
+
+  const { error: profileErr } = await supabase.from("supplier_profiles").insert({
+    company_id: company.id,
+    factory_country: factoryCountry || countryCode,
+    moq_default: moqDefault || null,
+    lead_time_days_default: leadTimeDays || null,
+    trade_terms_default: tradeTerms || null,
+    commission_rate: commissionRate || null,
+  });
+
+  if (profileErr) {
+    await supabase.from("companies").delete().eq("id", company.id);
+    return NextResponse.json({ error: profileErr.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, supplierId: company.id }, { status: 201 });
+}
+
+/**
+ * PUT /api/admin/suppliers — Update supplier company + profile fields
+ * Body: { supplierId, ...fields }
+ */
+export async function PUT(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+
+  const supabase = await createClient();
+  const body = await request.json();
+  const { supplierId, factoryCountry, moqDefault, leadTimeDays, tradeTerms, commissionRate, ...companyFields } = body;
+
+  if (!supplierId) return NextResponse.json({ error: "supplierId required" }, { status: 400 });
+
+  const companyAllowed = ["name", "name_local", "country_code", "city", "state_province", "industry", "website", "description", "market_region", "tax_id", "tax_id_verified"];
+  const companyUpdate: Record<string, unknown> = {};
+  for (const key of companyAllowed) {
+    if (companyFields[key] !== undefined) companyUpdate[key] = companyFields[key];
+  }
+
+  if (Object.keys(companyUpdate).length > 0) {
+    companyUpdate.updated_at = new Date().toISOString();
+    const { error } = await supabase.from("companies").update(companyUpdate).eq("id", supplierId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const profileUpdate: Record<string, unknown> = {};
+  if (factoryCountry !== undefined) profileUpdate.factory_country = factoryCountry;
+  if (moqDefault !== undefined) profileUpdate.moq_default = moqDefault;
+  if (leadTimeDays !== undefined) profileUpdate.lead_time_days_default = leadTimeDays;
+  if (tradeTerms !== undefined) profileUpdate.trade_terms_default = tradeTerms;
+  if (commissionRate !== undefined) profileUpdate.commission_rate = commissionRate;
+
+  if (Object.keys(profileUpdate).length > 0) {
+    profileUpdate.updated_at = new Date().toISOString();
+    await supabase.from("supplier_profiles").update(profileUpdate).eq("company_id", supplierId);
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+/**
+ * DELETE /api/admin/suppliers?id= — Soft-delete supplier (super admin only)
+ * Deactivates company and all their products.
+ */
+export async function DELETE(request: NextRequest) {
+  const auth = await requireSuperAdmin();
+  if (isAuthError(auth)) return auth;
+
+  const supplierId = request.nextUrl.searchParams.get("id");
+  if (!supplierId) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const supabase = await createClient();
+
+  await supabase.from("products").update({ is_active: false }).eq("supplier_id", supplierId);
+
+  const { error } = await supabase
+    .from("companies")
+    .update({ is_active: false, verification_status: "rejected" })
+    .eq("id", supplierId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
 }

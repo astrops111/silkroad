@@ -54,3 +54,8 @@ src/graphify-out/
 
 # personal / local-only assets
 personal-*.webp
+
+# local working data
+sheet_exports/
+sheet_image_updates/
+tools/
