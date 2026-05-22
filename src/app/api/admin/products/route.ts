@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     .from("products")
     .select(
       `
-      id, name, name_local, slug, description,
+      id, name, name_local, slug, description, brand,
       base_price, compare_price, currency,
       moq, lead_time_days, trade_term,
-      origin_country, hs_code, category_id,
+      origin_country, hs_code, category_id, category_ids,
       sample_available, sample_price,
       moderation_status, is_active, is_featured, created_at,
       supplier_id, shipping_group_id,
@@ -201,11 +201,11 @@ export async function PUT(request: NextRequest) {
 
   const supabase = await createClient();
   const body = await request.json();
-  const { productId, basePriceDollars, comparePriceDollars, samplePriceDollars, minOrderAmountDollars, ...rest } = body;
+  const { productId, basePriceDollars, comparePriceDollars, samplePriceDollars, minOrderAmountDollars, categoryIds, ...rest } = body;
 
   if (!productId) return NextResponse.json({ error: "productId required" }, { status: 400 });
 
-  const allowed = ["name", "name_local", "description", "currency", "moq", "lead_time_days",
+  const allowed = ["name", "name_local", "description", "brand", "currency", "moq", "lead_time_days",
     "trade_term", "origin_country", "hs_code", "category_id", "is_featured", "is_active",
     "sample_available", "shipping_group_id", "allow_mix_shipping"];
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -217,6 +217,10 @@ export async function PUT(request: NextRequest) {
   if (comparePriceDollars != null) update.compare_price = Math.round(comparePriceDollars * 100);
   if (samplePriceDollars != null) update.sample_price = Math.round(samplePriceDollars * 100);
   if (minOrderAmountDollars != null) update.min_order_amount = minOrderAmountDollars === "" ? null : Math.round(Number(minOrderAmountDollars) * 100);
+  if (Array.isArray(categoryIds)) {
+    update.category_ids = categoryIds;
+    update.category_id = categoryIds[0] ?? null;
+  }
 
   const { error } = await supabase.from("products").update(update).eq("id", productId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

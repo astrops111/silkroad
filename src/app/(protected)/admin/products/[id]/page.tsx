@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const TRADE_TERMS = ["EXW", "FOB", "CIF", "DDP", "DAP", "FCA"];
@@ -14,11 +14,12 @@ interface Category { id: string; name: string; level: number; }
 interface ShippingGroup { id: string; name: string; code: string | null; }
 
 interface ProductDetail {
-  id: string; name: string; name_local: string | null;
+  id: string; name: string; name_local: string | null; brand: string | null;
   description: string | null; base_price: number; compare_price: number | null;
   currency: string; moq: number; lead_time_days: number | null;
   trade_term: string | null; origin_country: string | null; hs_code: string | null;
-  category_id: string | null; moderation_status: string; is_active: boolean;
+  category_id: string | null; category_ids: string[] | null;
+  moderation_status: string; is_active: boolean;
   is_featured: boolean; sample_available: boolean; sample_price: number | null;
   allow_mix_shipping: boolean; min_order_amount: number | null;
   supplier_id: string; shipping_group_id: string | null; created_at: string;
@@ -38,10 +39,12 @@ export default function ProductDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
-    name: "", nameLocal: "", description: "",
+    name: "", nameLocal: "", brand: "", description: "",
     basePriceDollars: "", comparePriceDollars: "", currency: "USD",
     moq: "1", leadTimeDays: "", tradeTerm: "FOB",
-    originCountry: "", hsCode: "", categoryId: "", shippingGroupId: "",
+    originCountry: "", hsCode: "",
+    categoryIds: [] as string[],
+    shippingGroupId: "",
     moderationStatus: "approved", isActive: true, isFeatured: false,
     sampleAvailable: false, samplePriceDollars: "",
     allowMixShipping: false, minOrderAmountDollars: "",
@@ -62,18 +65,27 @@ export default function ProductDetailPage() {
       const p: ProductDetail = pData.products?.[0];
       if (!p) { toast.error("Product not found"); router.push("/admin/products"); return; }
 
+      // category_ids is authoritative; fall back to category_id for rows seeded before migration
+      const resolvedCategoryIds =
+        p.category_ids && p.category_ids.length > 0
+          ? p.category_ids
+          : p.category_id
+          ? [p.category_id]
+          : [];
+
       setProduct(p);
       setCategories(cData.categories ?? []);
       setGroups(gData.groups ?? []);
       setForm({
-        name: p.name, nameLocal: p.name_local ?? "", description: p.description ?? "",
+        name: p.name, nameLocal: p.name_local ?? "", brand: p.brand ?? "",
+        description: p.description ?? "",
         basePriceDollars: (p.base_price / 100).toFixed(2),
         comparePriceDollars: p.compare_price != null ? (p.compare_price / 100).toFixed(2) : "",
         currency: p.currency, moq: p.moq.toString(),
         leadTimeDays: p.lead_time_days?.toString() ?? "",
         tradeTerm: p.trade_term ?? "FOB",
         originCountry: p.origin_country ?? "", hsCode: p.hs_code ?? "",
-        categoryId: p.category_id ?? "",
+        categoryIds: resolvedCategoryIds,
         shippingGroupId: p.shipping_group_id ?? "",
         moderationStatus: p.moderation_status, isActive: p.is_active,
         isFeatured: p.is_featured, sampleAvailable: p.sample_available,
@@ -94,6 +106,15 @@ export default function ProductDetailPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  function toggleCategory(catId: string) {
+    setForm((f) => {
+      const ids = f.categoryIds.includes(catId)
+        ? f.categoryIds.filter((c) => c !== catId)
+        : [...f.categoryIds, catId];
+      return { ...f, categoryIds: ids };
+    });
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -104,13 +125,15 @@ export default function ProductDetailPage() {
         body: JSON.stringify({
           productId: id,
           name: form.name, name_local: form.nameLocal || null,
+          brand: form.brand || null,
           description: form.description || null,
           basePriceDollars: Number(form.basePriceDollars),
           comparePriceDollars: form.comparePriceDollars ? Number(form.comparePriceDollars) : null,
           currency: form.currency, moq: Number(form.moq),
           lead_time_days: form.leadTimeDays ? Number(form.leadTimeDays) : null,
           trade_term: form.tradeTerm, origin_country: form.originCountry || null,
-          hs_code: form.hsCode || null, category_id: form.categoryId || null,
+          hs_code: form.hsCode || null,
+          categoryIds: form.categoryIds,
           shipping_group_id: form.shippingGroupId || null,
           is_active: form.isActive, is_featured: form.isFeatured,
           sample_available: form.sampleAvailable,
@@ -184,17 +207,27 @@ export default function ProductDetailPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleDelete} disabled={deleting}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
-          style={{ background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger)" }}
-        >
-          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          Delete
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="submit" form="product-form" disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: "var(--amber)", color: "#000" }}
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save
+          </button>
+          <button
+            onClick={handleDelete} disabled={deleting}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger)" }}
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form id="product-form" onSubmit={handleSave} className="space-y-6">
         {/* Status */}
         <section className="rounded-2xl p-6 space-y-4" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
           <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Status & Visibility</h2>
@@ -205,16 +238,7 @@ export default function ProductDetailPage() {
                 {MOD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Category</label>
-              <select value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)} className={inputCls} style={inputStyle}>
-                <option value="">— None —</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{"  ".repeat(Math.max(0, c.level - 1))}{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 pt-6">
               <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
                 <input type="checkbox" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} className="w-4 h-4 rounded" />
                 Active
@@ -240,10 +264,48 @@ export default function ProductDetailPage() {
               <input value={form.nameLocal} onChange={(e) => set("nameLocal", e.target.value)} className={inputCls} style={inputStyle} />
             </div>
             <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Brand</label>
+              <input value={form.brand} onChange={(e) => set("brand", e.target.value)} placeholder="e.g. ANUA, COSRX" className={inputCls} style={inputStyle} />
+            </div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Description</label>
               <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={4}
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none" style={inputStyle} />
             </div>
+          </div>
+        </section>
+
+        {/* Categories */}
+        <section className="rounded-2xl p-6 space-y-3" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Categories</h2>
+            {form.categoryIds.length > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>
+                {form.categoryIds.length} selected
+              </span>
+            )}
+          </div>
+          <div
+            className="overflow-y-auto rounded-xl"
+            style={{ maxHeight: 240, border: "1px solid var(--border-subtle)", background: "var(--surface-secondary)" }}
+          >
+            {categories.map((c) => (
+              <label
+                key={c.id}
+                className="flex items-center gap-3 py-2.5 cursor-pointer hover:opacity-80 transition-opacity border-b last:border-b-0"
+                style={{ paddingLeft: `${c.level * 16 + 16}px`, paddingRight: 16, borderColor: "var(--border-subtle)" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.categoryIds.includes(c.id)}
+                  onChange={() => toggleCategory(c.id)}
+                  className="w-4 h-4 rounded flex-shrink-0"
+                />
+                <span className="text-sm" style={{ color: c.level === 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: c.level === 0 ? 500 : 400 }}>
+                  {c.name}
+                </span>
+              </label>
+            ))}
           </div>
         </section>
 
