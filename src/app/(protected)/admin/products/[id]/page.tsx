@@ -43,7 +43,8 @@ export default function ProductDetailPage() {
     basePriceDollars: "", comparePriceDollars: "", currency: "USD",
     moq: "1", leadTimeDays: "", tradeTerm: "FOB",
     originCountry: "", hsCode: "",
-    categoryIds: [] as string[],
+    primaryCategoryId: "",
+    additionalCategoryIds: [] as string[],
     shippingGroupId: "",
     moderationStatus: "approved", isActive: true, isFeatured: false,
     sampleAvailable: false, samplePriceDollars: "",
@@ -85,7 +86,8 @@ export default function ProductDetailPage() {
         leadTimeDays: p.lead_time_days?.toString() ?? "",
         tradeTerm: p.trade_term ?? "FOB",
         originCountry: p.origin_country ?? "", hsCode: p.hs_code ?? "",
-        categoryIds: resolvedCategoryIds,
+        primaryCategoryId: resolvedCategoryIds[0] ?? "",
+        additionalCategoryIds: resolvedCategoryIds.slice(1),
         shippingGroupId: p.shipping_group_id ?? "",
         moderationStatus: p.moderation_status, isActive: p.is_active,
         isFeatured: p.is_featured, sampleAvailable: p.sample_available,
@@ -106,12 +108,12 @@ export default function ProductDetailPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function toggleCategory(catId: string) {
+  function toggleAdditional(catId: string) {
     setForm((f) => {
-      const ids = f.categoryIds.includes(catId)
-        ? f.categoryIds.filter((c) => c !== catId)
-        : [...f.categoryIds, catId];
-      return { ...f, categoryIds: ids };
+      const ids = f.additionalCategoryIds.includes(catId)
+        ? f.additionalCategoryIds.filter((c) => c !== catId)
+        : [...f.additionalCategoryIds, catId];
+      return { ...f, additionalCategoryIds: ids };
     });
   }
 
@@ -133,7 +135,7 @@ export default function ProductDetailPage() {
           lead_time_days: form.leadTimeDays ? Number(form.leadTimeDays) : null,
           trade_term: form.tradeTerm, origin_country: form.originCountry || null,
           hs_code: form.hsCode || null,
-          categoryIds: form.categoryIds,
+          categoryIds: [form.primaryCategoryId, ...form.additionalCategoryIds].filter(Boolean),
           shipping_group_id: form.shippingGroupId || null,
           is_active: form.isActive, is_featured: form.isFeatured,
           sample_available: form.sampleAvailable,
@@ -276,36 +278,63 @@ export default function ProductDetailPage() {
         </section>
 
         {/* Categories */}
-        <section className="rounded-2xl p-6 space-y-3" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Categories</h2>
-            {form.categoryIds.length > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>
-                {form.categoryIds.length} selected
-              </span>
-            )}
+        <section className="rounded-2xl p-6 space-y-4" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Categories</h2>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Primary Category</label>
+            <select
+              value={form.primaryCategoryId}
+              onChange={(e) => setForm((f) => ({
+                ...f,
+                primaryCategoryId: e.target.value,
+                additionalCategoryIds: f.additionalCategoryIds.filter((id) => id !== e.target.value),
+              }))}
+              className={inputCls}
+              style={inputStyle}
+            >
+              <option value="">— Select primary category —</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {"..".repeat(c.level) + " " + c.name}
+                </option>
+              ))}
+            </select>
           </div>
-          <div
-            className="overflow-y-auto rounded-xl"
-            style={{ maxHeight: 240, border: "1px solid var(--border-subtle)", background: "var(--surface-secondary)" }}
-          >
-            {categories.map((c) => (
-              <label
-                key={c.id}
-                className="flex items-center gap-3 py-2.5 cursor-pointer hover:opacity-80 transition-opacity border-b last:border-b-0"
-                style={{ paddingLeft: `${c.level * 16 + 16}px`, paddingRight: 16, borderColor: "var(--border-subtle)" }}
-              >
-                <input
-                  type="checkbox"
-                  checked={form.categoryIds.includes(c.id)}
-                  onChange={() => toggleCategory(c.id)}
-                  className="w-4 h-4 rounded flex-shrink-0"
-                />
-                <span className="text-sm" style={{ color: c.level === 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: c.level === 0 ? 500 : 400 }}>
-                  {c.name}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Additional Categories</label>
+              {form.additionalCategoryIds.length > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>
+                  {form.additionalCategoryIds.length} selected
                 </span>
-              </label>
-            ))}
+              )}
+            </div>
+            <div
+              className="overflow-y-auto rounded-xl"
+              style={{ maxHeight: 240, border: "1px solid var(--border-subtle)", background: "var(--surface-secondary)" }}
+            >
+              {categories
+                .filter((c) => c.id !== form.primaryCategoryId)
+                .map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:opacity-80 transition-opacity border-b last:border-b-0"
+                    style={{ paddingLeft: `${c.level * 16 + 16}px`, paddingRight: 16, borderColor: "var(--border-subtle)" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.additionalCategoryIds.includes(c.id)}
+                      onChange={() => toggleAdditional(c.id)}
+                      className="w-4 h-4 rounded flex-shrink-0"
+                    />
+                    <span className="text-sm" style={{ color: c.level === 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: c.level === 0 ? 500 : 400 }}>
+                      {c.name}
+                    </span>
+                  </label>
+                ))}
+            </div>
           </div>
         </section>
 

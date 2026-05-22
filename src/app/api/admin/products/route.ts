@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
   const {
-    supplierId, categoryId, shippingGroupId, name, nameLocal, description,
+    supplierId, categoryId, categoryIds, shippingGroupId, name, nameLocal, description,
     basePriceDollars, comparePriceDollars, currency,
     moq, leadTimeDays, tradeTerm, originCountry, hsCode,
     sampleAvailable, samplePriceDollars, allowMixShipping, minOrderAmountDollars,
@@ -156,11 +156,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "supplierId, name, basePriceDollars required" }, { status: 400 });
   }
 
+  // categoryIds takes precedence; fall back to legacy single categoryId
+  const resolvedCategoryIds: string[] = Array.isArray(categoryIds) && categoryIds.length > 0
+    ? categoryIds
+    : categoryId ? [categoryId] : [];
+  const primaryCategoryId = resolvedCategoryIds[0] ?? null;
+
   const { data: product, error } = await supabase
     .from("products")
     .insert({
       supplier_id: supplierId,
-      category_id: categoryId || null,
+      category_id: primaryCategoryId,
+      category_ids: resolvedCategoryIds,
       shipping_group_id: shippingGroupId || null,
       name,
       name_local: nameLocal || null,

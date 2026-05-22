@@ -25,7 +25,7 @@ export default function NewProductPage() {
 
   const [form, setForm] = useState({
     supplierId: prefilledSupplierId,
-    categoryId: "", shippingGroupId: "",
+    primaryCategoryId: "", additionalCategoryIds: [] as string[], shippingGroupId: "",
     name: "", nameLocal: "", description: "",
     basePriceDollars: "", comparePriceDollars: "", currency: "USD",
     moq: "1", leadTimeDays: "", tradeTerm: "FOB",
@@ -63,7 +63,7 @@ export default function NewProductPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           supplierId: form.supplierId,
-          categoryId: form.categoryId || undefined,
+          categoryIds: [form.primaryCategoryId, ...form.additionalCategoryIds].filter(Boolean),
           shippingGroupId: form.shippingGroupId || undefined,
           name: form.name.trim(),
           nameLocal: form.nameLocal || undefined,
@@ -128,13 +128,56 @@ export default function NewProductPage() {
               </select>
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Category</label>
-              <select value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)} className={inputCls} style={inputStyle}>
-                <option value="">— Select category —</option>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Primary Category</label>
+              <select
+                value={form.primaryCategoryId}
+                onChange={(e) => setForm((f) => ({
+                  ...f,
+                  primaryCategoryId: e.target.value,
+                  additionalCategoryIds: f.additionalCategoryIds.filter((id) => id !== e.target.value),
+                }))}
+                className={inputCls}
+                style={inputStyle}
+              >
+                <option value="">— Select primary category —</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{"  ".repeat(Math.max(0, c.level - 1))}{c.name}</option>
+                  <option key={c.id} value={c.id}>{"  ".repeat(c.level)}{c.name}</option>
                 ))}
               </select>
+            </div>
+            <div className="col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Additional Subcategories</label>
+                {form.additionalCategoryIds.length > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>
+                    {form.additionalCategoryIds.length} selected
+                  </span>
+                )}
+              </div>
+              <div className="overflow-y-auto rounded-xl" style={{ maxHeight: 160, border: "1px solid var(--border-subtle)", background: "var(--surface-secondary)" }}>
+                {categories.filter((c) => c.id !== form.primaryCategoryId).map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex items-center gap-3 py-2 cursor-pointer hover:opacity-80 border-b last:border-b-0"
+                    style={{ paddingLeft: `${c.level * 16 + 12}px`, paddingRight: 12, borderColor: "var(--border-subtle)" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.additionalCategoryIds.includes(c.id)}
+                      onChange={() => setForm((f) => {
+                        const ids = f.additionalCategoryIds.includes(c.id)
+                          ? f.additionalCategoryIds.filter((id) => id !== c.id)
+                          : [...f.additionalCategoryIds, c.id];
+                        return { ...f, additionalCategoryIds: ids };
+                      })}
+                      className="w-4 h-4 rounded flex-shrink-0"
+                    />
+                    <span className="text-sm" style={{ color: c.level === 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: c.level === 0 ? 500 : 400 }}>
+                      {c.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </section>
