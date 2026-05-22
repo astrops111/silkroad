@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   if (isAuthError(auth)) return auth;
 
   const supabase = await createClient();
-  const { name, code, group_type, description, country_code, preferred_container_type, preferred_origin_port_id, notes } =
+  const { name, code, group_type, description, country_code, preferred_container_type, preferred_origin_port_id, notes, product_mix, moq, min_order_amount } =
     await request.json();
 
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
       preferred_container_type: preferred_container_type || null,
       preferred_origin_port_id: preferred_origin_port_id || null,
       notes: notes || null,
+      product_mix: product_mix ?? false,
+      moq: moq != null && moq !== "" ? Number(moq) : null,
+      min_order_amount: min_order_amount != null && min_order_amount !== "" ? Number(min_order_amount) : null,
     })
     .select("id")
     .single();
@@ -115,6 +118,7 @@ export async function PUT(request: NextRequest) {
   const allowed = [
     "name", "code", "group_type", "description", "country_code",
     "preferred_container_type", "preferred_origin_port_id", "notes", "is_active",
+    "product_mix", "moq", "min_order_amount",
   ];
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   for (const key of allowed) {

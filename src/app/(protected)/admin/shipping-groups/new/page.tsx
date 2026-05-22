@@ -35,9 +35,12 @@ export default function NewShippingGroupPage() {
     country_code: "",
     preferred_container_type: "",
     notes: "",
+    product_mix: false,
+    moq: "",
+    min_order_amount: "",
   });
 
-  function set(field: string, value: string) {
+  function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
@@ -57,6 +60,9 @@ export default function NewShippingGroupPage() {
           country_code: form.country_code.trim() || undefined,
           preferred_container_type: form.preferred_container_type || undefined,
           notes: form.notes.trim() || undefined,
+          product_mix: form.product_mix,
+          moq: form.moq !== "" ? Number(form.moq) : undefined,
+          min_order_amount: form.min_order_amount !== "" ? Number(form.min_order_amount) : undefined,
         }),
       });
       const data = await res.json();
@@ -144,6 +150,44 @@ export default function NewShippingGroupPage() {
               <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2}
                 placeholder="Forwarder instructions, special handling, consolidation notes..."
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none" style={inputStyle} />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl p-6 space-y-4" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Order Rules</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Product Mix</label>
+              <div className="flex gap-3">
+                {[{ val: true, label: "Yes" }, { val: false, label: "No" }].map(({ val, label }) => (
+                  <button key={label} type="button" onClick={() => set("product_mix", val)}
+                    className="px-5 py-2 rounded-xl text-sm font-medium transition-colors"
+                    style={{
+                      background: form.product_mix === val ? "var(--amber)" : "var(--surface-secondary)",
+                      color: form.product_mix === val ? "#000" : "var(--text-secondary)",
+                      border: "1px solid var(--border-subtle)",
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>Allow mixed product types in this shipping group</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>MOQ</label>
+              <input type="number" min="1" value={form.moq} onChange={(e) => set("moq", e.target.value)}
+                placeholder="e.g. 100" className={inputCls} style={inputStyle} />
+              <p className="text-[11px] mt-1" style={{ color: "var(--text-tertiary)" }}>Minimum order quantity (units)</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Min Order Amount</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--text-tertiary)" }}>$</span>
+                <input type="number" min="0" step="0.01" value={form.min_order_amount} onChange={(e) => set("min_order_amount", e.target.value)}
+                  placeholder="0.00" className={`${inputCls} pl-7`} style={inputStyle} />
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: "var(--text-tertiary)" }}>Minimum total order value (USD)</p>
             </div>
           </div>
         </section>
