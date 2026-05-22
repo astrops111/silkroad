@@ -716,8 +716,11 @@ export function MarketplaceClient({
     if (!activeCategory || !activeCategory.matchLabel || activeCategory.slug === null) {
       return allProducts;
     }
+    // Server already filtered by category for real DB products — only re-filter mock fallback
+    const usingMock = !initialProducts || initialProducts.length === 0;
+    if (!usingMock) return allProducts;
     return allProducts.filter((p) => p.category === activeCategory.matchLabel);
-  }, [allProducts, activeCategory]);
+  }, [allProducts, activeCategory, initialProducts]);
 
   const clearFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
