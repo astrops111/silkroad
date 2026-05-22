@@ -108,7 +108,7 @@ const PRODUCTS: MarketplaceProduct[] = [
     responseTime: "< 4h",
     image: "from-amber-50 to-orange-100",
     tradeAssurance: true,
-    category: "Cosmetics",
+    category: "Beauty",
     tags: ["Top Rated"],
   },
   {

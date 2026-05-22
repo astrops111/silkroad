@@ -1,5 +1,5 @@
 import { searchProducts } from "@/lib/queries/marketplace";
-import { getSubcategoriesByParentSlug } from "@/lib/queries/categories";
+import { getSubcategoriesByParentSlug, getCategoryBySlug } from "@/lib/queries/categories";
 import { applyMarkup } from "@/lib/pricing";
 import {
   MarketplaceClient,
@@ -17,19 +17,27 @@ export default async function MarketplacePage({
 
   let products: MarketplaceProduct[] = [];
   let subcategories: MarketplaceSubcategory[] = [];
+  let categoryIds: string[] | undefined;
 
   if (activeCategorySlug) {
-    const subs = await getSubcategoriesByParentSlug(activeCategorySlug);
+    const [parentCat, subs] = await Promise.all([
+      getCategoryBySlug(activeCategorySlug),
+      getSubcategoriesByParentSlug(activeCategorySlug),
+    ]);
     subcategories = subs.map((s) => ({
       id: s.id,
       slug: s.slug,
       name: s.name,
       nameLocal: s.name_local,
     }));
+    categoryIds = [
+      ...(parentCat ? [parentCat.id] : []),
+      ...subs.map((s) => s.id),
+    ];
   }
 
   try {
-    const result = await searchProducts({ sort: "newest", limit: 20 });
+    const result = await searchProducts({ categoryIds, sort: "newest", limit: 20 });
     products = result.products.map((p) => ({
       id: p.id,
       name: p.name,

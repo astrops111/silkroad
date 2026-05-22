@@ -5,6 +5,7 @@ import type { ProductWithDetails } from "./products";
 
 interface SearchFilters {
   category?: string;
+  categoryIds?: string[];
   search?: string;
   priceMin?: number;
   priceMax?: number;
@@ -36,8 +37,10 @@ export async function searchProducts(filters: SearchFilters = {}) {
     .eq("moderation_status", "approved")
     .eq("is_active", true);
 
-  if (filters.category) {
-    query = query.eq("categories.slug", filters.category);
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    query = query.in("category_id", filters.categoryIds);
+  } else if (filters.category) {
+    query = query.eq("category_id", filters.category);
   }
 
   if (filters.search) {
