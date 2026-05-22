@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const search = searchParams.get("search");
   const supplierId = searchParams.get("supplierId");
+  const shippingGroupId = searchParams.get("shippingGroupId");
+  const country = searchParams.get("country");
   const limit = parseInt(searchParams.get("limit") || "50", 10);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
 
@@ -49,6 +51,12 @@ export async function GET(request: NextRequest) {
   }
   if (supplierId) {
     query = query.eq("supplier_id", supplierId);
+  }
+  if (shippingGroupId) {
+    query = query.eq("shipping_group_id", shippingGroupId);
+  }
+  if (country) {
+    query = query.eq("origin_country", country);
   }
   if (search) {
     query = query.ilike("name", `%${search}%`);

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Search, Plus, Loader2, Package, CheckCircle2, Clock,
-  XCircle, AlertTriangle, Pencil, Trash2, RefreshCw,
+  XCircle, AlertTriangle, Pencil, Trash2, RefreshCw, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -28,9 +28,24 @@ const statusConfig: Record<ModerationStatus, { label: string; color: string; bg:
   suspended: { label: "Suspended", color: "var(--danger)", bg: "color-mix(in srgb, var(--danger) 10%, transparent)", icon: AlertTriangle },
 };
 
+interface SupplierOption { id: string; name: string; country_code: string | null; }
+interface ShippingGroupOption { id: string; name: string; }
+
+const COUNTRY_NAMES: Record<string, string> = {
+  CN: "China", KR: "South Korea", JP: "Japan", TH: "Thailand",
+  VN: "Vietnam", MY: "Malaysia", ID: "Indonesia", IN: "India",
+  PH: "Philippines", TW: "Taiwan", SG: "Singapore", HK: "Hong Kong",
+};
+
 export default function AdminProductsPage() {
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("All");
   const [search, setSearch] = useState("");
+  const [filterSupplierId, setFilterSupplierId] = useState("");
+  const [filterShippingGroupId, setFilterShippingGroupId] = useState("");
+  const [filterCountry, setFilterCountry] = useState("");
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+  const [shippingGroups, setShippingGroups] = useState<ShippingGroupOption[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -41,12 +56,32 @@ export default function AdminProductsPage() {
     Rejected: "rejected", Suspended: "suspended",
   };
 
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/suppliers?limit=200").then((r) => r.json()),
+      fetch("/api/admin/shipping-groups").then((r) => r.json()),
+    ]).then(([sData, sgData]) => {
+      const supplierList: SupplierOption[] = (sData.suppliers ?? []).map(
+        (s: { id: string; name: string; country_code: string | null }) => ({ id: s.id, name: s.name, country_code: s.country_code })
+      );
+      setSuppliers(supplierList);
+      const uniqueCountries = [...new Set(supplierList.map((s) => s.country_code).filter(Boolean))] as string[];
+      setCountries(uniqueCountries.sort());
+      setShippingGroups(
+        (sgData.groups ?? []).map((g: { id: string; name: string }) => ({ id: g.id, name: g.name }))
+      );
+    }).catch(() => {});
+  }, []);
+
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     const status = tabToStatus[activeTab];
     if (status) params.set("status", status);
     if (search) params.set("search", search);
+    if (filterSupplierId) params.set("supplierId", filterSupplierId);
+    if (filterShippingGroupId) params.set("shippingGroupId", filterShippingGroupId);
+    if (filterCountry) params.set("country", filterCountry);
     params.set("limit", "100");
 
     try {
@@ -60,7 +95,7 @@ export default function AdminProductsPage() {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, search]);
+  }, [activeTab, search, filterSupplierId, filterShippingGroupId, filterCountry]);
 
   useEffect(() => {
     const t = setTimeout(fetchProducts, search ? 300 : 0);
@@ -133,13 +168,56 @@ export default function AdminProductsPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl max-w-md"
-        style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
-        <Search className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
-        <input type="text" placeholder="Search by product name..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="bg-transparent border-none outline-none text-sm w-full"
-          style={{ color: "var(--text-primary)", fontFamily: "var(--font-body)" }} />
+      {/* Search + Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+          style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", minWidth: 240 }}>
+          <Search className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+          <input type="text" placeholder="Search by product name..." value={search} onChange={(e) => setSearch(e.target.value)}
+            className="bg-transparent border-none outline-none text-sm w-full"
+            style={{ color: "var(--text-primary)", fontFamily: "var(--font-body)" }} />
+        </div>
+
+        {/* Supplier filter */}
+        <div className="relative">
+          <select value={filterSupplierId} onChange={(e) => setFilterSupplierId(e.target.value)}
+            className="appearance-none pl-3 pr-8 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", color: filterSupplierId ? "var(--text-primary)" : "var(--text-tertiary)", minWidth: 160 }}>
+            <option value="">All Suppliers</option>
+            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+        </div>
+
+        {/* Shipping group filter */}
+        <div className="relative">
+          <select value={filterShippingGroupId} onChange={(e) => setFilterShippingGroupId(e.target.value)}
+            className="appearance-none pl-3 pr-8 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", color: filterShippingGroupId ? "var(--text-primary)" : "var(--text-tertiary)", minWidth: 180 }}>
+            <option value="">All Shipping Groups</option>
+            {shippingGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+        </div>
+
+        {/* Country filter */}
+        <div className="relative">
+          <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)}
+            className="appearance-none pl-3 pr-8 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", color: filterCountry ? "var(--text-primary)" : "var(--text-tertiary)", minWidth: 140 }}>
+            <option value="">All Countries</option>
+            {countries.map((c) => <option key={c} value={c}>{COUNTRY_NAMES[c] ?? c}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+        </div>
+
+        {(filterSupplierId || filterShippingGroupId || filterCountry) && (
+          <button onClick={() => { setFilterSupplierId(""); setFilterShippingGroupId(""); setFilterCountry(""); }}
+            className="text-xs px-3 py-2 rounded-xl"
+            style={{ color: "var(--text-tertiary)", border: "1px solid var(--border-subtle)" }}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Table */}

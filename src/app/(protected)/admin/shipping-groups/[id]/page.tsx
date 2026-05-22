@@ -188,15 +188,22 @@ export default function ShippingGroupDetailPage() {
             )}
           </div>
         </div>
-        <button onClick={handleDelete} disabled={deleting}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
-          style={{ background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger)" }}>
-          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          Delete
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="submit" form="group-form" disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium btn-primary !py-2 !px-4 !text-sm">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Save Changes
+          </button>
+          <button onClick={handleDelete} disabled={deleting}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger)" }}>
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form id="group-form" onSubmit={handleSave} className="space-y-6">
         <section className="rounded-2xl p-6 space-y-4" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
           <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Group Identity</h2>
           <div className="grid grid-cols-2 gap-4">
@@ -294,12 +301,6 @@ export default function ShippingGroupDetailPage() {
           </div>
         </section>
 
-        <div className="flex justify-end">
-          <button type="submit" disabled={saving} className="btn-primary !py-2.5 !px-6 !text-sm flex items-center gap-2">
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            Save Changes
-          </button>
-        </div>
       </form>
 
       {/* Products in this group */}
