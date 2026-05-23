@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
     basePriceDollars, comparePriceDollars, currency,
     moq, leadTimeDays, tradeTerm, originCountry, hsCode,
     sampleAvailable, samplePriceDollars, allowMixShipping, minOrderAmountDollars,
+    containerSizeFt, minOrderGroupedBy,
   } = body;
 
   if (!supplierId || !name || basePriceDollars == null) {
@@ -185,6 +186,8 @@ export async function POST(request: NextRequest) {
       sample_price: samplePriceDollars != null ? Math.round(samplePriceDollars * 100) : null,
       allow_mix_shipping: allowMixShipping || false,
       min_order_amount: minOrderAmountDollars ? Math.round(Number(minOrderAmountDollars) * 100) : null,
+      container_size_ft: containerSizeFt || null,
+      min_order_grouped_by: minOrderGroupedBy || null,
       moderation_status: "approved",
       is_active: true,
       moderated_at: new Date().toISOString(),
@@ -214,7 +217,8 @@ export async function PUT(request: NextRequest) {
 
   const allowed = ["name", "name_local", "description", "brand", "currency", "moq", "lead_time_days",
     "trade_term", "origin_country", "hs_code", "category_id", "is_featured", "is_active",
-    "sample_available", "shipping_group_id", "allow_mix_shipping"];
+    "sample_available", "shipping_group_id", "allow_mix_shipping",
+    "container_size_ft", "min_order_grouped_by"];
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   for (const key of allowed) {

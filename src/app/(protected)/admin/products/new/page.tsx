@@ -6,8 +6,9 @@ import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const TRADE_TERMS = ["EXW", "FOB", "CIF", "DDP", "DAP", "FCA"];
+const TRADE_TERMS = ["exw", "fob", "cif", "ddp", "dap", "fca"];
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP"];
+const CONTAINER_SIZES = [20, 40] as const;
 
 interface Supplier { id: string; name: string; country_code: string; }
 interface Category { id: string; name: string; level: number; }
@@ -28,10 +29,12 @@ export default function NewProductPage() {
     primaryCategoryId: "", additionalCategoryIds: [] as string[], shippingGroupId: "",
     name: "", nameLocal: "", description: "",
     basePriceDollars: "", comparePriceDollars: "", currency: "USD",
-    moq: "1", leadTimeDays: "", tradeTerm: "FOB",
+    moq: "1", leadTimeDays: "", tradeTerm: "fob",
     originCountry: "", hsCode: "",
     sampleAvailable: false, samplePriceDollars: "",
     allowMixShipping: false, minOrderAmountDollars: "",
+    containerSizeFt: "" as "" | "20" | "40",
+    minOrderGroupedBy: "shipping_group",
   });
 
   useEffect(() => {
@@ -80,6 +83,8 @@ export default function NewProductPage() {
           samplePriceDollars: form.samplePriceDollars ? Number(form.samplePriceDollars) : undefined,
           allowMixShipping: form.allowMixShipping,
           minOrderAmountDollars: form.minOrderAmountDollars || undefined,
+          containerSizeFt: form.containerSizeFt ? Number(form.containerSizeFt) : undefined,
+          minOrderGroupedBy: form.minOrderGroupedBy || undefined,
         }),
       });
       const data = await res.json();
@@ -134,7 +139,7 @@ export default function NewProductPage() {
                 onChange={(e) => setForm((f) => ({
                   ...f,
                   primaryCategoryId: e.target.value,
-                  additionalCategoryIds: f.additionalCategoryIds.filter((id) => id !== e.target.value),
+                  additionalCategoryIds: f.additionalCategoryIds.filter((cid) => cid !== e.target.value),
                 }))}
                 className={inputCls}
                 style={inputStyle}
@@ -166,7 +171,7 @@ export default function NewProductPage() {
                       checked={form.additionalCategoryIds.includes(c.id)}
                       onChange={() => setForm((f) => {
                         const ids = f.additionalCategoryIds.includes(c.id)
-                          ? f.additionalCategoryIds.filter((id) => id !== c.id)
+                          ? f.additionalCategoryIds.filter((cid) => cid !== c.id)
                           : [...f.additionalCategoryIds, c.id];
                         return { ...f, additionalCategoryIds: ids };
                       })}
@@ -233,17 +238,13 @@ export default function NewProductPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Trade Details</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>MOQ</label>
-              <input type="number" min={1} value={form.moq} onChange={(e) => set("moq", e.target.value)} placeholder="100" className={inputCls} style={inputStyle} />
-            </div>
-            <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Lead Time (days)</label>
               <input type="number" min={1} value={form.leadTimeDays} onChange={(e) => set("leadTimeDays", e.target.value)} placeholder="30" className={inputCls} style={inputStyle} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Trade Term</label>
               <select value={form.tradeTerm} onChange={(e) => set("tradeTerm", e.target.value)} className={inputCls} style={inputStyle}>
-                {TRADE_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TRADE_TERMS.map((t) => <option key={t} value={t}>{t.toUpperCase()}</option>)}
               </select>
             </div>
             <div>
@@ -261,29 +262,61 @@ export default function NewProductPage() {
               </label>
             </div>
             {form.sampleAvailable && (
-              <div className="col-span-2">
+              <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Sample Price</label>
                 <input type="number" min={0} step={0.01} value={form.samplePriceDollars} onChange={(e) => set("samplePriceDollars", e.target.value)} placeholder="25.00" className={inputCls} style={inputStyle} />
               </div>
             )}
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Shipping Group</label>
-              <select value={form.shippingGroupId} onChange={(e) => set("shippingGroupId", e.target.value)} className={inputCls} style={inputStyle}>
-                <option value="">— No group —</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}{g.code ? ` (${g.code})` : ""}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Minimum Purchase Amount</label>
-              <input type="number" min={0} step={0.01} value={form.minOrderAmountDollars} onChange={(e) => set("minOrderAmountDollars", e.target.value)} placeholder="0.00" className={inputCls} style={inputStyle} />
-            </div>
-            <div className="flex items-center gap-3 pt-6">
-              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
-                <input type="checkbox" checked={form.allowMixShipping} onChange={(e) => set("allowMixShipping", e.target.checked)} className="w-4 h-4 rounded" />
-                Mix Shipping
-              </label>
+          </div>
+
+          {/* Minimum Order Requirement subsection */}
+          <div className="pt-4 space-y-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              Minimum Order Requirement
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Grouped By</label>
+                <select value={form.minOrderGroupedBy} onChange={(e) => set("minOrderGroupedBy", e.target.value)} className={inputCls} style={inputStyle}>
+                  <option value="shipping_group">Shipping Group</option>
+                  <option value="other">Other Option</option>
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Shipping Group</label>
+                <select value={form.shippingGroupId} onChange={(e) => set("shippingGroupId", e.target.value)} className={inputCls} style={inputStyle}>
+                  <option value="">— No group —</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}{g.code ? ` (${g.code})` : ""}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>MOQ</label>
+                <input type="number" min={1} value={form.moq} onChange={(e) => set("moq", e.target.value)} placeholder="100" className={inputCls} style={inputStyle} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Min Purchase Amount (USD)</label>
+                <input type="number" min={0} step={0.01} value={form.minOrderAmountDollars} onChange={(e) => set("minOrderAmountDollars", e.target.value)} placeholder="0.00" className={inputCls} style={inputStyle} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Container Size</label>
+                <select value={form.containerSizeFt} onChange={(e) => set("containerSizeFt", e.target.value)} className={inputCls} style={inputStyle}>
+                  <option value="">— None —</option>
+                  {CONTAINER_SIZES.map((s) => <option key={s} value={s}>{s}ft</option>)}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3 pt-6">
+                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                  <input type="checkbox" checked={form.allowMixShipping} onChange={(e) => set("allowMixShipping", e.target.checked)} className="w-4 h-4 rounded" />
+                  Mix Shipping
+                </label>
+              </div>
             </div>
           </div>
         </section>
