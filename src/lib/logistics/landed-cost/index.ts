@@ -14,6 +14,7 @@ export type { FreightLaneProvider, LaneLookupInput } from "./providers/lane";
 export { StaticTariffProvider } from "./providers/tariff";
 export type { TariffProvider, TariffLookupInput } from "./providers/tariff";
 export { DBFreightLaneProvider } from "./providers/db-lane";
+export { LiveFreightLaneProvider } from "./providers/live-lane";
 export { DBTariffProvider } from "./providers/db-tariff";
 export { DBFxProvider } from "./providers/fx";
 export type { FxProvider } from "./providers/fx";

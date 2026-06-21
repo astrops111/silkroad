@@ -20,9 +20,16 @@ import {
   ShieldCheck,
   Crown,
   ScrollText,
-  Inbox,
   UserPlus,
   ClipboardList,
+  Database,
+  CreditCard,
+  Ship,
+  Anchor,
+  ScanLine,
+  FileText,
+  UserCircle2,
+  ClipboardCheck,
 } from "lucide-react";
 
 const navSections = [
@@ -37,22 +44,36 @@ const navSections = [
     items: [
       { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
       { name: "Suppliers", href: "/admin/suppliers", icon: Users },
+      { name: "Buyers", href: "/admin/buyers", icon: UserCircle2 },
       { name: "Products", href: "/admin/products", icon: Package },
       { name: "Categories", href: "/admin/categories", icon: FolderTree },
       { name: "Shipping Groups", href: "/admin/shipping-groups", icon: Layers },
     ],
   },
   {
-    label: "Inbox",
+    label: "Quotes",
     items: [
-      { name: "Supplier applications", href: "/admin/supplier-applications", icon: Inbox },
+      { name: "All Quotes", href: "/admin/quotes", icon: ClipboardList },
+      { name: "Buyer Requests", href: "/admin/logistics/buyer-quotes", icon: ClipboardCheck },
+      { name: "Ops Quotes", href: "/admin/logistics/quotes", icon: FileText },
     ],
   },
   {
-    label: "Accounts",
+    label: "Logistics",
     items: [
-      { name: "Users", href: "/admin/users", icon: Users },
-      { name: "Create user", href: "/admin/users/create", icon: UserPlus },
+      { name: "Hub", href: "/admin/logistics", icon: Truck },
+      { name: "Shipments", href: "/admin/logistics/shipments", icon: Ship },
+      { name: "Customs Queue", href: "/admin/logistics/customs", icon: Anchor },
+      { name: "Screening", href: "/admin/logistics/screening", icon: ScanLine },
+      { name: "Route Optimizer", href: "/admin/logistics/optimize", icon: Route },
+      { name: "Reference Data", href: "/admin/logistics/reference", icon: Database },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { name: "Payments", href: "/admin/payments", icon: CreditCard },
+      { name: "Settlements", href: "/admin/settlements", icon: Landmark },
     ],
   },
   {
@@ -63,17 +84,15 @@ const navSections = [
     ],
   },
   {
-    label: "Finance",
+    label: "Accounts",
     items: [
-      { name: "Settlements", href: "/admin/settlements", icon: Landmark },
+      { name: "Users", href: "/admin/users", icon: Users },
+      { name: "Applications", href: "/admin/supplier-applications", icon: UserPlus },
     ],
   },
   {
-    label: "Operations",
+    label: "Compliance",
     items: [
-      { name: "Logistics", href: "/admin/logistics", icon: Truck },
-      { name: "Quote Requests", href: "/admin/logistics/buyer-quotes", icon: ClipboardList },
-      { name: "Route Optimizer", href: "/admin/logistics/optimize", icon: Route },
       { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
     ],
   },

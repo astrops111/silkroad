@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/queries/user";
 import {
-  DBFreightLaneProvider,
+  LiveFreightLaneProvider,
   DBFxProvider,
   DBTariffProvider,
   quoteLandedCost,
@@ -118,7 +118,7 @@ function toLandedCostInput(form: OpsQuoteFormInput): LandedCostInput {
   };
 }
 
-const lanes = new DBFreightLaneProvider();
+const lanes = new LiveFreightLaneProvider();
 const tariffs = new DBTariffProvider();
 const fx = new DBFxProvider();
 

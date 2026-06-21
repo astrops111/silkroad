@@ -1,6 +1,7 @@
 import { FreightosAdapter } from "./freightos-adapter";
 import { MockCarrierAdapter } from "./mock-adapter";
 import { SearatesAdapter } from "./searates-adapter";
+import { ShipaFreightAdapter } from "./shipa-freight-adapter";
 import type {
   AggregatedRateResponse,
   CarrierAdapter,
@@ -15,6 +16,7 @@ const DEFAULT_ADAPTERS: CarrierAdapter[] = [
   new MockCarrierAdapter(),
   new FreightosAdapter(),
   new SearatesAdapter(),
+  new ShipaFreightAdapter(),
 ];
 
 export function getAdapterById(id: string): CarrierAdapter | null {
