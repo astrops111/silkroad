@@ -1,326 +1,96 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCartStore } from "@/stores/cart";
 import {
-  ArrowLeft,
-  CreditCard,
-  Smartphone,
-  Building2,
-  Truck,
-  Shield,
-  ChevronDown,
-  Loader2,
-  CheckCircle2,
-  Package,
-  Minus,
-  Plus,
-  Trash2,
+  ArrowLeft, Ship, Shield, Loader2, CheckCircle2,
+  Package, Minus, Plus, Trash2, Truck, FileText,
 } from "lucide-react";
 
-type PaymentMethod = "mtn_momo" | "airtel_money" | "stripe" | "bank_transfer" | "xtransfer" | "xtransfer_mobile";
-type CheckoutStep = "cart" | "shipping" | "payment" | "confirming" | "instructions" | "success";
+type Step = "cart" | "quote_form" | "submitted";
 
-interface XTransferInstructions {
-  reference: string;
-  bankName: string;
-  accountNo: string;
-  swiftCode: string;
-  iban: string | null;
-  routingNumber: string | null;
-  amount: number;
-  currency: string;
-  expiresAt: string;
-  memo: string;
-}
-
-const PAYMENT_METHODS: {
-  id: PaymentMethod;
-  name: string;
-  icon: typeof CreditCard;
-  description: string;
-  fields: string[];
-  badge?: "recommended" | "fallback";
-}[] = [
-  {
-    id: "xtransfer",
-    name: "B2B Wire Transfer",
-    icon: Building2,
-    description: "SWIFT wire to XTransfer virtual account. 0 receiving fees. 1–3 business days.",
-    fields: [],
-    badge: "recommended",
-  },
-  {
-    id: "xtransfer_mobile",
-    name: "Mobile Money",
-    icon: Smartphone,
-    description: "Pay via MTN, Orange, Airtel, Vodacom, NIBSS, OZOW. Instant. Covers Nigeria, Cameroon, Tanzania, South Africa and more.",
-    fields: ["phone"],
-  },
-  {
-    id: "stripe",
-    name: "Card Payment",
-    icon: CreditCard,
-    description: "Visa, Mastercard, or other cards via Stripe.",
-    fields: ["card"],
-  },
-  {
-    id: "mtn_momo",
-    name: "MTN Mobile Money",
-    icon: Smartphone,
-    description: "Pay via MTN MoMo. You'll receive a USSD prompt on your phone.",
-    fields: ["phone"],
-    badge: "fallback",
-  },
-  {
-    id: "airtel_money",
-    name: "Airtel Money",
-    icon: Smartphone,
-    description: "Pay via Airtel Money. Enter your registered number.",
-    fields: ["phone"],
-    badge: "fallback",
-  },
-  {
-    id: "bank_transfer",
-    name: "Bank Transfer",
-    icon: Building2,
-    description: "For orders where other payment methods are unavailable.",
-    fields: [],
-    badge: "fallback",
-  },
+const SHIPPING_MODES = [
+  { value: "lcl",         label: "LCL — Shared Container",      note: "Best for smaller shipments" },
+  { value: "fcl_20",      label: "FCL 20' Container",           note: "Up to ~25 CBM / 20t" },
+  { value: "fcl_40",      label: "FCL 40' Container",           note: "Up to ~55 CBM / 26t" },
+  { value: "fcl_40hc",    label: "FCL 40' High Cube",           note: "Up to ~68 CBM / 26t" },
+  { value: "air_express", label: "Air Express",                  note: "1–5 days, premium rate" },
+  { value: "air_freight", label: "Air Freight",                  note: "2–7 days" },
 ];
 
-const XTRANSFER_COUNTRIES: { code: string; name: string; networks: string }[] = [
-  { code: "NG", name: "Nigeria",       networks: "NIBSS"              },
-  { code: "CM", name: "Cameroon",      networks: "Orange, MTN"        },
-  { code: "CI", name: "Côte d'Ivoire", networks: "Orange, MTN, Moov"  },
-  { code: "BJ", name: "Benin",         networks: "MTN, Moov"          },
-  { code: "TZ", name: "Tanzania",      networks: "Vodacom"            },
-  { code: "ZA", name: "South Africa",  networks: "OZOW"               },
-  { code: "SN", name: "Senegal",       networks: "Orange, Free Money" },
-  { code: "RW", name: "Rwanda",        networks: "Airtel, MTN"        },
-  { code: "UG", name: "Uganda",        networks: "MTN, Airtel"        },
-  { code: "ZM", name: "Zambia",        networks: "MTN"                },
-  { code: "CD", name: "DR Congo",      networks: "Airtel, Voda"       },
+const INCOTERMS = [
+  { value: "ddp", label: "DDP — Delivered Duty Paid",  note: "Platform handles everything to your door" },
+  { value: "dap", label: "DAP — Delivered at Place",   note: "You handle import duties" },
+  { value: "cif", label: "CIF — Cost, Insurance, Freight", note: "You handle clearance and last mile" },
+  { value: "fob", label: "FOB — Free on Board",        note: "You handle freight from origin port" },
+  { value: "exw", label: "EXW — Ex Works",             note: "You handle all logistics" },
 ];
 
-const XTRANSFER_COUNTRY_CODES = new Set(XTRANSFER_COUNTRIES.map((c) => c.code));
-
-// Additional African markets routed to Flutterwave (not covered by XTransfer mobile)
-const FLUTTERWAVE_COUNTRIES = [
-  { code: "GH", name: "Ghana" },
-  { code: "KE", name: "Kenya" },
-  { code: "ET", name: "Ethiopia" },
-  { code: "EG", name: "Egypt" },
-  { code: "MA", name: "Morocco" },
-  { code: "MZ", name: "Mozambique" },
-  { code: "MW", name: "Malawi" },
-  { code: "ZW", name: "Zimbabwe" },
-  { code: "AO", name: "Angola" },
-];
+const DESTINATION_COUNTRIES = [
+  "NG", "GH", "KE", "TZ", "ZA", "ET", "EG", "CM", "CI", "SN", "UG", "ZM", "CD", "MA",
+  "MZ", "RW", "BJ", "AO", "MW", "ZW",
+].map((code) => ({ code, name: new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function CheckoutPage() {
-  const { items, getItemsBySupplier, getTotal, updateQuantity, removeItem } = useCartStore();
-  const [step, setStep] = useState<CheckoutStep>("cart");
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("xtransfer");
-  const [buyerCountry, setBuyerCountry] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const router = useRouter();
+  const { items, getItemsBySupplier, getTotal, updateQuantity, removeItem, clearCart } = useCartStore();
+  const [step, setStep] = useState<Step>("cart");
+
+  // Quote form fields
+  const [destinationCountry, setDestinationCountry] = useState("");
+  const [destinationCity, setDestinationCity] = useState("");
+  const [shippingMode, setShippingMode] = useState("lcl");
+  const [incoterms, setIncoterms] = useState("ddp");
+  const [cargoReadyDate, setCargoReadyDate] = useState("");
+  const [buyerNotes, setBuyerNotes] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [taxId, setTaxId] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pollStatus, setPollStatus] = useState<string>("");
-  const [xtransferInstructions, setXtransferInstructions] = useState<XTransferInstructions | null>(null);
-  const [xtransferCountry, setXtransferCountry] = useState<string>("NG");
+  const [submittedQuoteNumber, setSubmittedQuoteNumber] = useState("");
+  const [submittedQuoteId, setSubmittedQuoteId] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const supplierGroups = getItemsBySupplier();
   const subtotal = getTotal();
-  // Estimated tax (15% — actual calculated by API)
-  const estimatedTax = Math.round(subtotal * 0.15);
-  const grandTotal = subtotal + estimatedTax;
 
-  const handleCountryChange = (country: string) => {
-    setBuyerCountry(country);
-    setXtransferCountry(country); // keep in sync for xtransfer_mobile request
-    const xtSupported = XTRANSFER_COUNTRY_CODES.has(country);
-    if (xtSupported && (selectedPayment === "mtn_momo" || selectedPayment === "airtel_money")) {
-      setSelectedPayment("xtransfer_mobile");
-    } else if (!xtSupported && selectedPayment === "xtransfer_mobile") {
-      setSelectedPayment("mtn_momo");
-    }
-  };
-
-  // XTransfer is primary; Flutterwave mobile options only shown when country isn't covered
-  const visibleMethods = PAYMENT_METHODS.filter((m) => {
-    if (!buyerCountry) return true;
-    const xtSupported = XTRANSFER_COUNTRY_CODES.has(buyerCountry);
-    if (xtSupported && (m.id === "mtn_momo" || m.id === "airtel_money")) return false;
-    if (!xtSupported && m.id === "xtransfer_mobile") return false;
-    return true;
-  });
-
-  // Map checkout UI method to the gateway name the order API accepts
-  const orderGateway =
-    selectedPayment === "xtransfer_mobile" ? "xtransfer" : selectedPayment;
-
-  const handlePlaceOrder = async () => {
+  const handleSubmitQuote = async () => {
+    if (!destinationCountry) { setSubmitError("Please select a destination country."); return; }
     setIsSubmitting(true);
-    setStep("confirming");
-
+    setSubmitError("");
     try {
-      // 1. Create order
-      const orderRes = await fetch("/api/orders", {
+      const res = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
+          destinationCountry,
+          destinationCity: destinationCity || undefined,
+          shippingMode,
+          incoterms,
+          cargoReadyDate: cargoReadyDate || undefined,
+          buyerNotes: buyerNotes || undefined,
           buyerCompanyName: companyName || undefined,
           buyerTaxId: taxId || undefined,
-          paymentGateway: orderGateway,
-          phoneNumber: phoneNumber || undefined,
-          currency: "USD",
         }),
       });
-
-      const order = await orderRes.json();
-      if (!order.success) throw new Error(order.error);
-
-      // 2. Initiate payment
-      if (selectedPayment === "mtn_momo" || selectedPayment === "airtel_money") {
-        // Mobile money flow
-        const payRes = await fetch(`/api/payments/mtn-momo`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: order.orderId,
-            phoneNumber,
-            currency: "USD",
-            amount: grandTotal,
-          }),
-        });
-
-        const payment = await payRes.json();
-        if (!payment.success) throw new Error(payment.message);
-
-        // Poll for status
-        setPollStatus("Waiting for payment confirmation...");
-        const txId = payment.transactionId;
-        let attempts = 0;
-        const maxAttempts = 24; // 2 minutes at 5s intervals
-
-        const pollInterval = setInterval(async () => {
-          attempts++;
-          const statusRes = await fetch(
-            `/api/payments/mtn-momo/status?transactionId=${txId}`
-          );
-          const status = await statusRes.json();
-
-          if (status.status === "succeeded") {
-            clearInterval(pollInterval);
-            setStep("success");
-            useCartStore.getState().clearCart();
-          } else if (status.status === "failed" || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            setPollStatus("Payment failed or timed out. Please try again.");
-            setIsSubmitting(false);
-            setStep("payment");
-          }
-        }, 5000);
-      } else if (selectedPayment === "stripe") {
-        // Stripe flow — redirect to Stripe checkout
-        const payRes = await fetch("/api/payments/stripe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: order.orderId,
-            amount: grandTotal,
-            currency: "usd",
-          }),
-        });
-
-        const payment = await payRes.json();
-        if (payment.requiresAction && payment.actionUrl) {
-          window.location.href = payment.actionUrl;
-          return;
-        }
-        if (payment.status === "succeeded") {
-          setStep("success");
-          useCartStore.getState().clearCart();
-        }
-      } else if (selectedPayment === "xtransfer_mobile") {
-        // XTransfer Request Money — push to buyer's phone, then poll for confirmation
-        const payRes = await fetch("/api/payments/xtransfer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: order.orderId,
-            amount: grandTotal,
-            currency: "USD",
-            phoneNumber,
-            country: xtransferCountry,
-          }),
-        });
-        const payment = await payRes.json();
-        if (!payment.success) throw new Error(payment.error ?? "Failed to send payment request");
-
-        // Poll for confirmation — same pattern as MTN MoMo
-        setPollStatus("Payment request sent to your phone. Please approve it now...");
-        const txId = payment.transactionId;
-        let attempts = 0;
-        const maxAttempts = 24; // 2 minutes at 5s intervals
-
-        const pollInterval = setInterval(async () => {
-          attempts++;
-          const statusRes = await fetch(`/api/payments/xtransfer/status?transactionId=${txId}`);
-          const status = await statusRes.json();
-
-          if (status.status === "succeeded") {
-            clearInterval(pollInterval);
-            setStep("success");
-            useCartStore.getState().clearCart();
-          } else if (status.status === "failed" || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            setPollStatus(
-              status.status === "failed"
-                ? "Payment was declined. Please try again."
-                : "Payment timed out. Please try again."
-            );
-            setIsSubmitting(false);
-            setStep("payment");
-          }
-        }, 5000);
-
-      } else if (selectedPayment === "xtransfer") {
-        // XTransfer B2B wire — fetch virtual account instructions, show instructions step
-        const payRes = await fetch("/api/payments/xtransfer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: order.orderId,
-            amount: grandTotal,
-            currency: "USD",
-          }),
-        });
-        const payment = await payRes.json();
-        if (!payment.success) throw new Error(payment.error ?? "Failed to get payment instructions");
-        setXtransferInstructions(payment.paymentInstructions as XTransferInstructions);
-        setIsSubmitting(false);
-        setStep("instructions");
-        // Cart is NOT cleared here — cleared when user dismisses the instructions screen
-      } else {
-        // Bank transfer — just show success with transfer details
-        setStep("success");
-        useCartStore.getState().clearCart();
-      }
-    } catch (err) {
-      console.error("Checkout error:", err);
-      setPollStatus(`Error: ${(err as Error).message}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error ?? "Failed to submit quote request");
+      setSubmittedQuoteNumber(data.quoteNumber);
+      setSubmittedQuoteId(data.quoteId);
+      clearCart();
+      setStep("submitted");
+    } catch (e) {
+      setSubmitError((e as Error).message);
+    } finally {
       setIsSubmitting(false);
-      setStep("payment");
     }
   };
 
-  if (items.length === 0 && step !== "success") {
+  if (items.length === 0 && step !== "submitted") {
     return (
       <div className="min-h-screen bg-[var(--surface-secondary)] flex items-center justify-center">
         <div className="text-center">
@@ -329,9 +99,7 @@ export default function CheckoutPage() {
             Your cart is empty
           </h2>
           <p className="text-[var(--text-secondary)] mb-6">Browse the marketplace to find products</p>
-          <Link href="/marketplace" className="btn-primary">
-            Explore Marketplace
-          </Link>
+          <Link href="/marketplace" className="btn-primary">Explore Marketplace</Link>
         </div>
       </div>
     );
@@ -347,7 +115,7 @@ export default function CheckoutPage() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <h1 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-              Checkout
+              {step === "submitted" ? "Quote Submitted" : step === "quote_form" ? "Shipping Details" : "Your Cart"}
             </h1>
           </div>
           <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)]">
@@ -357,401 +125,261 @@ export default function CheckoutPage() {
         </div>
       </header>
 
-      {/* Success State */}
-      {step === "success" && (
+      {/* ── Submitted ─────────────────────────────────────────────────────── */}
+      {step === "submitted" && (
         <div className="max-w-[600px] mx-auto px-6 py-20 text-center">
           <div className="w-20 h-20 rounded-full bg-[var(--success)]/10 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-[var(--success)]" />
           </div>
           <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: "var(--font-display)" }}>
-            Order placed successfully!
+            Quote request submitted!
           </h2>
-          <p className="text-[var(--text-secondary)] mb-8">
-            {selectedPayment === "bank_transfer" || selectedPayment === "xtransfer"
-              ? "Transfer details have been sent to your email. Your order will be confirmed once payment is received."
-              : "Your payment has been confirmed. Suppliers have been notified and will begin processing your order."}
+          <p className="text-[var(--text-secondary)] mb-2">
+            Our logistics team will calculate your full landed cost — shipping, customs, and duties.
+          </p>
+          <p className="font-mono text-sm text-[var(--amber-dark)] font-semibold mb-8">{submittedQuoteNumber}</p>
+          <p className="text-sm text-[var(--text-tertiary)] mb-8">
+            You will be notified when the quote is ready (usually within 1–2 business days).
+            Once ready, you can review the full cost breakdown and pay from your quotes dashboard.
           </p>
           <div className="flex gap-4 justify-center">
-            <Link href="/dashboard" className="btn-primary">View Orders</Link>
+            <button
+              onClick={() => router.push(`/quotes/${submittedQuoteId}`)}
+              className="btn-primary"
+            >
+              View Quote
+            </button>
             <Link href="/marketplace" className="btn-outline">Continue Shopping</Link>
           </div>
         </div>
       )}
 
-      {/* XTransfer Bank Transfer Instructions */}
-      {step === "instructions" && xtransferInstructions && (
-        <div className="max-w-[640px] mx-auto px-6 py-12">
-          <div className="bg-[var(--surface-primary)] rounded-2xl border-2 border-[var(--amber)] overflow-hidden">
-            {/* Header */}
-            <div className="px-8 py-6 bg-[var(--amber)]/5 border-b border-[var(--amber)]/30 flex items-center gap-3">
-              <Building2 className="w-6 h-6 text-[var(--amber-dark)]" />
-              <div>
-                <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-                  Wire Transfer Instructions
-                </h2>
-                <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                  Your order is reserved. Complete your bank transfer within 5 business days.
-                </p>
-              </div>
-            </div>
-
-            <div className="px-8 py-6 space-y-6">
-              {/* Reference — most critical */}
-              <div className="rounded-xl bg-[var(--amber)]/10 border border-[var(--amber)]/40 p-4">
-                <p className="text-xs font-semibold text-[var(--amber-dark)] uppercase tracking-wider mb-1">
-                  Required Payment Reference / Memo
-                </p>
-                <p className="text-2xl font-mono font-bold text-[var(--text-primary)] tracking-widest">
-                  {xtransferInstructions.reference}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-2">
-                  You MUST include this reference in your wire transfer memo / remarks field. Without it, we cannot match your payment to your order.
-                </p>
-              </div>
-
-              {/* Amount */}
-              <div className="rounded-xl bg-[var(--surface-secondary)] p-4">
-                <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Amount to Transfer</p>
-                <p className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-                  {xtransferInstructions.currency} {(xtransferInstructions.amount / 100).toFixed(2)}
-                </p>
-              </div>
-
-              {/* Bank details */}
-              <div className="space-y-0 divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
-                {[
-                  { label: "Beneficiary Bank", value: xtransferInstructions.bankName },
-                  { label: "Account Number", value: xtransferInstructions.accountNo, mono: true },
-                  { label: "SWIFT / BIC", value: xtransferInstructions.swiftCode, mono: true },
-                  ...(xtransferInstructions.iban ? [{ label: "IBAN", value: xtransferInstructions.iban, mono: true }] : []),
-                  ...(xtransferInstructions.routingNumber ? [{ label: "Routing Number (US)", value: xtransferInstructions.routingNumber, mono: true }] : []),
-                ].map(({ label, value, mono }) => (
-                  <div key={label} className="flex items-center justify-between px-4 py-3 bg-[var(--surface-primary)]">
-                    <span className="text-sm text-[var(--text-secondary)]">{label}</span>
-                    <span className={`font-semibold text-[var(--text-primary)] ${mono ? "font-mono text-sm" : ""}`}>
-                      {value}
-                    </span>
-                  </div>
-                ))}
-                {xtransferInstructions.expiresAt && (
-                  <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface-primary)]">
-                    <span className="text-sm text-[var(--text-secondary)]">Payment Deadline</span>
-                    <span className="font-semibold text-[var(--danger)]">
-                      {new Date(xtransferInstructions.expiresAt).toLocaleDateString(undefined, { dateStyle: "long" })}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Powered by XTransfer badge */}
-              <p className="text-xs text-center text-[var(--text-tertiary)]">
-                Payment processed via{" "}
-                <span className="font-semibold text-[var(--text-secondary)]">XTransfer</span>
-                {" "}— 0 receiving fees · 1–3 business days
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className="px-8 pb-8 flex gap-3">
-              <Link href="/dashboard" className="btn-primary flex-1 text-center">
-                View My Orders
-              </Link>
-              <button
-                onClick={() => {
-                  useCartStore.getState().clearCart();
-                  setStep("success");
-                }}
-                className="btn-outline flex-1"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirming State (Mobile Money) */}
-      {step === "confirming" && (
-        <div className="max-w-[600px] mx-auto px-6 py-20 text-center">
-          <Loader2 className="w-12 h-12 text-[var(--amber)] animate-spin mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: "var(--font-display)" }}>
-            {pollStatus || "Processing your payment..."}
-          </h2>
-          <p className="text-[var(--text-secondary)]">
-            {(selectedPayment.includes("momo") || selectedPayment.includes("airtel") || selectedPayment === "xtransfer_mobile")
-              ? "Check your phone for the payment prompt. Enter your PIN to confirm."
-              : "Please wait while we process your payment."}
-          </p>
-        </div>
-      )}
-
-      {/* Cart + Payment Flow */}
-      {(step === "cart" || step === "shipping" || step === "payment") && (
+      {/* ── Cart + Quote Form ──────────────────────────────────────────────── */}
+      {(step === "cart" || step === "quote_form") && (
         <div className="max-w-[1200px] mx-auto px-6 py-8">
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left: Cart Items + Payment */}
+            {/* Left column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Cart Items by Supplier */}
-              {supplierGroups.map((group) => (
-                <div
-                  key={group.supplierId}
-                  className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden"
+
+              {/* Step indicator */}
+              <div className="flex items-center gap-3 text-sm">
+                <button
+                  onClick={() => setStep("cart")}
+                  className={`flex items-center gap-2 font-semibold ${step === "cart" ? "text-[var(--amber-dark)]" : "text-[var(--text-tertiary)]"}`}
                 >
-                  <div className="px-6 py-4 bg-[var(--surface-secondary)] border-b border-[var(--border-subtle)] flex items-center gap-3">
-                    <Truck className="w-4 h-4 text-[var(--amber-dark)]" />
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      {group.supplierName}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)]">
-                      {group.items.length} item{group.items.length > 1 ? "s" : ""}
-                    </span>
-                  </div>
-
-                  <div className="divide-y divide-[var(--border-subtle)]">
-                    {group.items.map((item) => (
-                      <div
-                        key={`${item.productId}-${item.variantId}`}
-                        className="px-6 py-4 flex items-center gap-4"
-                      >
-                        <div className="w-16 h-16 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center flex-shrink-0">
-                          <Package className="w-6 h-6 text-[var(--text-tertiary)]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-[var(--text-primary)] truncate">
-                            {item.productName}
-                          </h4>
-                          {item.variantName && (
-                            <p className="text-xs text-[var(--text-tertiary)]">{item.variantName}</p>
-                          )}
-                          <p className="text-sm font-semibold text-[var(--amber-dark)] mt-1">
-                            ${(item.unitPrice / 100).toFixed(2)} x {item.quantity}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
-                            className="w-8 h-8 rounded-lg border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] transition-colors"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-10 text-center font-semibold text-sm">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
-                            className="w-8 h-8 rounded-lg border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] transition-colors"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => removeItem(item.productId, item.variantId)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors ml-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Invoice Info */}
-              <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6">
-                <h3 className="font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
-                  Invoice Information
-                </h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                      Company Name
-                    </label>
-                    <input
-                      type="text"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="Your company name"
-                      className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                      Tax ID
-                    </label>
-                    <input
-                      type="text"
-                      value={taxId}
-                      onChange={(e) => setTaxId(e.target.value)}
-                      placeholder="e.g. TIN, VAT number"
-                      className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
-                    />
-                  </div>
-                </div>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === "cart" ? "bg-[var(--amber)] text-white" : "bg-[var(--border-subtle)] text-[var(--text-tertiary)]"}`}>1</span>
+                  Cart
+                </button>
+                <div className="flex-1 h-px bg-[var(--border-subtle)]" />
+                <button
+                  onClick={() => items.length > 0 && setStep("quote_form")}
+                  className={`flex items-center gap-2 font-semibold ${step === "quote_form" ? "text-[var(--amber-dark)]" : "text-[var(--text-tertiary)]"}`}
+                >
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === "quote_form" ? "bg-[var(--amber)] text-white" : "bg-[var(--border-subtle)] text-[var(--text-tertiary)]"}`}>2</span>
+                  Shipping Details
+                </button>
               </div>
 
-              {/* Payment Method */}
-              <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6">
-                <h3 className="font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
-                  Payment Method
-                </h3>
-                {/* Country selector — routes mobile money to XTransfer (primary) or Flutterwave (fallback) */}
-                <div className="mb-5">
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                    Your Country
-                  </label>
-                  <select
-                    value={buyerCountry}
-                    onChange={(e) => handleCountryChange(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
-                  >
-                    <option value="">Select your country…</option>
-                    <optgroup label="Supported via XTransfer Mobile">
-                      {XTRANSFER_COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Other African markets">
-                      {FLUTTERWAVE_COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  {buyerCountry && !XTRANSFER_COUNTRY_CODES.has(buyerCountry) && (
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                      Mobile money for your country is processed via Flutterwave.
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  {visibleMethods.map((method) => (
-                    <label
-                      key={method.id}
-                      className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
-                        selectedPayment === method.id
-                          ? "border-[var(--amber)] bg-[var(--amber)]/5"
-                          : "border-[var(--border-subtle)] hover:border-[var(--border-default)]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment"
-                        value={method.id}
-                        checked={selectedPayment === method.id}
-                        onChange={() => setSelectedPayment(method.id)}
-                        className="mt-1 accent-[var(--amber)]"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <method.icon className="w-4 h-4 text-[var(--amber-dark)]" />
-                          <span className="font-semibold text-[var(--text-primary)]">{method.name}</span>
-                          {method.badge === "recommended" && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--amber)]/15 text-[var(--amber-dark)]">
-                              Recommended
-                            </span>
-                          )}
-                          {method.badge === "fallback" && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--surface-secondary)] text-[var(--text-tertiary)]">
-                              via Flutterwave
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-1">{method.description}</p>
+              {/* ── Step 1: Cart Items ───────────────────────────────────── */}
+              {step === "cart" && (
+                <>
+                  {supplierGroups.map((group) => (
+                    <div key={group.supplierId} className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+                      <div className="px-6 py-4 bg-[var(--surface-secondary)] border-b border-[var(--border-subtle)] flex items-center gap-3">
+                        <Truck className="w-4 h-4 text-[var(--amber-dark)]" />
+                        <span className="font-semibold text-[var(--text-primary)]">{group.supplierName}</span>
+                        <span className="text-xs text-[var(--text-tertiary)]">{group.items.length} item{group.items.length > 1 ? "s" : ""}</span>
                       </div>
-                    </label>
+                      <div className="divide-y divide-[var(--border-subtle)]">
+                        {group.items.map((item) => (
+                          <div key={`${item.productId}-${item.variantId}`} className="px-6 py-4 flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center flex-shrink-0">
+                              <Package className="w-6 h-6 text-[var(--text-tertiary)]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-[var(--text-primary)] truncate">{item.productName}</h4>
+                              {item.variantName && <p className="text-xs text-[var(--text-tertiary)]">{item.variantName}</p>}
+                              <p className="text-sm font-semibold text-[var(--amber-dark)] mt-1">
+                                ${(item.unitPrice / 100).toFixed(2)} × {item.quantity}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)} className="w-8 h-8 rounded-lg border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] transition-colors">
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="w-10 text-center font-semibold text-sm">{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)} className="w-8 h-8 rounded-lg border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] transition-colors">
+                                <Plus className="w-3 h-3" />
+                              </button>
+                              <button onClick={() => removeItem(item.productId, item.variantId)} className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors ml-2">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                </div>
 
-                {/* Phone number for MTN / Airtel */}
-                {(selectedPayment === "mtn_momo" || selectedPayment === "airtel_money") && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+233 XXX XXX XXXX"
-                      className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
-                    />
-                  </div>
-                )}
+                  <button onClick={() => setStep("quote_form")} className="btn-primary w-full !py-4 flex items-center justify-center gap-2">
+                    <Ship className="w-5 h-5" />
+                    Continue to Shipping Details
+                  </button>
+                </>
+              )}
 
-                {/* Phone for XTransfer Mobile Money (country already set above) */}
-                {selectedPayment === "xtransfer_mobile" && (
-                  <div className="mt-4 space-y-3">
-                    {buyerCountry && XTRANSFER_COUNTRIES.find((c) => c.code === buyerCountry) && (
-                      <p className="text-xs font-medium text-[var(--amber-dark)]">
-                        Networks in {XTRANSFER_COUNTRIES.find((c) => c.code === buyerCountry)!.name}:{" "}
-                        {XTRANSFER_COUNTRIES.find((c) => c.code === buyerCountry)!.networks}
-                      </p>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+234 XXX XXX XXXX"
-                        className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
-                      />
-                      <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                        You will receive a payment approval prompt on this number.
-                      </p>
+              {/* ── Step 2: Quote Form ────────────────────────────────────── */}
+              {step === "quote_form" && (
+                <>
+                  {/* Invoice info */}
+                  <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FileText className="w-5 h-5 text-[var(--amber-dark)]" />
+                      <h3 className="font-bold text-[var(--text-primary)]">Invoice Information</h3>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Company Name</label>
+                        <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your company name"
+                          className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Tax ID / VAT Number</label>
+                        <input type="text" value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="e.g. TIN, VAT number"
+                          className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all" />
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Shipping details */}
+                  <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Ship className="w-5 h-5 text-[var(--amber-dark)]" />
+                      <h3 className="font-bold text-[var(--text-primary)]">Shipping &amp; Destination</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                            Destination Country <span className="text-[var(--danger)]">*</span>
+                          </label>
+                          <select value={destinationCountry} onChange={(e) => setDestinationCountry(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all">
+                            <option value="">Select country…</option>
+                            {DESTINATION_COUNTRIES.map((c) => (
+                              <option key={c.code} value={c.code}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">City / Port</label>
+                          <input type="text" value={destinationCity} onChange={(e) => setDestinationCity(e.target.value)} placeholder="e.g. Lagos, Mombasa"
+                            className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Shipping Mode</label>
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {SHIPPING_MODES.map((m) => (
+                            <label key={m.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${shippingMode === m.value ? "border-[var(--amber)] bg-[var(--amber)]/5" : "border-[var(--border-subtle)] hover:border-[var(--border-default)]"}`}>
+                              <input type="radio" name="shippingMode" value={m.value} checked={shippingMode === m.value} onChange={() => setShippingMode(m.value)} className="mt-0.5 accent-[var(--amber)]" />
+                              <div>
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">{m.label}</p>
+                                <p className="text-xs text-[var(--text-tertiary)]">{m.note}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Trade Terms (Incoterms)</label>
+                        <div className="space-y-2">
+                          {INCOTERMS.map((t) => (
+                            <label key={t.value} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${incoterms === t.value ? "border-[var(--amber)] bg-[var(--amber)]/5" : "border-[var(--border-subtle)] hover:border-[var(--border-default)]"}`}>
+                              <input type="radio" name="incoterms" value={t.value} checked={incoterms === t.value} onChange={() => setIncoterms(t.value)} className="accent-[var(--amber)]" />
+                              <div className="flex-1">
+                                <span className="text-sm font-semibold text-[var(--text-primary)]">{t.label}</span>
+                                <span className="text-xs text-[var(--text-tertiary)] ml-2">— {t.note}</span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Cargo Ready Date</label>
+                          <input type="date" value={cargoReadyDate} onChange={(e) => setCargoReadyDate(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Notes for logistics team</label>
+                        <textarea value={buyerNotes} onChange={(e) => setBuyerNotes(e.target.value)} rows={3}
+                          placeholder="Special handling requirements, preferred carrier, customs agent contact, etc."
+                          className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all resize-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {submitError && (
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{submitError}</div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Right: Order Summary */}
             <div className="lg:col-span-1">
               <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6 sticky top-24">
                 <h3 className="font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
-                  Order Summary
+                  Cart Summary
                 </h3>
-
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-[var(--text-secondary)]">
-                      Subtotal ({items.length} items from {supplierGroups.length} supplier{supplierGroups.length > 1 ? "s" : ""})
+                      {items.length} item{items.length !== 1 ? "s" : ""} from {supplierGroups.length} supplier{supplierGroups.length !== 1 ? "s" : ""}
                     </span>
                     <span className="font-semibold">${(subtotal / 100).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">Shipping</span>
-                    <span className="text-[var(--success)] font-semibold">Calculated at confirmation</span>
+                    <span className="text-[var(--text-secondary)]">Shipping &amp; Customs</span>
+                    <span className="text-[var(--amber-dark)] font-semibold">Calculated in quote</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">Estimated Tax</span>
-                    <span className="font-semibold">${(estimatedTax / 100).toFixed(2)}</span>
-                  </div>
-
                   <div className="border-t border-[var(--border-subtle)] pt-3 mt-3">
                     <div className="flex justify-between">
-                      <span className="font-bold text-base text-[var(--text-primary)]">Total</span>
+                      <span className="font-bold text-base text-[var(--text-primary)]">Goods Value</span>
                       <span className="font-bold text-xl text-[var(--amber-dark)]" style={{ fontFamily: "var(--font-display)" }}>
-                        ${(grandTotal / 100).toFixed(2)}
+                        ${(subtotal / 100).toFixed(2)}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                      Final amount includes applicable taxes for your country
+                      Final landed cost (including shipping, customs &amp; duties) will be shown in your quote.
                     </p>
                   </div>
                 </div>
 
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={isSubmitting || (["mtn_momo", "airtel_money", "xtransfer_mobile"].includes(selectedPayment) && !phoneNumber)}
-                  className="btn-primary w-full mt-6 !py-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>Place Order &mdash; ${(grandTotal / 100).toFixed(2)}</>
-                  )}
-                </button>
+                {step === "quote_form" && (
+                  <button
+                    onClick={handleSubmitQuote}
+                    disabled={isSubmitting || !destinationCountry}
+                    className="btn-primary w-full mt-6 !py-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting
+                      ? <><Loader2 className="w-5 h-5 animate-spin" /> Submitting…</>
+                      : <><Ship className="w-5 h-5" /> Submit Quote Request</>}
+                  </button>
+                )}
+
+                {step === "cart" && (
+                  <button onClick={() => setStep("quote_form")} className="btn-primary w-full mt-6 !py-4 flex items-center justify-center gap-2">
+                    <Ship className="w-5 h-5" />
+                    Continue to Shipping Details
+                  </button>
+                )}
 
                 <div className="mt-4 flex items-center gap-2 justify-center text-xs text-[var(--text-tertiary)]">
                   <Shield className="w-3.5 h-3.5 text-[var(--success)]" />
