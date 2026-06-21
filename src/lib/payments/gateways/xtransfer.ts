@@ -140,10 +140,20 @@ function mapStatus(xtStatus: string): PaymentStatusResult["status"] {
   }
 }
 
+// TransferResult.status is narrower ("pending" | "succeeded" | "failed") — PROCESSING maps to "pending"
+function mapTransferStatus(xtStatus: string): TransferResult["status"] {
+  switch (xtStatus) {
+    case "SUCCESS":   return "succeeded";
+    case "FAILED":
+    case "CANCELLED": return "failed";
+    default:          return "pending";
+  }
+}
+
 // ── Gateway implementation ────────────────────────────────────────────────────
 
 export const xtransferGateway: PaymentGateway = {
-  name: "xtransfer" as never, // "xtransfer" added to GatewayType union in types.ts
+  name: "xtransfer",
   supportedCurrencies: ["CNY", "USD", "EUR", "GBP", "HKD", "SGD", "JPY", "KRW"],
 
   // ── Collection stubs (XTransfer does not collect buyer payments) ──────────
@@ -239,7 +249,7 @@ export const xtransferGateway: PaymentGateway = {
       transferId: data.transferId,
       amount: params.amount,
       currency: params.currency,
-      status: mapStatus(data.status),
+      status: mapTransferStatus(data.status),
     };
   },
 };

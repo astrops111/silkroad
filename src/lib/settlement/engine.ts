@@ -155,20 +155,23 @@ export async function processSettlement(settlementId: string) {
       payoutReference = `BANK-${Date.now().toString(36)}`;
     }
 
-    // Update settlement as paid
+    // XTransfer is async — transfer/create returns PROCESSING, not SUCCESS.
+    // Mark "processing" here; the webhook handler updates to "paid"/"failed" when terminal.
+    // All other gateways confirm synchronously so they go straight to "paid".
+    const isAsync = payoutMethod === "xtransfer";
     await supabase
       .from("settlements")
       .update({
-        status: "paid",
+        status: isAsync ? "processing" : "paid",
         payout_method: payoutMethod,
         payout_reference: payoutReference,
         xtransfer_transfer_id: xtransferTransferId,
-        paid_at: new Date().toISOString(),
+        ...(isAsync ? {} : { paid_at: new Date().toISOString() }),
         updated_at: new Date().toISOString(),
       })
       .eq("id", settlementId);
 
-    return { success: true, data: { payoutMethod, payoutReference } };
+    return { success: true, data: { payoutMethod, payoutReference, status: isAsync ? "processing" : "paid" } };
   } catch (err) {
     // Mark as failed
     await supabase

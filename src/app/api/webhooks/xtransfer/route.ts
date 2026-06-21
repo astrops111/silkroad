@@ -33,7 +33,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let rawPayload: { transferId?: string; referenceNo?: string };
   try {
     rawPayload = JSON.parse(rawBody);
-    result = await xtransferGateway.handleWebhook(rawPayload, signature);
+    // Pass rawBody string — handleWebhook must verify HMAC against exact received bytes
+    result = await xtransferGateway.handleWebhook(rawBody, signature);
   } catch (err) {
     console.error("[webhooks/xtransfer] Parse/verify failed:", err);
     return NextResponse.json({ error: "Invalid webhook" }, { status: 400 });
