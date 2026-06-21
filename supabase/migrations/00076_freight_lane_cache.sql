@@ -32,10 +32,8 @@ CREATE INDEX IF NOT EXISTS idx_freight_lanes_api_cache
   WHERE source = 'carrier_api' AND is_active = true;
 
 -- ---- 4. Index for BSA rate lookup ----
--- LiveFreightLaneProvider.queryLanes (Tier 1) filters source IN ('bsa').
-CREATE INDEX IF NOT EXISTS idx_freight_lanes_bsa
-  ON freight_lanes (origin_country, destination_country, shipping_method, container_type)
-  WHERE source = 'bsa' AND is_active = true;
+-- Deferred to 00083_freight_lane_bsa_index.sql (PostgreSQL 55P04 —
+-- cannot use newly-added 'bsa' enum value as index predicate in the same transaction).
 
 -- ---- 5. Cleanup function for expired cached rates ----
 -- Call from Vercel cron or run manually. Safe to run repeatedly.
