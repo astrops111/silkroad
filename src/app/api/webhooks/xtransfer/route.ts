@@ -5,35 +5,39 @@ import { xtransferGateway } from "@/lib/payments/gateways/xtransfer";
 /**
  * POST /api/webhooks/xtransfer
  *
- * Handles async payout status callbacks from XTransfer.
+ * Handles all async callbacks from XTransfer — both directions:
  *
- * XTransfer sends a POST with JSON body and an X-Sign header.
- * We verify the HMAC signature (XTRANSFER_WEBHOOK_SECRET), then
- * update the settlement record based on the payout status.
+ * 1. COLLECTION (buyer → platform): fired when a buyer's wire transfer lands
+ *    in the platform's XTransfer virtual account.
+ *    Identified by: payload.collectionId present OR eventType starts with "collection"
+ *    Action: update payment_transactions → succeeded, purchase_orders → paid
  *
- * Expected payload shape:
- *   {
- *     transferId:  string   — XTransfer's payout ID
- *     referenceNo: string   — our settlement_number (idempotency key we sent)
- *     status:      "SUCCESS" | "FAILED" | "PROCESSING" | "CANCELLED"
- *     amount:      number
- *     currency:    string
- *     timestamp:   string
- *   }
+ * 2. PAYOUT (platform → supplier): fired when a supplier settlement transfer completes.
+ *    Identified by: payload.transferId present
+ *    Action: update settlements → paid/failed
  *
- * Register this URL in the XTransfer merchant portal:
+ * XTransfer sends a POST with JSON body and an X-Sign HMAC-SHA256 header.
+ * Both event types use the same XTRANSFER_WEBHOOK_SECRET for signature verification.
+ *
+ * Register ONE URL in the XTransfer merchant portal:
  *   https://your-domain.com/api/webhooks/xtransfer
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const rawBody = await request.text();
   const signature = request.headers.get("X-Sign") ?? "";
 
-  // Verify signature and parse payload
+  // Verify HMAC signature and parse payload
   let result: Awaited<ReturnType<typeof xtransferGateway.handleWebhook>>;
-  let rawPayload: { transferId?: string; referenceNo?: string };
+  let rawPayload: {
+    eventType?: string;
+    collectionId?: string;
+    transferId?: string;
+    referenceNo?: string;
+    status?: string;
+  };
   try {
     rawPayload = JSON.parse(rawBody);
-    // Pass rawBody string — handleWebhook must verify HMAC against exact received bytes
+    // rawBody string is passed so HMAC is verified against exact received bytes
     result = await xtransferGateway.handleWebhook(rawBody, signature);
   } catch (err) {
     console.error("[webhooks/xtransfer] Parse/verify failed:", err);
@@ -42,7 +46,58 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const supabase = createServiceClient();
 
-  // Find settlement by XTransfer transfer ID OR our settlement_number (referenceNo)
+  // ── Collection event (buyer → platform) ──────────────────────────────────
+  const isCollection =
+    rawPayload.collectionId != null ||
+    rawPayload.eventType?.startsWith("collection");
+
+  if (isCollection) {
+    // referenceNo is the unique reference we gave the buyer (e.g. "SILK-ABCDEF1234")
+    // It is stored as payment_transactions.gateway_transaction_id
+    const { data: tx } = await supabase
+      .from("payment_transactions")
+      .select("id, status, purchase_order_id")
+      .eq("gateway_transaction_id", rawPayload.referenceNo ?? "")
+      .maybeSingle();
+
+    if (!tx) {
+      console.warn("[webhooks/xtransfer] No payment_transaction for collection reference", rawPayload.referenceNo);
+      return NextResponse.json({ received: true });
+    }
+
+    // Idempotency — skip already-terminal transactions
+    if (tx.status === "succeeded" || tx.status === "failed") {
+      return NextResponse.json({ received: true });
+    }
+
+    if (result.status === "succeeded") {
+      const now = new Date().toISOString();
+
+      await supabase
+        .from("payment_transactions")
+        .update({ status: "succeeded", updated_at: now })
+        .eq("id", tx.id);
+
+      await supabase
+        .from("purchase_orders")
+        .update({ status: "paid", updated_at: now })
+        .eq("id", tx.purchase_order_id);
+
+      console.log("[webhooks/xtransfer] Collection received — order paid:", tx.purchase_order_id, rawPayload.referenceNo);
+    } else if (result.status === "failed") {
+      await supabase
+        .from("payment_transactions")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", tx.id);
+
+      console.error("[webhooks/xtransfer] Collection failed:", rawPayload.referenceNo, rawPayload);
+    }
+    // "processing" — no update, XTransfer will send a terminal callback later
+
+    return NextResponse.json({ received: true });
+  }
+
+  // ── Payout event (platform → supplier settlement) ─────────────────────────
   const { data: settlement } = await supabase
     .from("settlements")
     .select("id, status")
@@ -58,12 +113,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .maybeSingle();
 
   if (!settlement) {
-    // Return 200 so XTransfer stops retrying for unknown events
     console.warn("[webhooks/xtransfer] No settlement found for payload", rawPayload);
     return NextResponse.json({ received: true });
   }
 
-  // Ignore callbacks on already-terminal settlements (idempotency guard)
+  // Idempotency guard
   if (settlement.status === "paid" || settlement.status === "failed") {
     return NextResponse.json({ received: true });
   }
@@ -85,15 +139,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } else if (result.status === "failed") {
     await supabase
       .from("settlements")
-      .update({
-        status: "failed",
-        updated_at: new Date().toISOString(),
-      })
+      .update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("id", settlement.id);
 
     console.error("[webhooks/xtransfer] Payout failed for settlement:", settlement.id, rawPayload);
   }
-  // "processing" status — no DB update, XTransfer will send another callback when terminal
+  // "processing" — no DB update; XTransfer sends another callback when terminal
 
   return NextResponse.json({ received: true });
 }

@@ -35,7 +35,7 @@ export interface PaymentResult {
   status: "pending" | "processing" | "succeeded" | "failed";
   requiresAction?: boolean;
   actionUrl?: string;      // Redirect URL for WeChat/Alipay
-  actionType?: "redirect" | "ussd_push" | "qr_code" | "poll";
+  actionType?: "redirect" | "ussd_push" | "qr_code" | "poll" | "bank_transfer_instructions";
   expiresAt?: Date;
   rawResponse?: unknown;
   error?: string;

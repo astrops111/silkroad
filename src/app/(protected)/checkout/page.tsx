@@ -19,8 +19,21 @@ import {
   Trash2,
 } from "lucide-react";
 
-type PaymentMethod = "mtn_momo" | "airtel_money" | "stripe" | "bank_transfer";
-type CheckoutStep = "cart" | "shipping" | "payment" | "confirming" | "success";
+type PaymentMethod = "mtn_momo" | "airtel_money" | "stripe" | "bank_transfer" | "xtransfer";
+type CheckoutStep = "cart" | "shipping" | "payment" | "confirming" | "instructions" | "success";
+
+interface XTransferInstructions {
+  reference: string;
+  bankName: string;
+  accountNo: string;
+  swiftCode: string;
+  iban: string | null;
+  routingNumber: string | null;
+  amount: number;
+  currency: string;
+  expiresAt: string;
+  memo: string;
+}
 
 const PAYMENT_METHODS: {
   id: PaymentMethod;
@@ -57,6 +70,13 @@ const PAYMENT_METHODS: {
     description: "For large orders. Transfer details will be provided after order creation.",
     fields: [],
   },
+  {
+    id: "xtransfer",
+    name: "XTransfer (B2B Wire)",
+    icon: Building2,
+    description: "Cross-border SWIFT wire via XTransfer. Recommended for orders from China, SE Asia, Korea, Japan. 0 receiving fees.",
+    fields: [],
+  },
 ];
 
 export default function CheckoutPage() {
@@ -68,6 +88,7 @@ export default function CheckoutPage() {
   const [taxId, setTaxId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pollStatus, setPollStatus] = useState<string>("");
+  const [xtransferInstructions, setXtransferInstructions] = useState<XTransferInstructions | null>(null);
 
   const supplierGroups = getItemsBySupplier();
   const subtotal = getTotal();
@@ -159,6 +180,23 @@ export default function CheckoutPage() {
           setStep("success");
           useCartStore.getState().clearCart();
         }
+      } else if (selectedPayment === "xtransfer") {
+        // XTransfer B2B wire — fetch virtual account instructions, show instructions step
+        const payRes = await fetch("/api/payments/xtransfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.orderId,
+            amount: grandTotal,
+            currency: "USD",
+          }),
+        });
+        const payment = await payRes.json();
+        if (!payment.success) throw new Error(payment.error ?? "Failed to get payment instructions");
+        setXtransferInstructions(payment.paymentInstructions as XTransferInstructions);
+        setIsSubmitting(false);
+        setStep("instructions");
+        // Cart is NOT cleared here — cleared when user dismisses the instructions screen
       } else {
         // Bank transfer — just show success with transfer details
         setStep("success");
@@ -219,13 +257,105 @@ export default function CheckoutPage() {
             Order placed successfully!
           </h2>
           <p className="text-[var(--text-secondary)] mb-8">
-            {selectedPayment === "bank_transfer"
+            {selectedPayment === "bank_transfer" || selectedPayment === "xtransfer"
               ? "Transfer details have been sent to your email. Your order will be confirmed once payment is received."
               : "Your payment has been confirmed. Suppliers have been notified and will begin processing your order."}
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/dashboard" className="btn-primary">View Orders</Link>
             <Link href="/marketplace" className="btn-outline">Continue Shopping</Link>
+          </div>
+        </div>
+      )}
+
+      {/* XTransfer Bank Transfer Instructions */}
+      {step === "instructions" && xtransferInstructions && (
+        <div className="max-w-[640px] mx-auto px-6 py-12">
+          <div className="bg-[var(--surface-primary)] rounded-2xl border-2 border-[var(--amber)] overflow-hidden">
+            {/* Header */}
+            <div className="px-8 py-6 bg-[var(--amber)]/5 border-b border-[var(--amber)]/30 flex items-center gap-3">
+              <Building2 className="w-6 h-6 text-[var(--amber-dark)]" />
+              <div>
+                <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+                  Wire Transfer Instructions
+                </h2>
+                <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                  Your order is reserved. Complete your bank transfer within 5 business days.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-8 py-6 space-y-6">
+              {/* Reference — most critical */}
+              <div className="rounded-xl bg-[var(--amber)]/10 border border-[var(--amber)]/40 p-4">
+                <p className="text-xs font-semibold text-[var(--amber-dark)] uppercase tracking-wider mb-1">
+                  Required Payment Reference / Memo
+                </p>
+                <p className="text-2xl font-mono font-bold text-[var(--text-primary)] tracking-widest">
+                  {xtransferInstructions.reference}
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] mt-2">
+                  You MUST include this reference in your wire transfer memo / remarks field. Without it, we cannot match your payment to your order.
+                </p>
+              </div>
+
+              {/* Amount */}
+              <div className="rounded-xl bg-[var(--surface-secondary)] p-4">
+                <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Amount to Transfer</p>
+                <p className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+                  {xtransferInstructions.currency} {(xtransferInstructions.amount / 100).toFixed(2)}
+                </p>
+              </div>
+
+              {/* Bank details */}
+              <div className="space-y-0 divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+                {[
+                  { label: "Beneficiary Bank", value: xtransferInstructions.bankName },
+                  { label: "Account Number", value: xtransferInstructions.accountNo, mono: true },
+                  { label: "SWIFT / BIC", value: xtransferInstructions.swiftCode, mono: true },
+                  ...(xtransferInstructions.iban ? [{ label: "IBAN", value: xtransferInstructions.iban, mono: true }] : []),
+                  ...(xtransferInstructions.routingNumber ? [{ label: "Routing Number (US)", value: xtransferInstructions.routingNumber, mono: true }] : []),
+                ].map(({ label, value, mono }) => (
+                  <div key={label} className="flex items-center justify-between px-4 py-3 bg-[var(--surface-primary)]">
+                    <span className="text-sm text-[var(--text-secondary)]">{label}</span>
+                    <span className={`font-semibold text-[var(--text-primary)] ${mono ? "font-mono text-sm" : ""}`}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+                {xtransferInstructions.expiresAt && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface-primary)]">
+                    <span className="text-sm text-[var(--text-secondary)]">Payment Deadline</span>
+                    <span className="font-semibold text-[var(--danger)]">
+                      {new Date(xtransferInstructions.expiresAt).toLocaleDateString(undefined, { dateStyle: "long" })}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Powered by XTransfer badge */}
+              <p className="text-xs text-center text-[var(--text-tertiary)]">
+                Payment processed via{" "}
+                <span className="font-semibold text-[var(--text-secondary)]">XTransfer</span>
+                {" "}— 0 receiving fees · 1–3 business days
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="px-8 pb-8 flex gap-3">
+              <Link href="/dashboard" className="btn-primary flex-1 text-center">
+                View My Orders
+              </Link>
+              <button
+                onClick={() => {
+                  useCartStore.getState().clearCart();
+                  setStep("success");
+                }}
+                className="btn-outline flex-1"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

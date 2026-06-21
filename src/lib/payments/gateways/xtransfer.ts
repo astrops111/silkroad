@@ -156,16 +156,66 @@ export const xtransferGateway: PaymentGateway = {
   name: "xtransfer",
   supportedCurrencies: ["CNY", "USD", "EUR", "GBP", "HKD", "SGD", "JPY", "KRW"],
 
-  // ── Collection stubs (XTransfer does not collect buyer payments) ──────────
-  async createPayment(_params: CreatePaymentParams): Promise<PaymentResult> {
-    throw new Error(
-      "XTransfer is a payout-only gateway and does not support payment collection"
-    );
+  // ── Collection (buyer → platform via XTransfer virtual account) ──────────
+  //
+  // XTransfer is also a B2B collection platform. The platform holds ONE
+  // XTransfer business account with static virtual account details per currency.
+  // Buyers wire funds to that account using a unique order reference as the
+  // transfer memo/remark. XTransfer fires a collection webhook when funds land.
+  //
+  // Required env vars (configure from XTransfer merchant portal):
+  //   XTRANSFER_COLLECTION_BANK_NAME   — e.g. "Airwallex / HSBC HK"
+  //   XTRANSFER_COLLECTION_ACCOUNT_NO  — virtual account number
+  //   XTRANSFER_COLLECTION_SWIFT       — SWIFT/BIC code
+  //   XTRANSFER_COLLECTION_IBAN        — IBAN (optional, for EUR/GBP accounts)
+  //   XTRANSFER_COLLECTION_ROUTING     — US routing number (optional)
+  async createPayment(params: CreatePaymentParams): Promise<PaymentResult> {
+    const bankName    = process.env.XTRANSFER_COLLECTION_BANK_NAME;
+    const accountNo   = process.env.XTRANSFER_COLLECTION_ACCOUNT_NO;
+    const swiftCode   = process.env.XTRANSFER_COLLECTION_SWIFT;
+    const iban        = process.env.XTRANSFER_COLLECTION_IBAN ?? null;
+    const routing     = process.env.XTRANSFER_COLLECTION_ROUTING ?? null;
+
+    if (!bankName || !accountNo || !swiftCode) {
+      throw new Error(
+        "XTransfer collection account not configured. Set XTRANSFER_COLLECTION_BANK_NAME, " +
+        "XTRANSFER_COLLECTION_ACCOUNT_NO, and XTRANSFER_COLLECTION_SWIFT in environment."
+      );
+    }
+
+    // Unique reference the buyer MUST include in their wire transfer memo.
+    // We derive it from the order ID so we can match it back in the webhook.
+    const reference = `SILK-${params.orderId.replace(/[^A-Z0-9]/gi, "").slice(-10).toUpperCase()}`;
+
+    // Collection window: 5 business days (120 hours)
+    const expiresAt = new Date(Date.now() + 120 * 60 * 60 * 1000);
+
+    return {
+      success: true,
+      transactionId: reference,
+      gatewayTransactionId: reference,
+      status: "pending",
+      requiresAction: true,
+      actionType: "bank_transfer_instructions",
+      expiresAt,
+      rawResponse: {
+        reference,
+        bankName,
+        accountNo,
+        swiftCode,
+        iban,
+        routingNumber: routing,
+        amount: params.amount,
+        currency: params.currency,
+        expiresAt: expiresAt.toISOString(),
+        memo: `You MUST include "${reference}" in your wire transfer memo / payment remarks`,
+      },
+    };
   },
 
   async refund(_transactionId: string, _amount: number, _currency: string): Promise<RefundResult> {
     throw new Error(
-      "XTransfer payout reversals must be initiated via the XTransfer merchant portal"
+      "XTransfer collection refunds must be initiated via the XTransfer merchant portal"
     );
   },
 

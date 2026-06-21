@@ -34,6 +34,7 @@ export const createOrderSchema = z.object({
   paymentGateway: z.enum([
     "mtn_momo", "airtel_money", "tigo_cash", "mpesa",
     "stripe", "alipay", "wechat_pay", "bank_transfer", "escrow",
+    "xtransfer",
   ]).optional(),
   phoneNumber: z.string().optional(),
   currency: z.string().length(3).default("USD"),
