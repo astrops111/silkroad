@@ -1,7 +1,9 @@
 -- ============================================================
--- 00079_settlement_kyc_notifications.sql
+-- 00080_settlement_kyc_notifications.sql
 -- Adds settlement_blocked and settlement_failed notification types
--- for KYC guard failures in the settlement engine
+-- for KYC guard failures in the settlement engine.
+-- Includes all types from 00074 (quote_*) so the constraint
+-- is a full superset and does not drop them.
 -- ============================================================
 
 ALTER TABLE notifications
@@ -16,5 +18,6 @@ ALTER TABLE notifications
     'product_approved', 'product_rejected',
     'settlement_ready', 'settlement_paid', 'settlement_blocked', 'settlement_failed',
     'supplier_verified', 'supplier_suspended',
+    'quote_submitted', 'quote_ready', 'quote_paid', 'quote_expired',
     'system'
   ));
