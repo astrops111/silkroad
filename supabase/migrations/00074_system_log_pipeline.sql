@@ -278,14 +278,5 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_supplier_order
   ON system_activity_log (target_id, created_at DESC)
   WHERE target_type = 'supplier_order';
 
-CREATE INDEX IF NOT EXISTS idx_activity_log_errors
-  ON system_activity_log (created_at DESC)
-  WHERE activity_type = 'error_logged';
-
-CREATE INDEX IF NOT EXISTS idx_activity_log_dead_events
-  ON system_activity_log (created_at DESC)
-  WHERE activity_type = 'pipeline_event_dead';
-
-CREATE INDEX IF NOT EXISTS idx_activity_log_stalls
-  ON system_activity_log (created_at DESC)
-  WHERE activity_type = 'order_stalled';
+-- Partial indexes on new enum values deferred to 00077_activity_log_enum_indexes.sql
+-- (PostgreSQL 55P04: cannot use newly-added enum values as index predicates in the same transaction)

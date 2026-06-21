@@ -495,6 +495,156 @@ export async function onShipmentDelivered(shipmentId: string) {
 }
 
 /**
+ * Settlement KYC blocked — supplier hasn't completed platform verification.
+ * Notifies supplier (in-app + email) and ops (email).
+ * Call only on hard-fail (status → 'failed'), not on pending holds.
+ */
+export async function onSettlementKycBlocked(settlementId: string) {
+  const supabase = createServiceClient();
+
+  const { data: settlement } = await supabase
+    .from("settlements")
+    .select("settlement_number, net_payout, currency, supplier_id")
+    .eq("id", settlementId)
+    .single();
+
+  if (!settlement) return;
+
+  const { data: supplierMember } = await supabase
+    .from("company_members")
+    .select("user_id, user_profiles ( email, full_name ), companies ( name )")
+    .eq("company_id", settlement.supplier_id)
+    .eq("is_primary", true)
+    .single();
+
+  const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
+  const company  = supplierMember?.companies  as unknown as { name: string } | null;
+
+  if (supplierMember?.user_id) {
+    await supabase.rpc("create_notification", {
+      p_user_id:        supplierMember.user_id,
+      p_company_id:     settlement.supplier_id,
+      p_title:          "Payout Blocked — Verification Required",
+      p_body:           `Settlement ${settlement.settlement_number} (${formatMoney(settlement.net_payout, settlement.currency)}) cannot be paid until your account is verified. Complete verification to release your funds.`,
+      p_type:           "settlement_blocked",
+      p_icon:           "shield-alert",
+      p_action_url:     "/supplier/verification",
+      p_reference_type: "settlement",
+      p_reference_id:   settlementId,
+    });
+  }
+
+  if (supplier?.email) {
+    await sendEmail({
+      to: supplier.email,
+      subject: `Action Required — Verify your account to receive payout ${settlement.settlement_number}`,
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #14110F;">Payout On Hold</h1>
+          <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+          <p style="color: #4C463D;">Your settlement <strong>${esc(settlement.settlement_number)}</strong> of <strong>${formatMoney(settlement.net_payout, settlement.currency)}</strong> is ready but cannot be released until your account is verified.</p>
+          <p style="color: #4C463D;">Please complete your identity and business verification to unlock your payout.</p>
+          <a href="${process.env.NEXT_PUBLIC_APP_URL}/supplier/verification" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Complete Verification</a>
+          <p style="color: #9E9589; font-size: 12px; margin-top: 24px;">This settlement will be released automatically once verification is approved.</p>
+        </div>
+      `,
+    }, "settlement_kyc_blocked");
+  }
+
+  await sendEmail({
+    to: OPS_NOTIFICATION_EMAIL,
+    subject: `[Action] Settlement blocked — KYC unverified: ${esc(company?.name ?? settlement.supplier_id)}`,
+    html: `
+      <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #C0392B;">Settlement Blocked — KYC Unverified</h2>
+        <table style="border-collapse: collapse; width: 100%;">
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Settlement</strong></td><td style="padding: 8px;">${esc(settlement.settlement_number)}</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Supplier</strong></td><td style="padding: 8px;">${esc(company?.name)} (${esc(settlement.supplier_id)})</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Amount</strong></td><td style="padding: 8px;">${formatMoney(settlement.net_payout, settlement.currency)}</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Reason</strong></td><td style="padding: 8px;">KYC_UNVERIFIED — supplier has not completed platform verification</td></tr>
+        </table>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/settings/verification" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Review in Admin</a>
+      </div>
+    `,
+  }, "settlement_kyc_blocked_ops");
+}
+
+/**
+ * Settlement XTransfer payee rejected — XTransfer rejected the beneficiary.
+ * Notifies supplier (in-app + email) and ops (email) that re-registration is required.
+ */
+export async function onSettlementXTransferRejected(settlementId: string) {
+  const supabase = createServiceClient();
+
+  const { data: settlement } = await supabase
+    .from("settlements")
+    .select("settlement_number, net_payout, currency, supplier_id")
+    .eq("id", settlementId)
+    .single();
+
+  if (!settlement) return;
+
+  const { data: supplierMember } = await supabase
+    .from("company_members")
+    .select("user_id, user_profiles ( email, full_name ), companies ( name )")
+    .eq("company_id", settlement.supplier_id)
+    .eq("is_primary", true)
+    .single();
+
+  const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
+  const company  = supplierMember?.companies  as unknown as { name: string } | null;
+
+  if (supplierMember?.user_id) {
+    await supabase.rpc("create_notification", {
+      p_user_id:        supplierMember.user_id,
+      p_company_id:     settlement.supplier_id,
+      p_title:          "Payout Failed — Bank Details Need Update",
+      p_body:           `Settlement ${settlement.settlement_number} could not be paid out. Your payout account was not accepted. Please contact support to update your banking details.`,
+      p_type:           "settlement_failed",
+      p_icon:           "alert-circle",
+      p_action_url:     "/supplier/settlements",
+      p_reference_type: "settlement",
+      p_reference_id:   settlementId,
+    });
+  }
+
+  if (supplier?.email) {
+    await sendEmail({
+      to: supplier.email,
+      subject: `Payout Failed — Bank account not accepted for ${esc(settlement.settlement_number)}`,
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #14110F;">Payout Failed</h1>
+          <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+          <p style="color: #4C463D;">We were unable to process your payout for settlement <strong>${esc(settlement.settlement_number)}</strong> of <strong>${formatMoney(settlement.net_payout, settlement.currency)}</strong>.</p>
+          <p style="color: #4C463D;">Your registered payout account could not be accepted by our payment provider. Please contact our support team to update your banking details and reprocess this settlement.</p>
+          <a href="${process.env.NEXT_PUBLIC_APP_URL}/support" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Contact Support</a>
+          <p style="color: #9E9589; font-size: 12px; margin-top: 24px;">Your funds are secure and will be released once your bank details are confirmed.</p>
+        </div>
+      `,
+    }, "settlement_xtransfer_rejected");
+  }
+
+  await sendEmail({
+    to: OPS_NOTIFICATION_EMAIL,
+    subject: `[Action] XTransfer payee rejected — re-register required: ${esc(company?.name ?? settlement.supplier_id)}`,
+    html: `
+      <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #C0392B;">XTransfer Beneficiary Rejected</h2>
+        <table style="border-collapse: collapse; width: 100%;">
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Settlement</strong></td><td style="padding: 8px;">${esc(settlement.settlement_number)}</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Supplier</strong></td><td style="padding: 8px;">${esc(company?.name)} (${esc(settlement.supplier_id)})</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Amount</strong></td><td style="padding: 8px;">${formatMoney(settlement.net_payout, settlement.currency)}</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Reason</strong></td><td style="padding: 8px;">XTRANSFER_PAYEE_REJECTED — XTransfer rejected the beneficiary registration</td></tr>
+          <tr><td style="padding: 8px; color: #4C463D;"><strong>Next step</strong></td><td style="padding: 8px;">Re-register supplier via <code>/api/admin/xtransfer/register-supplier</code> with corrected banking details, then retry settlement</td></tr>
+        </table>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/payments" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Review in Admin</a>
+      </div>
+    `,
+  }, "settlement_xtransfer_rejected_ops");
+}
+
+/**
  * Settlement paid — notify supplier
  */
 export async function onSettlementPaid(settlementId: string) {

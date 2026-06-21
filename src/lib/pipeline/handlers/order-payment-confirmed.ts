@@ -1,5 +1,4 @@
 import type { EventHandler } from "../types";
-import { updateSupplierOrderStatus } from "@/lib/actions/orders";
 import { issueInvoice } from "@/lib/invoice";
 import { sendNewOrderToSupplierEmail } from "@/lib/email";
 
@@ -17,6 +16,12 @@ import { sendNewOrderToSupplierEmail } from "@/lib/email";
  *
  * The DB trigger on supplier_orders.status = 'confirmed' automatically
  * enqueues order.supplier_notified as the next pipeline step.
+ *
+ * Idempotency contract:
+ *   - Invoice: checks b2b_invoices before calling issueInvoice so retries
+ *     don't register a second document with the country e-invoice authority.
+ *   - Status update: guarded with .eq("status","paid") so a retry on an
+ *     already-confirmed order is a silent no-op rather than a double-transition.
  */
 export const handler: EventHandler = async (event, supabase) => {
   const { supplier_order_id } = event;
@@ -37,7 +42,8 @@ export const handler: EventHandler = async (event, supabase) => {
     .single();
 
   if (orderErr || !order) {
-    return { success: false, error: `Order fetch failed: ${orderErr?.message}` };
+    console.error("[pipeline:order.payment_confirmed] Order fetch error:", orderErr);
+    return { success: false, error: "Order data unavailable — see server logs" };
   }
 
   // ── 1. Notify supplier — platform is the buyer, buyer identity is hidden ──
@@ -69,59 +75,119 @@ export const handler: EventHandler = async (event, supabase) => {
     id: string; product_name: string; quantity: number;
     unit_price: number; line_total: number; tax_amount: number; hs_code?: string;
   }> ?? []).map((item) => ({
-    name: item.product_name,
-    quantity: item.quantity,
+    name:      item.product_name,
+    quantity:  item.quantity,
     unitPrice: item.unit_price,
-    amount: item.line_total,
+    amount:    item.line_total,
     taxAmount: item.tax_amount ?? 0,
-    hsCode: item.hs_code,
+    hsCode:    item.hs_code,
   }));
 
-  const subtotal = lineItems.reduce((s, i) => s + i.amount, 0);
+  const subtotal  = lineItems.reduce((s, i) => s + i.amount, 0);
   const taxAmount = lineItems.reduce((s, i) => s + i.taxAmount, 0);
-  const today = new Date().toISOString().split("T")[0];
+  const today     = new Date().toISOString().split("T")[0];
 
-  const invoiceResult = await issueInvoice({
-    invoiceType: "proforma",
-    invoiceDate: today,
-    issuerCompanyId: process.env.PLATFORM_COMPANY_ID ?? "platform",
-    issuerName: process.env.PLATFORM_NAME ?? "Silk Road Platform",
-    issuerCountry: process.env.PLATFORM_COUNTRY ?? "SG",
-    recipientCompanyId: order.supplier_id,
-    recipientName: supplier?.name ?? "Supplier",
-    recipientCountry: supplier?.country_code ?? "CN",
-    recipientTaxId: supplier?.tax_id,
-    recipientAddress: supplier?.address,
-    currency: order.currency,
-    subtotal,
-    taxRate: subtotal > 0 ? taxAmount / subtotal : 0,
-    taxAmount,
-    totalAmount: order.total_amount,
-    taxType: "taxable",
-    lineItems,
-    supplierOrderId: supplier_order_id,
-    orderNumber: order.order_number,
-  });
+  // Idempotency: check whether we already issued a proforma for this order.
+  // Prevents a second submission to Kenya eTIMS / Egypt ETA on handler retry.
+  const { data: existingInvoice } = await supabase
+    .from("b2b_invoices")
+    .select("invoice_number")
+    .eq("supplier_order_id", supplier_order_id)
+    .eq("invoice_type", "proforma")
+    .limit(1)
+    .maybeSingle();
 
-  if (!invoiceResult.success) {
-    return { success: false, error: `Invoice generation failed: ${invoiceResult.error}` };
+  let invoiceNumber: string;
+
+  if (existingInvoice) {
+    invoiceNumber = existingInvoice.invoice_number;
+  } else {
+    const invoiceResult = await issueInvoice({
+      invoiceType:        "proforma",
+      invoiceDate:        today,
+      issuerCompanyId:    process.env.PLATFORM_COMPANY_ID ?? "platform",
+      issuerName:         process.env.PLATFORM_NAME       ?? "Silk Road Platform",
+      issuerCountry:      process.env.PLATFORM_COUNTRY    ?? "SG",
+      recipientCompanyId: order.supplier_id,
+      recipientName:      supplier?.name         ?? "Supplier",
+      recipientCountry:   supplier?.country_code ?? "CN",
+      recipientTaxId:     supplier?.tax_id,
+      recipientAddress:   supplier?.address,
+      currency:           order.currency,
+      subtotal,
+      taxRate:            subtotal > 0 ? taxAmount / subtotal : 0,
+      taxAmount,
+      totalAmount:        order.total_amount,
+      taxType:            "taxable",
+      lineItems,
+      supplierOrderId:    supplier_order_id,
+      orderNumber:        order.order_number,
+    });
+
+    if (!invoiceResult.success) {
+      return { success: false, error: `Invoice generation failed: ${invoiceResult.error}` };
+    }
+
+    invoiceNumber = invoiceResult.invoiceNumber!;
+
+    // Persist to b2b_invoices so future retries find it and skip the provider call
+    const { error: persistErr } = await supabase.from("b2b_invoices").insert({
+      invoice_number:         invoiceNumber,
+      invoice_type:           "proforma",
+      supplier_order_id,
+      issuer_company_id:      process.env.PLATFORM_COMPANY_ID ?? "platform",
+      issuer_company_name:    process.env.PLATFORM_NAME       ?? "Silk Road Platform",
+      recipient_company_id:   order.supplier_id,
+      recipient_company_name: supplier?.name ?? "Supplier",
+      recipient_tax_id:       supplier?.tax_id,
+      subtotal,
+      tax_rate:               subtotal > 0 ? taxAmount / subtotal : 0,
+      tax_amount:             taxAmount,
+      total_amount:           order.total_amount,
+      currency:               order.currency,
+      tax_type:               "taxable",
+      line_items:             lineItems,
+      country_code:           supplier?.country_code ?? "CN",
+      status:                 "issued",
+      issued_at:              new Date().toISOString(),
+    });
+
+    if (persistErr) {
+      // Invoice was issued by the provider but DB persist failed.
+      // Log it — the invoice_number is still returned so the caller can record it.
+      console.error("[pipeline:order.payment_confirmed] b2b_invoices persist failed:", persistErr.message);
+    }
   }
 
   // ── 3. Transition paid → confirmed ────────────────────────────────────────
-  // DB trigger fires on this update → enqueues order.supplier_notified.
-  await updateSupplierOrderStatus(
+  // .eq("status","paid") guard: if the order is already 'confirmed' (retry),
+  // the UPDATE affects 0 rows and we return success without re-triggering the
+  // DB trigger or writing a duplicate order_status_history row.
+  const { data: updated } = await supabase
+    .from("supplier_orders")
+    .update({ status: "confirmed", updated_at: new Date().toISOString() })
+    .eq("id", supplier_order_id)
+    .eq("status", "paid")
+    .select("id");
+
+  if (!updated || updated.length === 0) {
+    return { success: true, result: { alreadyConfirmed: true, invoiceNumber, orderNumber: order.order_number } };
+  }
+
+  await supabase.from("order_status_history").insert({
     supplier_order_id,
-    "confirmed",
-    "pipeline",
-    "Platform PO issued to supplier"
-  );
+    from_status: "paid",
+    to_status:   "confirmed",
+    changed_by:  "pipeline",
+    note:        "Platform PO issued to supplier",
+  });
 
   return {
     success: true,
     result: {
-      invoiceNumber: invoiceResult.invoiceNumber,
+      invoiceNumber,
       orderNumber: order.order_number,
-      supplierId: order.supplier_id,
+      supplierId:  order.supplier_id,
     },
   };
 };

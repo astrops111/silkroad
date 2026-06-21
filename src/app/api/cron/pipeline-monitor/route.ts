@@ -140,15 +140,49 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 4. Demurrage warning: duties not paid 48h after filing ───────────
+    // ── 3b. Stalled customs prep: preparing for > 48h without filing ──────────
     const fortyEightHoursAgo = new Date(
       now.getTime() - 48 * 60 * 60 * 1000
     ).toISOString();
 
+    const { data: stalledPrepShipments } = await supabase
+      .from("b2b_shipments")
+      .select("id, supplier_order_id, tracking_number")
+      .eq("customs_status", "preparing")
+      .lt("updated_at", fortyEightHoursAgo);
+
+    for (const shipment of stalledPrepShipments ?? []) {
+      const idemKey = `customs.demurrage_warning:stalled_prep:${shipment.id}`;
+      const { data: exists } = await supabase
+        .from("pipeline_events")
+        .select("id")
+        .eq("idempotency_key", idemKey)
+        .maybeSingle();
+
+      if (!exists) {
+        await supabase.rpc("enqueue_pipeline_event", {
+          p_event_type:        "customs.demurrage_warning",
+          p_purchase_order_id: null,
+          p_supplier_order_id: shipment.supplier_order_id,
+          p_shipment_id:       shipment.id,
+          p_payload:           { reason: "customs_prep_stalled_48h", trackingNumber: shipment.tracking_number },
+          p_idempotency_key:   idemKey,
+          p_triggered_by_type: null,
+          p_triggered_by_id:   null,
+          p_next_retry_at:     null,
+          p_max_attempts:      3,
+        });
+        alertsRaised++;
+        issues.push(`Customs prep stalled (>48h in 'preparing'): ${shipment.tracking_number ?? shipment.id}`);
+      }
+    }
+
+    // ── 4. Demurrage warning: duties not paid 48h after filing ───────────
     const { data: filedShipments } = await supabase
       .from("b2b_shipments")
       .select("id, supplier_order_id, tracking_number")
       .eq("customs_status", "submitted")
+      .not("customs_filed_at", "is", null)
       .lt("customs_filed_at", fortyEightHoursAgo);
 
     for (const shipment of filedShipments ?? []) {

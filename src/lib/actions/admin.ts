@@ -3,11 +3,23 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { processSettlement } from "@/lib/settlement/engine";
 import { logAdminAction } from "@/lib/logging/admin-audit";
+import { getCurrentUser } from "@/lib/queries/user";
 
 type ActionResult = {
   success: boolean;
   error?: string;
 };
+
+const ADMIN_ROLES = ["admin_super", "admin_moderator"];
+
+async function requireAdminWrite(): Promise<{ success: false; error: string } | { success: true; data: { role: string } }> {
+  const user = await getCurrentUser();
+  const role = user?.company_members?.[0]?.role;
+  if (!role || !ADMIN_ROLES.includes(role)) {
+    return { success: false, error: "Forbidden — admin role required" };
+  }
+  return { success: true, data: { role } };
+}
 
 export async function approveProduct(productId: string, moderatedBy: string): Promise<ActionResult> {
   const supabase = await createClient();
@@ -133,6 +145,8 @@ export async function resolveDispute(
 }
 
 export async function triggerSettlement(settlementId: string): Promise<ActionResult> {
+  const gate = await requireAdminWrite();
+  if (!gate.success) return gate;
   const result = await processSettlement(settlementId);
   if (!result.success) return { success: false, error: result.error };
   return { success: true };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -143,6 +144,13 @@ export default function AdminDisputesPage() {
                     {resolvingId === dispute.id ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                     Resolve
                   </Button>
+                  <Link
+                    href={`/admin/disputes/${dispute.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors hover:opacity-80"
+                    style={{ color: "var(--text-secondary)", borderColor: "var(--border-subtle)" }}
+                  >
+                    View Details
+                  </Link>
                 </div>
               </CardContent>
             </Card>

@@ -3,7 +3,7 @@
 -- ============================================================
 
 -- 1. Extend notifications.type CHECK to include quote events
-ALTER TABLE notifications DROP CONSTRAINT notifications_type_check;
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 ALTER TABLE notifications ADD CONSTRAINT notifications_type_check CHECK (type IN (
   'order_placed', 'order_paid', 'order_confirmed', 'order_shipped', 'order_delivered',
   'rfq_received', 'rfq_quoted', 'rfq_awarded', 'rfq_expired',
@@ -32,6 +32,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_sync_quote_paid_on_order_paid ON purchase_orders;
 CREATE TRIGGER trg_sync_quote_paid_on_order_paid
   AFTER UPDATE ON purchase_orders
   FOR EACH ROW EXECUTE FUNCTION sync_quote_paid_on_order_paid();
@@ -59,6 +60,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_buyer_on_quote_ready ON buyer_quote_requests;
 CREATE TRIGGER trg_notify_buyer_on_quote_ready
   AFTER UPDATE ON buyer_quote_requests
   FOR EACH ROW EXECUTE FUNCTION notify_buyer_on_quote_ready();
@@ -93,6 +95,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_admins_on_quote_submitted ON buyer_quote_requests;
 CREATE TRIGGER trg_notify_admins_on_quote_submitted
   AFTER INSERT ON buyer_quote_requests
   FOR EACH ROW EXECUTE FUNCTION notify_admins_on_quote_submitted();
@@ -120,6 +123,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_buyer_on_quote_expired ON buyer_quote_requests;
 CREATE TRIGGER trg_notify_buyer_on_quote_expired
   AFTER UPDATE ON buyer_quote_requests
   FOR EACH ROW EXECUTE FUNCTION notify_buyer_on_quote_expired();

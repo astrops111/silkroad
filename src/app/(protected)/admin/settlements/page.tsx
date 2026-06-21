@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Landmark,
   DollarSign,
@@ -7,7 +8,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  MoreHorizontal,
+  Eye,
   Download,
   Search,
   Filter,
@@ -401,12 +402,14 @@ export default function SettlementsPage() {
                             Retry
                           </button>
                         )}
-                        <button
-                          className="p-1.5 rounded-lg transition-colors"
+                        <Link
+                          href={`/admin/settlements/${s.id}`}
+                          className="p-1.5 rounded-lg transition-colors inline-flex items-center"
                           style={{ color: "var(--text-tertiary)" }}
+                          title="View settlement"
                         >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
+                          <Eye className="w-4 h-4" />
+                        </Link>
                       </div>
                     </td>
                   </tr>

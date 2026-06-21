@@ -80,7 +80,7 @@ const navSections = [
     label: "Trust & Safety",
     items: [
       { name: "Disputes", href: "/admin/disputes", icon: Gavel },
-      { name: "Verification", href: "/admin/suppliers?tab=verification", icon: ShieldCheck },
+      { name: "Verification", href: "/admin/verification", icon: ShieldCheck },
     ],
   },
   {
@@ -94,6 +94,7 @@ const navSections = [
     label: "Compliance",
     items: [
       { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
+      { name: "Settings", href: "/admin/settings", icon: Settings },
     ],
   },
 ];
@@ -222,9 +223,9 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: "var(--danger)" }} />
             </button>
-            <button className="p-2.5 rounded-lg transition-colors" style={{ color: "var(--text-tertiary)" }}>
+            <Link href="/admin/settings" className="p-2.5 rounded-lg transition-colors" style={{ color: "var(--text-tertiary)" }}>
               <Settings className="w-5 h-5" />
-            </button>
+            </Link>
           </div>
         </header>
         <main className="p-8">{children}</main>

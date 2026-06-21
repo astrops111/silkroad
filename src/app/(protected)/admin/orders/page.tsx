@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Search,
   Filter,
@@ -435,12 +436,13 @@ export default function OrdersPage() {
                     {/* Actions */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1">
-                        <button
-                          className="p-2 rounded-lg transition-colors hover:bg-[var(--surface-secondary)]"
+                        <Link
+                          href={`/admin/orders/${o.id}`}
+                          className="p-2 rounded-lg transition-colors hover:bg-[var(--surface-secondary)] inline-flex items-center"
                           style={{ color: "var(--text-tertiary)" }}
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
+                        </Link>
                         <button
                           className="p-2 rounded-lg transition-colors hover:bg-[var(--surface-secondary)]"
                           style={{ color: "var(--text-tertiary)" }}

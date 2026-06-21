@@ -1,13 +1,36 @@
 import type { EventHandler, PipelineEventType } from "./types";
 
-// Stage 1 handlers (implemented)
+// Stage 1
 import { handler as orderPaymentConfirmed } from "./handlers/order-payment-confirmed";
 import { handler as orderSupplierNotified } from "./handlers/order-supplier-notified";
-import { handler as orderSupplierShipped } from "./handlers/order-supplier-shipped";
+import { handler as orderSupplierShipped }  from "./handlers/order-supplier-shipped";
 
-// Handlers for Stages 2–5 are stubs until implemented in subsequent sprints.
-// Stubs return success:true so the event is marked succeeded and doesn't
-// block the queue. Replace each stub with the real handler as sprints progress.
+// Stage 2 — origin logistics
+import { handler as shipmentCreated }           from "./handlers/shipment-created";
+import { handler as shipmentFreightBooked }      from "./handlers/shipment-freight-booked";
+import { handler as shipmentOriginDeparted }     from "./handlers/shipment-origin-departed";
+import { handler as shipmentArrivedDestination } from "./handlers/shipment-arrived-destination";
+
+// Stage 3-4 — import customs
+import { handler as customsArrivalNotice }  from "./handlers/customs-arrival-notice";
+import { handler as customsEntryFiled }     from "./handlers/customs-entry-filed";
+import { handler as customsDutiesAssessed } from "./handlers/customs-duties-assessed";
+import { handler as customsDutiesPaid }     from "./handlers/customs-duties-paid";
+import { handler as customsCleared }        from "./handlers/customs-cleared";
+import { handler as customsHoldOpened }     from "./handlers/customs-hold-opened";
+import { handler as customsHoldResolved }   from "./handlers/customs-hold-resolved";
+
+// Stage 5 — last-mile delivery + settlement
+import { handler as deliveryScheduled }   from "./handlers/delivery-scheduled";
+import { handler as deliveryPickedUp }    from "./handlers/delivery-picked-up";
+import { handler as deliveryCompleted }   from "./handlers/delivery-completed";
+import { handler as disputeWindowOpened } from "./handlers/dispute-window-opened";
+import { handler as disputeWindowClosed } from "./handlers/dispute-window-closed";
+import { handler as settlementTriggered } from "./handlers/settlement-triggered";
+
+// Cross-cutting alerts
+import { handler as stallAlert } from "./handlers/stall-alert";
+
 const stub = (label: string): EventHandler =>
   async () => ({ success: true, result: { stub: label } });
 
@@ -17,34 +40,34 @@ const HANDLERS: Partial<Record<PipelineEventType, EventHandler>> = {
   "order.supplier_notified":          orderSupplierNotified,
   "order.supplier_shipped":           orderSupplierShipped,
 
-  // Stage 2 — origin logistics (Sprint 3)
-  "shipment.created":                 stub("shipment.created"),
-  "shipment.freight_booked":          stub("shipment.freight_booked"),
-  "shipment.export_customs_filed":    stub("shipment.export_customs_filed"),
+  // Stage 2 — origin logistics
+  "shipment.created":                 shipmentCreated,
+  "shipment.freight_booked":          shipmentFreightBooked,
+  "shipment.export_customs_filed":    stub("shipment.export_customs_filed"),  // origin-country, handled by forwarder
   "shipment.export_cleared":          stub("shipment.export_cleared"),
-  "shipment.origin_departed":         stub("shipment.origin_departed"),
-  "shipment.arrived_destination":     stub("shipment.arrived_destination"),
+  "shipment.origin_departed":         shipmentOriginDeparted,
+  "shipment.arrived_destination":     shipmentArrivedDestination,
 
-  // Stage 3-4 — import customs (Sprint 4)
-  "customs.arrival_notice_received":  stub("customs.arrival_notice_received"),
-  "customs.entry_filed":              stub("customs.entry_filed"),
-  "customs.duties_assessed":          stub("customs.duties_assessed"),
-  "customs.duties_paid":              stub("customs.duties_paid"),
-  "customs.cleared":                  stub("customs.cleared"),
-  "customs.hold_opened":              stub("customs.hold_opened"),
-  "customs.hold_resolved":            stub("customs.hold_resolved"),
+  // Stage 3-4 — import customs
+  "customs.arrival_notice_received":  customsArrivalNotice,
+  "customs.entry_filed":              customsEntryFiled,
+  "customs.duties_assessed":          customsDutiesAssessed,
+  "customs.duties_paid":              customsDutiesPaid,
+  "customs.cleared":                  customsCleared,
+  "customs.hold_opened":              customsHoldOpened,
+  "customs.hold_resolved":            customsHoldResolved,
 
-  // Stage 5 — last-mile delivery (Sprint 5)
-  "delivery.scheduled":               stub("delivery.scheduled"),
-  "delivery.picked_up":               stub("delivery.picked_up"),
-  "delivery.completed":               stub("delivery.completed"),
-  "dispute_window.opened":            stub("dispute_window.opened"),
-  "dispute_window.closed":            stub("dispute_window.closed"),
+  // Stage 5 — last-mile delivery
+  "delivery.scheduled":               deliveryScheduled,
+  "delivery.picked_up":               deliveryPickedUp,
+  "delivery.completed":               deliveryCompleted,
+  "dispute_window.opened":            disputeWindowOpened,
+  "dispute_window.closed":            disputeWindowClosed,
 
   // Cross-cutting alerts
-  "shipment.stalled":                 stub("shipment.stalled"),
-  "customs.demurrage_warning":        stub("customs.demurrage_warning"),
-  "settlement.triggered":             stub("settlement.triggered"),
+  "shipment.stalled":                 stallAlert,
+  "customs.demurrage_warning":        stallAlert,
+  "settlement.triggered":             settlementTriggered,
 };
 
 export function getHandler(eventType: PipelineEventType): EventHandler | null {

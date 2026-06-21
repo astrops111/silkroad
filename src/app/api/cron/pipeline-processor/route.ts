@@ -226,7 +226,7 @@ async function enqueueChildren(
   for (const req of requests) {
     await supabase.rpc("enqueue_pipeline_event", {
       p_event_type:        req.eventType,
-      p_purchase_order_id: req.purchaseOrderId ?? null,
+      p_purchase_order_id: req.purchaseOrderId ?? parent.purchase_order_id ?? null,
       p_supplier_order_id: req.supplierOrderId ?? null,
       p_shipment_id:       req.shipmentId ?? null,
       p_payload:           req.payload ?? {},
