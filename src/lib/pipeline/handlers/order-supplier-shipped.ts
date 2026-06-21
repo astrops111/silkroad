@@ -43,28 +43,23 @@ export const handler: EventHandler = async (event, supabase) => {
 
   // Creates the shipment record (status = 'pending').
   // The INSERT trigger enqueues shipment.created to prompt freight booking.
-  const shipment = await createShipment({
-    supplierOrderId: supplier_order_id,
+  const shipment = await createShipment(supplier_order_id, {
     shippingMethod: order.shipping_method ?? "platform_freight",
-    deliveryCountry: order.ship_to_country,
-    deliveryCity: order.ship_to_city,
-    deliveryAddress: order.ship_to_address,
-    incoterms: order.trade_term,
-    items: (items ?? []).map((i) => ({
-      supplierOrderItemId: i.id,
-      quantityShipped: i.quantity,
-    })),
+    deliveryCountry: order.ship_to_country ?? "XX",
+    deliveryCity: order.ship_to_city ?? "",
+    deliveryAddress: order.ship_to_address ?? "",
   });
 
-  if (!shipment?.id) {
-    return { success: false, error: "createShipment returned no id" };
+  if (!shipment?.data?.shipmentId) {
+    return { success: false, error: shipment?.error ?? "createShipment returned no id" };
   }
 
   return {
     success: true,
     result: {
-      shipmentId: shipment.id,
+      shipmentId: shipment.data.shipmentId,
       orderNumber: order.order_number,
+      itemCount: (items ?? []).length,
     },
   };
 };

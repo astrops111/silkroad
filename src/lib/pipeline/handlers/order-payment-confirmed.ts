@@ -26,7 +26,13 @@ export const handler: EventHandler = async (event, supabase) => {
 
   const { data: order, error: orderErr } = await supabase
     .from("supplier_orders")
-    .select("id, order_number, supplier_id, total_amount, currency")
+    .select(`
+      id, order_number, supplier_id, total_amount, currency,
+      companies!supplier_orders_supplier_id_fkey (name, country_code, tax_id, address),
+      supplier_order_items (
+        id, product_name, quantity, unit_price, line_total, tax_amount, hs_code
+      )
+    `)
     .eq("id", supplier_order_id)
     .single();
 
@@ -55,9 +61,46 @@ export const handler: EventHandler = async (event, supabase) => {
   }
 
   // ── 2. Issue proforma invoice (platform's PO to supplier) ─────────────────
+  const supplier = order.companies as unknown as {
+    name: string; country_code: string; tax_id?: string; address?: string;
+  } | null;
+
+  const lineItems = (order.supplier_order_items as unknown as Array<{
+    id: string; product_name: string; quantity: number;
+    unit_price: number; line_total: number; tax_amount: number; hs_code?: string;
+  }> ?? []).map((item) => ({
+    name: item.product_name,
+    quantity: item.quantity,
+    unitPrice: item.unit_price,
+    amount: item.line_total,
+    taxAmount: item.tax_amount ?? 0,
+    hsCode: item.hs_code,
+  }));
+
+  const subtotal = lineItems.reduce((s, i) => s + i.amount, 0);
+  const taxAmount = lineItems.reduce((s, i) => s + i.taxAmount, 0);
+  const today = new Date().toISOString().split("T")[0];
+
   const invoiceResult = await issueInvoice({
-    supplierOrderId: supplier_order_id,
     invoiceType: "proforma",
+    invoiceDate: today,
+    issuerCompanyId: process.env.PLATFORM_COMPANY_ID ?? "platform",
+    issuerName: process.env.PLATFORM_NAME ?? "Silk Road Platform",
+    issuerCountry: process.env.PLATFORM_COUNTRY ?? "SG",
+    recipientCompanyId: order.supplier_id,
+    recipientName: supplier?.name ?? "Supplier",
+    recipientCountry: supplier?.country_code ?? "CN",
+    recipientTaxId: supplier?.tax_id,
+    recipientAddress: supplier?.address,
+    currency: order.currency,
+    subtotal,
+    taxRate: subtotal > 0 ? taxAmount / subtotal : 0,
+    taxAmount,
+    totalAmount: order.total_amount,
+    taxType: "taxable",
+    lineItems,
+    supplierOrderId: supplier_order_id,
+    orderNumber: order.order_number,
   });
 
   if (!invoiceResult.success) {
@@ -69,14 +112,14 @@ export const handler: EventHandler = async (event, supabase) => {
   await updateSupplierOrderStatus(
     supplier_order_id,
     "confirmed",
-    undefined,
+    "pipeline",
     "Platform PO issued to supplier"
   );
 
   return {
     success: true,
     result: {
-      invoiceId: invoiceResult.invoiceId,
+      invoiceNumber: invoiceResult.invoiceNumber,
       orderNumber: order.order_number,
       supplierId: order.supplier_id,
     },

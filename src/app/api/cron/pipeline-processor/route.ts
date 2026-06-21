@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getHandler } from "@/lib/pipeline";
 import { computeNextRetry } from "@/lib/pipeline/retry-policy";
 import { startJobRun, completeJobRun } from "@/lib/logging/jobs";
+import { logActivity, logError } from "@/lib/logging";
 import type { PipelineEvent, EnqueueRequest } from "@/lib/pipeline/types";
 
 const BATCH_SIZE = 20;
@@ -165,6 +166,27 @@ async function markFailed(
       `[pipeline] DEAD: ${event.event_type} id=${event.id} ` +
       `order=${event.purchase_order_id ?? event.supplier_order_id} attempts=${event.attempt_count}`
     );
+
+    const orderId = event.purchase_order_id ?? event.supplier_order_id ?? event.shipment_id;
+    await Promise.all([
+      logActivity({
+        activityType: "pipeline_event_dead",
+        description: `DEAD after ${event.attempt_count} attempts: ${event.event_type}. Error: ${errorMessage}`,
+        targetType:  event.purchase_order_id ? "purchase_order"
+                     : event.supplier_order_id ? "supplier_order" : "shipment",
+        targetId:    orderId ?? undefined,
+        targetLabel: event.event_type,
+        metadata:    { eventId: event.id, eventType: event.event_type, attemptCount: event.attempt_count, lastError: errorMessage },
+      }),
+      logError({
+        errorCode:  "PIPELINE_DEAD",
+        message:    errorMessage,
+        source:     "pipeline-processor",
+        severity:   "critical",
+        metadata:   { eventId: event.id, eventType: event.event_type, orderId },
+      }),
+    ]);
+
     return true;
   }
 

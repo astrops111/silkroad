@@ -6,3 +6,5 @@ export { logLoginAttempt, createSession, endSession, getSessionStats, getLoginAt
 export { startJobRun, completeJobRun, getJobRuns, getJobStats } from "./jobs";
 export { logAdminAction, getAdminAuditLog, getAdminAuditStats, getDataDeletionRequests, getDeletionRequestStats } from "./admin-audit";
 export { getMaintenanceOverview } from "./maintenance-stats";
+export { logActivity, logError, logSystemEvent, getActivityLog, getErrorLog } from "./activity";
+export type { ActivityType, LogLevel, ErrorSeverity } from "./activity";
