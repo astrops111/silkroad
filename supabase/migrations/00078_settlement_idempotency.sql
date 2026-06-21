@@ -15,13 +15,12 @@
 --    row for the same single-order settlement.
 -- ─────────────────────────────────────────────────────────────
 
--- Prevent duplicate active settlement records for a single supplier order.
--- Covers the common case where supplier_order_ids has exactly one element.
--- Cancelled / voided settlements are excluded so re-settlement is allowed.
-CREATE UNIQUE INDEX IF NOT EXISTS uq_settlement_single_order
-  ON settlements((supplier_order_ids[1]))
-  WHERE array_length(supplier_order_ids, 1) = 1
-    AND status NOT IN ('cancelled', 'voided');
+-- Add cancelled/voided to settlement_status for the idempotency index predicate.
+DO $$ BEGIN ALTER TYPE settlement_status ADD VALUE IF NOT EXISTS 'cancelled'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE settlement_status ADD VALUE IF NOT EXISTS 'voided';    EXCEPTION WHEN others THEN NULL; END $$;
+
+-- Unique index deferred to 00084_settlement_idempotency_index.sql (PostgreSQL
+-- 55P04 — cannot use newly-added enum values in index predicates same transaction).
 
 -- Atomic settlement claim.
 -- Selects the row with FOR UPDATE SKIP LOCKED: if a concurrent transaction
