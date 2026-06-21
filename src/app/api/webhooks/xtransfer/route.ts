@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { xtransferGateway } from "@/lib/payments/gateways/xtransfer";
+import { sendOrderConfirmationEmail } from "@/lib/email";
 
 /**
  * POST /api/webhooks/xtransfer
@@ -83,6 +84,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .update({ status: "paid", updated_at: now })
         .eq("purchase_order_id", tx.purchase_order_id);
       console.log("[webhooks/xtransfer] Request Money paid — order:", tx.purchase_order_id, rawPayload.requestId);
+
+      // Buyer confirmation email — XTransfer is the primary gateway
+      await sendBuyerConfirmationEmail(tx.purchase_order_id, supabase);
     } else if (result.status === "failed") {
       await supabase
         .from("payment_transactions")
@@ -136,6 +140,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .eq("purchase_order_id", tx.purchase_order_id);
 
       console.log("[webhooks/xtransfer] Collection received — order paid:", tx.purchase_order_id, rawPayload.referenceNo);
+
+      // Buyer confirmation email — XTransfer is the primary gateway
+      await sendBuyerConfirmationEmail(tx.purchase_order_id, supabase);
     } else if (result.status === "failed") {
       await supabase
         .from("payment_transactions")
@@ -199,4 +206,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // "processing" — no DB update; XTransfer sends another callback when terminal
 
   return NextResponse.json({ received: true });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function sendBuyerConfirmationEmail(
+  purchaseOrderId: string,
+  supabase: ReturnType<typeof createServiceClient>
+) {
+  try {
+    const { data: po } = await supabase
+      .from("purchase_orders")
+      .select("order_number, grand_total, currency, buyer_user_id")
+      .eq("id", purchaseOrderId)
+      .single();
+
+    if (!po) return;
+
+    const { data: buyer } = await supabase
+      .from("user_profiles")
+      .select("email")
+      .eq("id", po.buyer_user_id)
+      .single();
+
+    if (buyer?.email) {
+      const amountStr = `${po.currency} ${((po.grand_total as number) / 100).toFixed(2)}`;
+      await sendOrderConfirmationEmail(buyer.email, po.order_number, amountStr);
+    }
+  } catch (err) {
+    console.error("[webhooks/xtransfer] Buyer email failed:", err);
+  }
 }

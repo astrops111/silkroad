@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Package, Ship, FileText, CheckCircle2,
-  Loader2, AlertCircle, Save, Send,
+  Loader2, AlertCircle, Save, Send, Clock, XCircle,
 } from "lucide-react";
 
 interface QuoteItem {
@@ -80,10 +80,12 @@ export function AdminBuyerQuoteForm({ quote }: { quote: Quote }) {
   const [validityDays, setValidityDays]   = useState("7");
   const [currency, setCurrency]           = useState(quote.currency ?? "USD");
 
-  const [saving, setSaving]   = useState(false);
-  const [sending, setSending] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
-  const [saved, setSaved]     = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [sending, setSending]     = useState(false);
+  const [marking, setMarking]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [saved, setSaved]         = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(quote.status);
 
   const goodsMinor    = quote.product_subtotal ?? 0;
   const shippingMinor = toMinor(shippingCost);
@@ -142,7 +144,27 @@ export function AdminBuyerQuoteForm({ quote }: { quote: Quote }) {
     }
   }
 
-  const canSend = !!totalMinor && !["ready", "accepted", "paid"].includes(quote.status);
+  async function markStatus(newStatus: string) {
+    setMarking(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${quote.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error ?? "Failed");
+      setCurrentStatus(newStatus);
+      setSaved(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setMarking(false);
+    }
+  }
+
+  const canSend = !!totalMinor && !["ready", "accepted", "paid"].includes(currentStatus);
 
   return (
     <div className="space-y-6 max-w-[900px]">
@@ -160,14 +182,14 @@ export function AdminBuyerQuoteForm({ quote }: { quote: Quote }) {
           </p>
         </div>
         <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border capitalize ${
-          quote.status === "submitted"   ? "text-blue-700 bg-blue-50 border-blue-200" :
-          quote.status === "calculating" ? "text-amber-700 bg-amber-50 border-amber-200" :
-          quote.status === "ready"       ? "text-green-700 bg-green-50 border-green-200" :
-          quote.status === "accepted"    ? "text-green-700 bg-green-100 border-green-300" :
-          quote.status === "paid"        ? "text-green-800 bg-green-200 border-green-400" :
+          currentStatus === "submitted"   ? "text-blue-700 bg-blue-50 border-blue-200" :
+          currentStatus === "calculating" ? "text-amber-700 bg-amber-50 border-amber-200" :
+          currentStatus === "ready"       ? "text-green-700 bg-green-50 border-green-200" :
+          currentStatus === "accepted"    ? "text-green-700 bg-green-100 border-green-300" :
+          currentStatus === "paid"        ? "text-green-800 bg-green-200 border-green-400" :
           "text-gray-600 bg-gray-50 border-gray-200"
         }`}>
-          {quote.status}
+          {currentStatus}
         </span>
       </div>
 
@@ -339,10 +361,22 @@ export function AdminBuyerQuoteForm({ quote }: { quote: Quote }) {
             </div>
           )}
 
+          {/* Status quick-actions */}
+          {currentStatus === "submitted" && (
+            <button
+              onClick={() => markStatus("calculating")}
+              disabled={marking}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors disabled:opacity-50"
+            >
+              {marking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+              Mark as Calculating
+            </button>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => save(false)}
-              disabled={saving || sending || quote.status === "paid"}
+              disabled={saving || sending || marking || currentStatus === "paid"}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-[var(--border-default)] bg-white text-sm font-semibold text-[var(--obsidian)] hover:bg-[var(--surface-secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -350,18 +384,29 @@ export function AdminBuyerQuoteForm({ quote }: { quote: Quote }) {
             </button>
             <button
               onClick={() => save(true)}
-              disabled={saving || sending || !canSend}
+              disabled={saving || sending || marking || !canSend}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--obsidian)] text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {["ready", "accepted", "paid"].includes(quote.status) ? "Already Sent" : "Send to Buyer"}
+              {["ready", "accepted", "paid"].includes(currentStatus) ? "Already Sent" : "Send to Buyer"}
             </button>
           </div>
 
-          {["ready", "accepted"].includes(quote.status) && (
+          {["ready", "accepted"].includes(currentStatus) && (
             <p className="text-xs text-center text-[var(--text-tertiary)]">
               Quote already sent. Use Save Draft to update without changing status.
             </p>
+          )}
+
+          {!["paid", "cancelled", "expired"].includes(currentStatus) && (
+            <button
+              onClick={() => markStatus("cancelled")}
+              disabled={marking || saving || sending}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              Cancel this quote
+            </button>
           )}
         </div>
       </div>

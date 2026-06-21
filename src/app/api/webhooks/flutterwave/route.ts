@@ -1,15 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { flutterwaveGateway } from "@/lib/payments/gateways/flutterwave";
+import { logWebhookDelivery } from "@/lib/logging/webhook";
+import { sendOrderConfirmationEmail } from "@/lib/email";
 
-// Flutterwave sends webhooks with a secret hash for verification
 const FLW_HASH = process.env.FLUTTERWAVE_WEBHOOK_HASH;
 
+/**
+ * POST /api/webhooks/flutterwave
+ *
+ * Handles charge.completed / charge.failed events.
+ * Flutterwave is the primary mobile money gateway for African buyers
+ * (GH, KE, TZ, UG, RW, ZM and other markets). XTransfer is primary
+ * for cross-border wire; this is the mobile fallback.
+ *
+ * On success:
+ *   payment_transactions → succeeded
+ *   purchase_orders      → paid
+ *   supplier_orders      → paid  ← DB trigger enqueues order.payment_confirmed
+ *   Buyer confirmation email sent immediately.
+ *
+ * Supplier PO, proforma invoice, and supplier notification are handled
+ * by the pipeline processor (order.payment_confirmed handler).
+ */
 export async function POST(req: NextRequest) {
-  // ── Signature verification ──────────────────────────────────────────────
+  const startTime = Date.now();
+
+  // ── Signature verification ────────────────────────────────────────────────
   const signature = req.headers.get("verif-hash");
   if (!FLW_HASH) {
-    console.error("[flutterwave/webhook] FLUTTERWAVE_WEBHOOK_HASH not configured");
+    console.error("[webhooks/flutterwave] FLUTTERWAVE_WEBHOOK_HASH not set");
     return NextResponse.json({ error: "Misconfigured" }, { status: 500 });
   }
   if (!signature) {
@@ -19,11 +39,11 @@ export async function POST(req: NextRequest) {
   const sigBuf = Buffer.from(signature);
   const hashBuf = Buffer.from(FLW_HASH);
   if (sigBuf.length !== hashBuf.length || !timingSafeEqual(sigBuf, hashBuf)) {
-    console.error("[flutterwave/webhook] Invalid verif-hash");
+    console.error("[webhooks/flutterwave] Invalid verif-hash");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // ── Parse payload ───────────────────────────────────────────────────────
+  // ── Parse payload ─────────────────────────────────────────────────────────
   let payload: Record<string, unknown>;
   try {
     payload = await req.json();
@@ -32,74 +52,104 @@ export async function POST(req: NextRequest) {
   }
 
   const event = payload.event as string;
-  console.log(`[flutterwave/webhook] event=${event}`);
-
-  // Only handle charge events
   if (!event?.startsWith("charge.")) {
     return NextResponse.json({ received: true });
   }
 
-  // ── Parse payment result ────────────────────────────────────────────────
+  // ── Parse result ──────────────────────────────────────────────────────────
   const result = await flutterwaveGateway.handleWebhook(payload);
-  const txRef = result.transactionId;
+  const txRef = result.transactionId; // "silk-{orderId}-{timestamp}" from createPayment
 
   if (!txRef) {
-    console.error("[flutterwave/webhook] No tx_ref in payload");
+    console.error("[webhooks/flutterwave] No tx_ref in payload");
     return NextResponse.json({ received: true });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
-  // ── Find matching payment record ────────────────────────────────────────
-  const { data: payment, error: fetchErr } = await supabase
-    .from("payments")
-    .select("id, order_id, status")
-    .eq("provider_ref", txRef)
-    .single();
+  // ── Find payment transaction ──────────────────────────────────────────────
+  const { data: tx, error: txErr } = await supabase
+    .from("payment_transactions")
+    .select("id, status, purchase_order_id")
+    .eq("gateway_transaction_id", txRef)
+    .maybeSingle();
 
-  if (fetchErr || !payment) {
-    console.error("[flutterwave/webhook] Payment not found for tx_ref:", txRef);
-    // Return 200 to prevent Flutterwave from retrying endlessly
+  if (txErr || !tx) {
+    console.error("[webhooks/flutterwave] No payment_transaction for tx_ref:", txRef, txErr?.message);
+    return NextResponse.json({ received: true }); // 200 stops Flutterwave retrying
+  }
+
+  if (tx.status === "succeeded" || tx.status === "failed") {
+    return NextResponse.json({ received: true }); // idempotency
+  }
+
+  await logWebhookDelivery({
+    webhookType: "flutterwave",
+    eventType: event,
+    externalEventId: txRef,
+    httpStatusCode: 200,
+    processingTimeMs: Date.now() - startTime,
+    status: "delivered",
+  });
+
+  const now = new Date().toISOString();
+
+  if (result.status === "failed") {
+    await supabase
+      .from("payment_transactions")
+      .update({ status: "failed", updated_at: now, raw_response: result.rawResponse as object })
+      .eq("id", tx.id);
+    console.error("[webhooks/flutterwave] Payment failed:", txRef);
     return NextResponse.json({ received: true });
   }
 
-  // Idempotency — don't re-process already succeeded payments
-  if (payment.status === "succeeded") {
+  if (result.status !== "succeeded") {
+    // Pending — Flutterwave will send a terminal event when complete
     return NextResponse.json({ received: true });
   }
 
-  // ── Update payment status ───────────────────────────────────────────────
-  const dbStatus = result.status; // 'succeeded' | 'failed' | 'pending'
+  // ── Payment succeeded — update all three tables ───────────────────────────
+  await supabase
+    .from("payment_transactions")
+    .update({ status: "succeeded", updated_at: now, raw_response: result.rawResponse as object })
+    .eq("id", tx.id);
 
-  const { error: updateErr } = await supabase
-    .from("payments")
-    .update({
-      status: dbStatus,
-      amount: result.amount,
-      currency: result.currency,
-      settled_at: result.paidAt?.toISOString() ?? null,
-    })
-    .eq("id", payment.id);
+  await supabase
+    .from("purchase_orders")
+    .update({ status: "paid", updated_at: now })
+    .eq("id", tx.purchase_order_id);
 
-  if (updateErr) {
-    console.error("[flutterwave/webhook] Failed to update payment:", updateErr);
-    return NextResponse.json({ error: "DB update failed" }, { status: 500 });
-  }
+  // DB trigger fires on this update → enqueues order.payment_confirmed
+  await supabase
+    .from("supplier_orders")
+    .update({ status: "paid", updated_at: now })
+    .eq("purchase_order_id", tx.purchase_order_id);
 
-  // ── Update order status when payment succeeds ───────────────────────────
-  if (dbStatus === "succeeded") {
-    const { error: orderErr } = await supabase
-      .from("orders")
-      .update({ status: "confirmed", payment_status: "paid" })
-      .eq("id", payment.order_id);
+  console.log("[webhooks/flutterwave] Order paid:", tx.purchase_order_id, txRef);
 
-    if (orderErr) {
-      console.error("[flutterwave/webhook] Failed to update order:", orderErr);
-    } else {
-      console.log(
-        `[flutterwave/webhook] Order ${payment.order_id} confirmed — payment ${txRef}`
-      );
+  // ── Buyer confirmation email — immediate feedback, not via pipeline ────────
+  try {
+    const { data: po } = await supabase
+      .from("purchase_orders")
+      .select("order_number, grand_total, currency, buyer_user_id")
+      .eq("id", tx.purchase_order_id)
+      .single();
+
+    if (po) {
+      const { data: buyer } = await supabase
+        .from("user_profiles")
+        .select("email")
+        .eq("id", po.buyer_user_id)
+        .single();
+
+      if (buyer?.email) {
+        const amountStr = `${po.currency} ${((po.grand_total as number) / 100).toFixed(2)}`;
+        await sendOrderConfirmationEmail(buyer.email, po.order_number, amountStr);
+      }
     }
+  } catch (err) {
+    // Non-fatal — pipeline can send a follow-up if needed
+    console.error("[webhooks/flutterwave] Buyer email failed:", err);
   }
 
   return NextResponse.json({ received: true });
