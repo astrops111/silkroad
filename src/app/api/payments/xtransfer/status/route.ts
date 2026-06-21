@@ -58,6 +58,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           .from("purchase_orders")
           .update({ status: "paid", updated_at: now })
           .eq("id", tx.purchase_order_id);
+
+        await supabase
+          .from("supplier_orders")
+          .update({ status: "paid", updated_at: now })
+          .eq("purchase_order_id", tx.purchase_order_id);
       }
     }
   }

@@ -78,6 +78,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .from("purchase_orders")
         .update({ status: "paid", updated_at: now })
         .eq("id", tx.purchase_order_id);
+      await supabase
+        .from("supplier_orders")
+        .update({ status: "paid", updated_at: now })
+        .eq("purchase_order_id", tx.purchase_order_id);
       console.log("[webhooks/xtransfer] Request Money paid — order:", tx.purchase_order_id, rawPayload.requestId);
     } else if (result.status === "failed") {
       await supabase
@@ -125,6 +129,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .from("purchase_orders")
         .update({ status: "paid", updated_at: now })
         .eq("id", tx.purchase_order_id);
+
+      await supabase
+        .from("supplier_orders")
+        .update({ status: "paid", updated_at: now })
+        .eq("purchase_order_id", tx.purchase_order_id);
 
       console.log("[webhooks/xtransfer] Collection received — order paid:", tx.purchase_order_id, rawPayload.referenceNo);
     } else if (result.status === "failed") {
