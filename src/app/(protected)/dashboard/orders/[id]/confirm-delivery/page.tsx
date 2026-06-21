@@ -19,7 +19,7 @@ export default function ConfirmDeliveryPage() {
 
   async function handleConfirm() {
     setLoading(true);
-    const result = await confirmDelivery(orderId, "current-user");
+    const result = await confirmDelivery(orderId);
 
     if (!result.success) {
       toast.error(result.error ?? "Failed to confirm delivery");

@@ -18,7 +18,7 @@ export const handler: EventHandler = async (event, supabase) => {
     .eq("id", shipment_id)
     .in("status", ["dispatched", "in_transit"]);
 
-  await supabase.from("shipment_tracking_events").insert({
+  const { error: trackErr } = await supabase.from("shipment_tracking_events").insert({
     shipment_id,
     event_type: "arrived_destination",
     description: [
@@ -28,6 +28,7 @@ export const handler: EventHandler = async (event, supabase) => {
       p.arrivalDate && `arrival: ${p.arrivalDate}`,
     ].filter(Boolean).join(" — "),
   });
+  if (trackErr) console.error("[pipeline:shipment.arrived_destination] tracking insert failed:", trackErr.message);
 
   return {
     success: true,

@@ -10,10 +10,13 @@ type ActionResult<T = undefined> = {
 };
 
 export async function confirmDelivery(
-  supplierOrderId: string,
-  confirmedBy: string
+  supplierOrderId: string
 ): Promise<ActionResult<{ settlementId: string }>> {
   const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+  const confirmedBy = user.id;
 
   // Verify order is in a deliverable state
   const { data: order } = await supabase

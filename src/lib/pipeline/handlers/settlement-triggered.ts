@@ -1,7 +1,7 @@
 import type { EventHandler } from "../types";
 import { processSettlement } from "@/lib/settlement/engine";
 import { onSettlementPaid } from "@/lib/email/events";
-import { logActivity } from "@/lib/logging";
+import { logActivity, logError } from "@/lib/logging";
 
 const DISPUTE_WINDOW_MS = 72 * 60 * 60 * 1000;
 
@@ -48,7 +48,7 @@ export const handler: EventHandler = async (event, supabase) => {
         eventType:       "settlement.triggered",
         supplierOrderId: supplier_order_id,
         nextRetryAt:     retryAt,
-        idempotencyKey:  `settlement.defer:${supplier_order_id}`,
+        idempotencyKey:  `settlement.defer:${supplier_order_id}:${Math.floor(Date.now() / (6 * 3600 * 1000))}`,
         payload:         { deferred: true },
       }],
     };
@@ -71,6 +71,11 @@ export const handler: EventHandler = async (event, supabase) => {
   // Already processed
   if (settlement.status === "paid" || settlement.status === "processing") {
     return { success: true, result: { alreadyProcessed: true, status: settlement.status } };
+  }
+
+  // Terminal statuses that cannot be retried — skip silently
+  if (["cancelled", "voided", "refunded"].includes(settlement.status as string)) {
+    return { success: true, result: { skipped: true, status: settlement.status } };
   }
 
   if (settlement.status !== "ready") {
@@ -102,7 +107,7 @@ export const handler: EventHandler = async (event, supabase) => {
   // XTransfer payouts are async (status='processing') — email sent by webhook when confirmed.
   if (payoutResult.data?.status === "paid") {
     await onSettlementPaid(settlement.id)
-      .catch((err) => console.error("[pipeline:settlement.triggered] Supplier email failed:", err));
+      .catch((err) => logError({ errorCode: "EMAIL_SUPPLIER_PAYMENT", message: err instanceof Error ? err.message : String(err), source: "pipeline:settlement.triggered", severity: "warning", metadata: { settlementId: settlement.id } }).catch(() => {}));
   }
 
   await logActivity({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   CreditCard,
   Search,
@@ -464,13 +465,14 @@ export default function AdminPaymentsPage() {
 
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5">
-                        <button
-                          className="p-1.5 rounded-lg transition-colors"
+                        <Link
+                          href={`/admin/payments/${payment.id}`}
+                          className="p-1.5 rounded-lg transition-colors inline-flex items-center"
                           style={{ color: "var(--text-tertiary)" }}
                           title="View details"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
+                        </Link>
                         {payment.status === "failed" && (
                           <button
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"

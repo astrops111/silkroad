@@ -103,7 +103,7 @@ export const handler: EventHandler = async (event, supabase) => {
   }
 
   if (eDecResult.success) {
-    const now = new Date().toISOString();
+    const apiSubmittedAt = new Date().toISOString();
     await supabase.from("b2b_shipments").update({
       customs_api_submitted_at: apiSubmittedAt,
       customs_api_provider:     eDecResult.provider       ?? null,

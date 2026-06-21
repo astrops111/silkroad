@@ -348,7 +348,7 @@ export default function ShippingGroupDetailPage() {
           {products.length === 0 ? (
             <div className="py-10 text-center">
               <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No products assigned to this group yet</p>
-              <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>Open a product's edit page and select this group</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>Open a product&apos;s edit page and select this group</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-10 text-center">

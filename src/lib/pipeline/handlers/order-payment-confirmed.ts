@@ -1,6 +1,7 @@
 import type { EventHandler } from "../types";
 import { issueInvoice } from "@/lib/invoice";
 import { sendNewOrderToSupplierEmail } from "@/lib/email";
+import { logError } from "@/lib/logging";
 
 /**
  * order.payment_confirmed
@@ -63,7 +64,7 @@ export const handler: EventHandler = async (event, supabase) => {
       order.order_number,
       "Platform",      // never reveal buyer company to supplier
       amountStr
-    ).catch((err) => console.error("[pipeline:order.payment_confirmed] Supplier email failed:", err));
+    ).catch((err) => logError({ errorCode: "EMAIL_SUPPLIER_NEW_ORDER", message: err instanceof Error ? err.message : String(err), source: "pipeline:order.payment_confirmed", severity: "warning", metadata: { supplierOrderId: supplier_order_id } }).catch(() => {}));
   }
 
   // ── 2. Issue proforma invoice (platform's PO to supplier) ─────────────────
@@ -86,6 +87,14 @@ export const handler: EventHandler = async (event, supabase) => {
   const subtotal  = lineItems.reduce((s, i) => s + i.amount, 0);
   const taxAmount = lineItems.reduce((s, i) => s + i.taxAmount, 0);
   const today     = new Date().toISOString().split("T")[0];
+
+  // Reconciliation guard — catch data corruption before it reaches the e-invoice authority
+  if (subtotal + taxAmount !== order.total_amount) {
+    console.error(
+      `[pipeline:order.payment_confirmed] Invoice reconciliation mismatch for ${supplier_order_id}: ` +
+      `subtotal(${subtotal}) + tax(${taxAmount}) = ${subtotal + taxAmount} ≠ total(${order.total_amount})`
+    );
+  }
 
   // Idempotency: check whether we already issued a proforma for this order.
   // Prevents a second submission to Kenya eTIMS / Egypt ETA on handler retry.
@@ -163,9 +172,10 @@ export const handler: EventHandler = async (event, supabase) => {
   // .eq("status","paid") guard: if the order is already 'confirmed' (retry),
   // the UPDATE affects 0 rows and we return success without re-triggering the
   // DB trigger or writing a duplicate order_status_history row.
+  const now = new Date().toISOString();
   const { data: updated } = await supabase
     .from("supplier_orders")
-    .update({ status: "confirmed", updated_at: new Date().toISOString() })
+    .update({ status: "confirmed", confirmed_at: now, updated_at: now })
     .eq("id", supplier_order_id)
     .eq("status", "paid")
     .select("id");

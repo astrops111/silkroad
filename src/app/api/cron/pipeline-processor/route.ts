@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       errorMessage: message,
       metadata: { processed, succeeded, failed, dead },
     });
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Internal processing error" }, { status: 500 });
   }
 
   const status =
@@ -224,7 +224,7 @@ async function enqueueChildren(
   supabase: ReturnType<typeof createServiceClient>
 ) {
   for (const req of requests) {
-    await supabase.rpc("enqueue_pipeline_event", {
+    const { error } = await supabase.rpc("enqueue_pipeline_event", {
       p_event_type:        req.eventType,
       p_purchase_order_id: req.purchaseOrderId ?? parent.purchase_order_id ?? null,
       p_supplier_order_id: req.supplierOrderId ?? null,
@@ -236,5 +236,14 @@ async function enqueueChildren(
       p_next_retry_at:     req.nextRetryAt ?? null,
       p_max_attempts:      req.maxAttempts ?? 5,
     });
+    if (error) {
+      await logError({
+        errorCode: "PIPELINE_ENQUEUE_CHILD_FAILED",
+        message:   error.message,
+        source:    "pipeline-processor",
+        severity:  "error",
+        metadata:  { parentEventId: parent.id, parentEventType: parent.event_type, childEventType: req.eventType },
+      }).catch(() => {});
+    }
   }
 }

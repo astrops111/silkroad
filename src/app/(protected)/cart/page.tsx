@@ -36,7 +36,7 @@ export default function CartPage() {
     useCartStore();
 
   // Recompute only when items change, not on every re-render (qty updates etc.)
-  const shippingGroups = useMemo(() => getItemsByShippingGroup(), [items]);
+  const shippingGroups = useMemo(() => getItemsByShippingGroup(), [items, getItemsByShippingGroup]);
   const anyBelowMinimum = shippingGroups.some((g) => !g.meetsMinimum);
 
   // RFQ panel state
