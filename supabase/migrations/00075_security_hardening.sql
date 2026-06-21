@@ -90,26 +90,22 @@ REVOKE EXECUTE ON FUNCTION enqueue_pipeline_event(
 REVOKE EXECUTE ON FUNCTION claim_pipeline_events(INT) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION claim_pipeline_events(INT) FROM authenticated;
 
--- log_pipeline_activity (00074)
-REVOKE EXECUTE ON FUNCTION log_pipeline_activity(
-  system_activity_type,
-  TEXT,
-  TEXT,
-  UUID,
-  TEXT,
-  UUID,
-  JSONB
-) FROM PUBLIC;
-
-REVOKE EXECUTE ON FUNCTION log_pipeline_activity(
-  system_activity_type,
-  TEXT,
-  TEXT,
-  UUID,
-  TEXT,
-  UUID,
-  JSONB
-) FROM authenticated;
+-- log_pipeline_activity (defined in 00081; skip if not yet created)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'log_pipeline_activity'
+  ) THEN
+    REVOKE EXECUTE ON FUNCTION log_pipeline_activity(
+      system_activity_type, TEXT, TEXT, UUID, TEXT, UUID, JSONB
+    ) FROM PUBLIC;
+    REVOKE EXECUTE ON FUNCTION log_pipeline_activity(
+      system_activity_type, TEXT, TEXT, UUID, TEXT, UUID, JSONB
+    ) FROM authenticated;
+  END IF;
+END $$;
 
 
 -- ============================================================
