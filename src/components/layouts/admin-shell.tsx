@@ -22,6 +22,7 @@ import {
   ScrollText,
   Inbox,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
 
 const navSections = [
@@ -71,6 +72,7 @@ const navSections = [
     label: "Operations",
     items: [
       { name: "Logistics", href: "/admin/logistics", icon: Truck },
+      { name: "Quote Requests", href: "/admin/logistics/buyer-quotes", icon: ClipboardList },
       { name: "Route Optimizer", href: "/admin/logistics/optimize", icon: Route },
       { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
     ],

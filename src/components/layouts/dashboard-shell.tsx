@@ -18,11 +18,13 @@ import {
   Globe,
   LogOut,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 
 const BUYER_NAV = [
   { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
   { icon: ShoppingCart, label: "Orders", href: "/dashboard/orders" },
+  { icon: ClipboardList, label: "My Quotes", href: "/quotes" },
   { icon: FileText, label: "RFQ & Quotations", href: "/dashboard/rfq" },
   { icon: Sparkles, label: "AI Supplier Match", href: "/dashboard/rfq/match" },
   { icon: Package, label: "Products", href: "/dashboard/products" },

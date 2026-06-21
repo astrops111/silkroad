@@ -80,7 +80,7 @@ CREATE TRIGGER trg_buyer_quote_number
 
 CREATE TRIGGER trg_buyer_quote_requests_updated_at
   BEFORE UPDATE ON buyer_quote_requests
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE INDEX idx_bqr_buyer_user_id ON buyer_quote_requests(buyer_user_id);
 CREATE INDEX idx_bqr_status        ON buyer_quote_requests(status);
@@ -95,10 +95,5 @@ CREATE POLICY "bqr_buyer_own" ON buyer_quote_requests
   );
 
 CREATE POLICY "bqr_admin_all" ON buyer_quote_requests
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles
-      WHERE auth_id = auth.uid()
-        AND platform_role IN ('admin','ops','finance','logistics')
-    )
-  );
+  FOR ALL USING (is_admin())
+  WITH CHECK (is_admin());
