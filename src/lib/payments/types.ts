@@ -8,7 +8,8 @@ export type GatewayType =
   | "alipay"
   | "wechat_pay"
   | "bank_transfer"
-  | "platform_wallet";
+  | "platform_wallet"
+  | "xtransfer";        // outbound payout to CN/SEA suppliers via XTransfer
 
 export interface CreatePaymentParams {
   orderId: string;

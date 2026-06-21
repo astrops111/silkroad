@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getProductWithSupplier } from "@/lib/queries/products";
+import { volumeCbmFromDimensions } from "@/lib/logistics/rates/config";
 import ProductDetailClient from "./product-detail-client";
 
 export const dynamic = "force-dynamic";
@@ -49,10 +50,14 @@ export default async function ProductDetailPage({
     validUntil: c.valid_until,
   }));
 
+  const volumeCbm = volumeCbmFromDimensions(product.dimensions_cm) ?? null;
+
   return (
     <ProductDetailClient
       product={{
         id: product.id,
+        supplierId: product.supplier_id,
+        supplierName: product.companies?.name ?? "",
         name: product.name,
         nameLocal: product.name_local,
         description: product.description ?? "",
@@ -63,6 +68,7 @@ export default async function ProductDetailPage({
         brand: product.brand,
         originCountry: product.origin_country,
         weightKg: product.weight_kg,
+        volumeCbm,
         hsCode: product.hs_code,
         janCode: product.jan_code ?? null,
         shelfLifeDays: product.shelf_life_days ?? null,

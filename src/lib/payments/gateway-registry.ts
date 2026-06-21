@@ -6,6 +6,7 @@ import { stripeGateway } from "./gateways/stripe";
 import { wechatPayGateway } from "./gateways/wechat-pay";
 import { alipayGateway } from "./gateways/alipay";
 import { tigoCashGateway } from "./gateways/tigo-cash";
+import { xtransferGateway } from "./gateways/xtransfer";
 
 const gateways: Record<string, PaymentGateway> = {
   flutterwave: flutterwaveGateway,  // pan-Africa aggregator (preferred)
@@ -15,6 +16,7 @@ const gateways: Record<string, PaymentGateway> = {
   stripe: stripeGateway,
   wechat_pay: wechatPayGateway,
   alipay: alipayGateway,
+  xtransfer: xtransferGateway,      // payout-only: platform → CN/SEA suppliers
 };
 
 /**

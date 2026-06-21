@@ -13,6 +13,16 @@ const cartItemSchema = z.object({
   image: z.string().optional(),
   moq: z.number().int().positive().optional(),
   weightKg: z.number().positive().optional(),
+  volumeCbm: z.number().positive().optional(),
+  shippingMode: z.string().optional(),
+}).superRefine((item, ctx) => {
+  if (item.moq != null && item.quantity < item.moq) {
+    ctx.addIssue({
+      code: "custom",
+      message: `Quantity must be at least the minimum order quantity (${item.moq})`,
+      path: ["quantity"],
+    });
+  }
 });
 
 export const createOrderSchema = z.object({
@@ -21,7 +31,10 @@ export const createOrderSchema = z.object({
   buyerTaxId: z.string().optional(),
   buyerCompanyName: z.string().optional(),
   shippingAddresses: z.record(z.string(), z.unknown()).optional(),
-  paymentGateway: z.string().optional(),
+  paymentGateway: z.enum([
+    "mtn_momo", "airtel_money", "tigo_cash", "mpesa",
+    "stripe", "alipay", "wechat_pay", "bank_transfer", "escrow",
+  ]).optional(),
   phoneNumber: z.string().optional(),
   currency: z.string().length(3).default("USD"),
   note: z.string().max(1000).optional(),

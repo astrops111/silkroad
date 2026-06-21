@@ -4,11 +4,22 @@ import { calculateOrderTax } from "@/lib/tax";
 import { calculateShippingCost } from "@/lib/logistics/rates/calculator";
 import { createOrderSchema } from "@/lib/validators/order";
 import { onOrderPlacedOpsNotify } from "@/lib/email/events";
+import {
+  shippingGroupKey,
+  shippingModeToMethod,
+  chargeableWeightKg,
+  PLATFORM_MIN_GROUP_ORDER_VALUE,
+} from "@/lib/logistics/rates/config";
 import { randomBytes } from "crypto";
 
 /**
  * POST /api/orders — Create a multi-vendor purchase order
- * Splits cart items by supplier, calculates tax per supplier, creates purchase_order + supplier_orders
+ *
+ * Items are grouped by (supplierId, shippingMode) into shipping groups.
+ * Each group is validated independently:
+ *   - subtotal >= PLATFORM_MIN_GROUP_ORDER_VALUE
+ *   - per-item quantity >= moq  (enforced by Zod schema)
+ * Shipping cost and CBM are computed per group using the rate for that group's shipping method.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -21,7 +32,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createOrderSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -54,99 +70,209 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  // Group items by supplier
-  const supplierGroups: Record<string, typeof items> = {};
+  // ── Group items by (supplierId, shippingMode) ─────────────────────────────
+  type GroupEntry = {
+    groupKey: string;
+    supplierId: string;
+    shippingMode: string | undefined;
+    items: typeof items;
+  };
+  const shippingGroups: Record<string, GroupEntry> = {};
+
   for (const item of items) {
-    if (!supplierGroups[item.supplierId]) {
-      supplierGroups[item.supplierId] = [];
+    const key = shippingGroupKey(item.supplierId, item.shippingMode);
+    if (!shippingGroups[key]) {
+      shippingGroups[key] = {
+        groupKey: key,
+        supplierId: item.supplierId,
+        shippingMode: item.shippingMode,
+        items: [],
+      };
     }
-    supplierGroups[item.supplierId].push(item);
+    shippingGroups[key].items.push(item);
   }
 
-  // Generate order number with cryptographic randomness
+  // ── Validate per-group minimum order value ────────────────────────────────
+  const belowMinimum: { groupKey: string; subtotalMinor: number; minimumMinor: number }[] = [];
+  for (const group of Object.values(shippingGroups)) {
+    const groupSubtotal = group.items.reduce(
+      (sum, item) => sum + item.unitPrice * item.quantity,
+      0
+    );
+    if (groupSubtotal < PLATFORM_MIN_GROUP_ORDER_VALUE) {
+      belowMinimum.push({
+        groupKey: group.groupKey,
+        subtotalMinor: groupSubtotal,
+        minimumMinor: PLATFORM_MIN_GROUP_ORDER_VALUE,
+      });
+    }
+  }
+  if (belowMinimum.length > 0) {
+    return NextResponse.json(
+      {
+        error: "One or more shipping groups do not meet the minimum order value",
+        minimumMinor: PLATFORM_MIN_GROUP_ORDER_VALUE,
+        groups: belowMinimum,
+      },
+      { status: 400 }
+    );
+  }
+
+  // ── Fetch all active shipping rates upfront (keyed by shipping_method) ───
+  const { data: rateRows } = await supabase
+    .from("shipping_rates")
+    .select(
+      "shipping_method, base_rate, per_kg_rate, per_cbm_rate, min_charge, free_shipping_threshold, estimated_days_min, estimated_days_max, currency"
+    )
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  const ratesByMethod: Record<string, typeof rateRows extends (infer R)[] | null ? R : never> = {};
+  for (const row of rateRows ?? []) {
+    if (!ratesByMethod[row.shipping_method]) {
+      ratesByMethod[row.shipping_method] = row;
+    }
+  }
+
+  function getRateForMethod(method: string) {
+    const row = ratesByMethod[method];
+    return {
+      baseRate: row?.base_rate ?? 500,
+      perKgRate: row?.per_kg_rate ?? 150,
+      perCbmRate: row?.per_cbm_rate ?? 0,
+      minCharge: row?.min_charge ?? 500,
+      freeShippingThreshold: row?.free_shipping_threshold ?? 100000,
+      estimatedDaysMin: row?.estimated_days_min ?? undefined,
+      estimatedDaysMax: row?.estimated_days_max ?? undefined,
+      currency: row?.currency ?? currency,
+    };
+  }
+
+  // ── Fetch supplier country codes (deduplicated) ───────────────────────────
+  const uniqueSupplierIds = [...new Set(items.map((i) => i.supplierId))];
+  const { data: supplierRows } = await supabase
+    .from("companies")
+    .select("id, country_code")
+    .in("id", uniqueSupplierIds);
+
+  const supplierCountry: Record<string, string> = {};
+  for (const row of supplierRows ?? []) {
+    supplierCountry[row.id] = row.country_code;
+  }
+
+  // ── Generate order number ─────────────────────────────────────────────────
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const rand = randomBytes(3).toString("hex").toUpperCase();
   const orderNumber = `ORD-${date}-${rand}`;
 
-  // Calculate totals per supplier
+  // ── Calculate totals per shipping group ───────────────────────────────────
   let grandSubtotal = 0;
   let grandTax = 0;
   let grandShipping = 0;
+  let grandVolumeCbm = 0;
 
-  const supplierOrdersData = [];
-  let supplierIndex = 0;
+  type GroupOrderData = {
+    groupKey: string;
+    supplier_id: string;
+    order_number: string;
+    subtotal: number;
+    shipping_fee: number;
+    tax_amount: number;
+    total_amount: number;
+    currency: string;
+    payment_gateway: string | undefined;
+    items: typeof items;
+    status: string;
+    shippingMode: string | undefined;
+    totalVolumeCbm: number;
+    shippingBreakdown: string;
+    perCbmRate: number;
+  };
+  const groupOrdersData: GroupOrderData[] = [];
+  let groupIndex = 0;
 
-  for (const [supplierId, supplierItems] of Object.entries(supplierGroups)) {
-    const subtotal = supplierItems.reduce(
-      (sum: number, item: { unitPrice: number; quantity: number }) =>
-        sum + item.unitPrice * item.quantity,
+  for (const group of Object.values(shippingGroups)) {
+    const { supplierId, shippingMode, items: groupItems } = group;
+
+    const subtotal = groupItems.reduce(
+      (sum, item) => sum + item.unitPrice * item.quantity,
       0
     );
 
-    // Get supplier country for tax calculation
-    const { data: supplier } = await supabase
-      .from("companies")
-      .select("country_code")
-      .eq("id", supplierId)
-      .single();
+    const originCountry = supplierCountry[supplierId] ?? "CN";
 
-    // Calculate tax
+    // Tax
     const taxResult = calculateOrderTax({
       subtotal,
       currency,
-      supplierCountry: supplier?.country_code || "GH",
+      supplierCountry: originCountry,
       buyerCountry: profile.country_code || "GH",
     });
 
-    // Calculate shipping via logistics rate engine
-    const totalWeight = supplierItems.reduce(
-      (sum: number, item: { weightKg?: number; quantity: number }) =>
-        sum + (item.weightKg || 0.5) * item.quantity,
+    // Shipping — per-group totals and chargeable weight
+    const totalActualKg = groupItems.reduce(
+      (sum, item) => sum + (item.weightKg ?? 0) * item.quantity,
       0
     );
+    const totalVolumeCbm = groupItems.reduce(
+      (sum, item) => sum + (item.volumeCbm ?? 0) * item.quantity,
+      0
+    );
+    // Chargeable weight = max(actual, volumetric) — carriers bill the higher of the two
+    const totalWeightKg = chargeableWeightKg(totalActualKg, totalVolumeCbm, shippingMode);
+    if (totalWeightKg === 0) {
+      console.warn("[orders] Zero chargeable weight for group", group.groupKey, "— items may be missing weight/dimensions data");
+    }
+
+    const shippingMethod = shippingModeToMethod(shippingMode);
+    const rate = getRateForMethod(shippingMethod);
+
     const shippingResult = calculateShippingCost(
       {
-        originZoneId: supplier?.country_code || "CN",
+        originZoneId: originCountry,
         destinationZoneId: profile.country_code || "GH",
-        shippingMethod: "platform_standard",
-        totalWeightKg: totalWeight,
+        shippingMethod,
+        totalWeightKg,
+        totalVolumeCbm: totalVolumeCbm > 0 ? totalVolumeCbm : undefined,
         subtotal,
         currency,
       },
-      {
-        baseRate: 500,       // $5.00 base
-        perKgRate: 150,      // $1.50/kg
-        perCbmRate: 0,
-        minCharge: 500,      // $5.00 minimum
-        freeShippingThreshold: 100000, // Free above $1000
-        currency,
-      }
+      rate
     );
+
     const shippingFee = shippingResult.totalCost;
-    const soNumber = `${orderNumber}-S${++supplierIndex}`;
+    // customsDuty is an estimated landed-cost figure separate from import VAT
+    const customsDuty = taxResult.customsDuty ?? 0;
+    const groupTaxAmount = taxResult.breakdown.totalTax + customsDuty;
+    const soNumber = `${orderNumber}-G${++groupIndex}`;
 
     grandSubtotal += subtotal;
-    grandTax += taxResult.breakdown.totalTax;
+    grandTax += groupTaxAmount;
     grandShipping += shippingFee;
+    grandVolumeCbm += totalVolumeCbm;
 
-    supplierOrdersData.push({
+    groupOrdersData.push({
+      groupKey: group.groupKey,
       supplier_id: supplierId,
       order_number: soNumber,
       subtotal,
       shipping_fee: shippingFee,
-      tax_amount: taxResult.breakdown.totalTax,
-      total_amount: subtotal + taxResult.breakdown.totalTax + shippingFee,
+      tax_amount: groupTaxAmount,
+      total_amount: subtotal + groupTaxAmount + shippingFee,
       currency,
       payment_gateway: paymentGateway,
-      items: supplierItems,
+      items: groupItems,
       status: "pending_payment",
+      shippingMode,
+      totalVolumeCbm,
+      shippingBreakdown: shippingResult.breakdown,
+      perCbmRate: rate.perCbmRate,
     });
   }
 
   const grandTotal = grandSubtotal + grandTax + grandShipping;
 
-  // Create purchase order + supplier orders in a transaction
-  // Using Supabase's RPC for atomic operation
+  // ── Persist purchase order ────────────────────────────────────────────────
   const { data: purchaseOrder, error: poError } = await supabase
     .from("purchase_orders")
     .insert({
@@ -174,9 +300,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Create supplier orders
-  const supplierOrderIds = [];
-  for (const soData of supplierOrdersData) {
+  // ── Persist supplier orders (one per shipping group) ─────────────────────
+  const supplierOrderIds: string[] = [];
+  const failedGroups: string[] = [];
+  const responseGroups: {
+    cartGroupKey: string;
+    supplierOrderNumber: string;
+    shippingMode: string | undefined;
+    subtotal: number;
+    totalVolumeCbm: number;
+    perCbmRate: number;
+    volumeCharge: number;
+    shippingFee: number;
+    breakdown: string;
+  }[] = [];
+
+  for (const soData of groupOrdersData) {
     const { data: so, error: soError } = await supabase
       .from("supplier_orders")
       .insert({
@@ -196,27 +335,60 @@ export async function POST(request: NextRequest) {
 
     if (soError) {
       console.error("[orders] Failed to create supplier order:", soError);
+      failedGroups.push(soData.order_number);
       continue;
     }
 
     supplierOrderIds.push(so.id);
 
-    // Create order items
-    const orderItems = soData.items.map(
-      (item) => ({
-        supplier_order_id: so.id,
-        product_id: item.productId,
-        variant_id: item.variantId || null,
-        product_name: item.productName || item.name || "",
-        variant_name: item.variantName || null,
-        unit_price: item.unitPrice,
-        quantity: item.quantity,
-        subtotal: item.unitPrice * item.quantity,
-        currency: soData.currency,
-      })
-    );
+    const orderItems = soData.items.map((item) => ({
+      supplier_order_id: so.id,
+      product_id: item.productId,
+      variant_id: item.variantId || null,
+      product_name: item.productName || item.name || "",
+      variant_name: item.variantName || null,
+      unit_price: item.unitPrice,
+      quantity: item.quantity,
+      subtotal: item.unitPrice * item.quantity,
+      currency: soData.currency,
+    }));
 
-    await supabase.from("supplier_order_items").insert(orderItems);
+    const { error: itemsError } = await supabase
+      .from("supplier_order_items")
+      .insert(orderItems);
+
+    if (itemsError) {
+      console.error("[orders] Failed to insert order items for", soData.order_number, itemsError);
+      failedGroups.push(soData.order_number);
+      continue;
+    }
+
+    responseGroups.push({
+      cartGroupKey: soData.groupKey,
+      supplierOrderNumber: soData.order_number,
+      shippingMode: soData.shippingMode,
+      subtotal: soData.subtotal,
+      totalVolumeCbm: soData.totalVolumeCbm,
+      perCbmRate: soData.perCbmRate,
+      volumeCharge: Math.round(soData.totalVolumeCbm * soData.perCbmRate),
+      shippingFee: soData.shipping_fee,
+      breakdown: soData.shippingBreakdown,
+    });
+  }
+
+  if (failedGroups.length > 0) {
+    console.error("[orders] Order partially failed for PO", purchaseOrder.id, failedGroups);
+    // Mark the purchase order failed so it is identifiable by a cleanup job.
+    // Any supplier_orders already inserted reference this PO via purchase_order_id
+    // and will be caught by the same cleanup pass.
+    await supabase
+      .from("purchase_orders")
+      .update({ status: "failed" })
+      .eq("id", purchaseOrder.id);
+    return NextResponse.json(
+      { error: "Order creation failed — please contact support" },
+      { status: 500 }
+    );
   }
 
   // Fire-and-forget ops notification — do not block the response.
@@ -230,8 +402,11 @@ export async function POST(request: NextRequest) {
     orderNumber,
     grandTotal,
     currency,
-    supplierOrderCount: supplierOrderIds.length,
-    // Next step: client should initiate payment
+    shippingGroupCount: supplierOrderIds.length,
+    shippingBreakdown: {
+      totalVolumeCbm: grandVolumeCbm,
+      groups: responseGroups,
+    },
     nextAction: "initiate_payment",
   });
 }

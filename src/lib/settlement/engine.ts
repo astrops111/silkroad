@@ -110,15 +110,28 @@ export async function processSettlement(settlementId: string) {
   // Get supplier payout method
   const { data: profile } = await supabase
     .from("supplier_profiles")
-    .select("stripe_account_id, mobile_money_number, mobile_money_provider, bank_code, bank_account_number")
+    .select("stripe_account_id, mobile_money_number, mobile_money_provider, bank_code, bank_account_number, xtransfer_payee_id, xtransfer_payout_currency")
     .eq("company_id", settlement.supplier_id)
     .single();
 
   let payoutMethod = "platform_wallet";
   let payoutReference = "";
+  let xtransferTransferId: string | null = null;
 
   try {
-    if (profile?.stripe_account_id) {
+    if (profile?.xtransfer_payee_id) {
+      // XTransfer — preferred for CN/SEA/KR/JP suppliers with a registered XTransfer payee
+      const { xtransferGateway } = await import("@/lib/payments/gateways/xtransfer");
+      const result = await xtransferGateway.transfer!({
+        recipientAccountId: profile.xtransfer_payee_id,
+        amount: Number(settlement.net_payout),
+        currency: (profile.xtransfer_payout_currency as string | null) ?? settlement.currency,
+        reference: settlement.settlement_number, // used as idempotency key in XTransfer referenceNo
+      });
+      payoutMethod = "xtransfer";
+      payoutReference = result.transferId;
+      xtransferTransferId = result.transferId;
+    } else if (profile?.stripe_account_id) {
       // Stripe Connect transfer
       const Stripe = (await import("stripe")).default;
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -149,6 +162,7 @@ export async function processSettlement(settlementId: string) {
         status: "paid",
         payout_method: payoutMethod,
         payout_reference: payoutReference,
+        xtransfer_transfer_id: xtransferTransferId,
         paid_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

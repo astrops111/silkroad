@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useCartStore } from "@/stores/cart";
 import {
   Star,
   Heart,
@@ -25,6 +26,8 @@ import { applyMarkup } from "@/lib/pricing";
 
 interface ProductData {
   id: string;
+  supplierId: string;
+  supplierName: string;
   name: string;
   nameLocal: string | null;
   description: string;
@@ -35,6 +38,7 @@ interface ProductData {
   brand: string | null;
   originCountry: string | null;
   weightKg: number | null;
+  volumeCbm: number | null;
   hsCode: string | null;
   janCode: string | null;
   shelfLifeDays: number | null;
@@ -123,6 +127,9 @@ export default function ProductDetailClient({
   const [activeTab, setActiveTab] = useState<
     "description" | "specs" | "certifications"
   >("description");
+  const [addedToCart, setAddedToCart] = useState(false);
+
+  const addItem = useCartStore((s) => s.addItem);
 
   const region = regionMeta(product.originCountry);
 
@@ -135,6 +142,25 @@ export default function ProductDetailClient({
 
   const unitPrice = applyMarkup(activeTier?.unitPrice ?? product.basePrice);
   const total = unitPrice * quantity;
+
+  function handleAddToCart() {
+    addItem({
+      productId: product.id,
+      supplierId: product.supplierId,
+      supplierName: product.supplierName,
+      productName: product.name,
+      unitPrice: Math.round(unitPrice * 100), // minor units (cents), markup already applied
+      quantity,
+      currency: product.currency,
+      moq: product.moq,
+      imageUrl: images[0]?.url,
+      weightKg: product.weightKg ?? undefined,
+      volumeCbm: product.volumeCbm ?? undefined,
+      shippingMode: product.shippingMode ?? undefined,
+    });
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+  }
 
   const currentImage = images[selectedImage]?.url;
 
@@ -415,11 +441,18 @@ export default function ProductDetailClient({
 
                 {/* CTAs */}
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                  <button className="btn-primary flex-1 justify-center">
+                  <button
+                    className="btn-primary flex-1 justify-center"
+                    onClick={handleAddToCart}
+                  >
                     <ShoppingCart className="w-4 h-4" />
-                    Place order
+                    {addedToCart ? "Added to cart" : "Place order"}
                   </button>
-                  <button className="btn-secondary flex-1 justify-center">
+                  <button
+                    className="btn-secondary flex-1 justify-center opacity-50 cursor-not-allowed"
+                    disabled
+                    title="Add this item to your cart first, then request quotes from the cart"
+                  >
                     <MessageSquare className="w-4 h-4" />
                     Request quote
                   </button>
