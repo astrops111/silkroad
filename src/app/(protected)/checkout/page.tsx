@@ -41,19 +41,21 @@ const PAYMENT_METHODS: {
   icon: typeof CreditCard;
   description: string;
   fields: string[];
+  badge?: "recommended" | "fallback";
 }[] = [
   {
-    id: "mtn_momo",
-    name: "MTN Mobile Money",
-    icon: Smartphone,
-    description: "Pay via MTN MoMo. You'll receive a USSD prompt on your phone.",
-    fields: ["phone"],
+    id: "xtransfer",
+    name: "B2B Wire Transfer",
+    icon: Building2,
+    description: "SWIFT wire to XTransfer virtual account. 0 receiving fees. 1–3 business days.",
+    fields: [],
+    badge: "recommended",
   },
   {
-    id: "airtel_money",
-    name: "Airtel Money",
+    id: "xtransfer_mobile",
+    name: "Mobile Money",
     icon: Smartphone,
-    description: "Pay via Airtel Money. Enter your registered number.",
+    description: "Pay via MTN, Orange, Airtel, Vodacom, NIBSS, OZOW. Instant. Covers Nigeria, Cameroon, Tanzania, South Africa and more.",
     fields: ["phone"],
   },
   {
@@ -64,25 +66,28 @@ const PAYMENT_METHODS: {
     fields: ["card"],
   },
   {
+    id: "mtn_momo",
+    name: "MTN Mobile Money",
+    icon: Smartphone,
+    description: "Pay via MTN MoMo. You'll receive a USSD prompt on your phone.",
+    fields: ["phone"],
+    badge: "fallback",
+  },
+  {
+    id: "airtel_money",
+    name: "Airtel Money",
+    icon: Smartphone,
+    description: "Pay via Airtel Money. Enter your registered number.",
+    fields: ["phone"],
+    badge: "fallback",
+  },
+  {
     id: "bank_transfer",
     name: "Bank Transfer",
     icon: Building2,
-    description: "For large orders. Transfer details will be provided after order creation.",
+    description: "For orders where other payment methods are unavailable.",
     fields: [],
-  },
-  {
-    id: "xtransfer",
-    name: "XTransfer (B2B Wire)",
-    icon: Building2,
-    description: "Cross-border SWIFT wire via XTransfer. Recommended for large B2B orders. 0 receiving fees.",
-    fields: [],
-  },
-  {
-    id: "xtransfer_mobile",
-    name: "XTransfer (Mobile Money)",
-    icon: Smartphone,
-    description: "Pay via MTN, Orange, Airtel, Vodacom, NIBSS — available in Nigeria, Cameroon, Tanzania, Côte d'Ivoire, and more.",
-    fields: ["phone", "country"],
+    badge: "fallback",
   },
 ];
 
@@ -100,10 +105,26 @@ const XTRANSFER_COUNTRIES: { code: string; name: string; networks: string }[] = 
   { code: "CD", name: "DR Congo",      networks: "Airtel, Voda"       },
 ];
 
+const XTRANSFER_COUNTRY_CODES = new Set(XTRANSFER_COUNTRIES.map((c) => c.code));
+
+// Additional African markets routed to Flutterwave (not covered by XTransfer mobile)
+const FLUTTERWAVE_COUNTRIES = [
+  { code: "GH", name: "Ghana" },
+  { code: "KE", name: "Kenya" },
+  { code: "ET", name: "Ethiopia" },
+  { code: "EG", name: "Egypt" },
+  { code: "MA", name: "Morocco" },
+  { code: "MZ", name: "Mozambique" },
+  { code: "MW", name: "Malawi" },
+  { code: "ZW", name: "Zimbabwe" },
+  { code: "AO", name: "Angola" },
+];
+
 export default function CheckoutPage() {
   const { items, getItemsBySupplier, getTotal, updateQuantity, removeItem } = useCartStore();
   const [step, setStep] = useState<CheckoutStep>("cart");
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("mtn_momo");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("xtransfer");
+  const [buyerCountry, setBuyerCountry] = useState<string>("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [taxId, setTaxId] = useState("");
@@ -118,6 +139,30 @@ export default function CheckoutPage() {
   const estimatedTax = Math.round(subtotal * 0.15);
   const grandTotal = subtotal + estimatedTax;
 
+  const handleCountryChange = (country: string) => {
+    setBuyerCountry(country);
+    setXtransferCountry(country); // keep in sync for xtransfer_mobile request
+    const xtSupported = XTRANSFER_COUNTRY_CODES.has(country);
+    if (xtSupported && (selectedPayment === "mtn_momo" || selectedPayment === "airtel_money")) {
+      setSelectedPayment("xtransfer_mobile");
+    } else if (!xtSupported && selectedPayment === "xtransfer_mobile") {
+      setSelectedPayment("mtn_momo");
+    }
+  };
+
+  // XTransfer is primary; Flutterwave mobile options only shown when country isn't covered
+  const visibleMethods = PAYMENT_METHODS.filter((m) => {
+    if (!buyerCountry) return true;
+    const xtSupported = XTRANSFER_COUNTRY_CODES.has(buyerCountry);
+    if (xtSupported && (m.id === "mtn_momo" || m.id === "airtel_money")) return false;
+    if (!xtSupported && m.id === "xtransfer_mobile") return false;
+    return true;
+  });
+
+  // Map checkout UI method to the gateway name the order API accepts
+  const orderGateway =
+    selectedPayment === "xtransfer_mobile" ? "xtransfer" : selectedPayment;
+
   const handlePlaceOrder = async () => {
     setIsSubmitting(true);
     setStep("confirming");
@@ -131,7 +176,7 @@ export default function CheckoutPage() {
           items,
           buyerCompanyName: companyName || undefined,
           buyerTaxId: taxId || undefined,
-          paymentGateway: selectedPayment,
+          paymentGateway: orderGateway,
           phoneNumber: phoneNumber || undefined,
           currency: "USD",
         }),
@@ -547,8 +592,37 @@ export default function CheckoutPage() {
                 <h3 className="font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
                   Payment Method
                 </h3>
+                {/* Country selector — routes mobile money to XTransfer (primary) or Flutterwave (fallback) */}
+                <div className="mb-5">
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                    Your Country
+                  </label>
+                  <select
+                    value={buyerCountry}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
+                  >
+                    <option value="">Select your country…</option>
+                    <optgroup label="Supported via XTransfer Mobile">
+                      {XTRANSFER_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Other African markets">
+                      {FLUTTERWAVE_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  {buyerCountry && !XTRANSFER_COUNTRY_CODES.has(buyerCountry) && (
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                      Mobile money for your country is processed via Flutterwave.
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-3">
-                  {PAYMENT_METHODS.map((method) => (
+                  {visibleMethods.map((method) => (
                     <label
                       key={method.id}
                       className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
@@ -566,9 +640,19 @@ export default function CheckoutPage() {
                         className="mt-1 accent-[var(--amber)]"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <method.icon className="w-4 h-4 text-[var(--amber-dark)]" />
                           <span className="font-semibold text-[var(--text-primary)]">{method.name}</span>
+                          {method.badge === "recommended" && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--amber)]/15 text-[var(--amber-dark)]">
+                              Recommended
+                            </span>
+                          )}
+                          {method.badge === "fallback" && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--surface-secondary)] text-[var(--text-tertiary)]">
+                              via Flutterwave
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-[var(--text-tertiary)] mt-1">{method.description}</p>
                       </div>
@@ -592,25 +676,15 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Country + phone for XTransfer Mobile Money */}
+                {/* Phone for XTransfer Mobile Money (country already set above) */}
                 {selectedPayment === "xtransfer_mobile" && (
                   <div className="mt-4 space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                        Your Country
-                      </label>
-                      <select
-                        value={xtransferCountry}
-                        onChange={(e) => setXtransferCountry(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
-                      >
-                        {XTRANSFER_COUNTRIES.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.name} — {c.networks}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {buyerCountry && XTRANSFER_COUNTRIES.find((c) => c.code === buyerCountry) && (
+                      <p className="text-xs font-medium text-[var(--amber-dark)]">
+                        Networks in {XTRANSFER_COUNTRIES.find((c) => c.code === buyerCountry)!.name}:{" "}
+                        {XTRANSFER_COUNTRIES.find((c) => c.code === buyerCountry)!.networks}
+                      </p>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                         Mobile Number
