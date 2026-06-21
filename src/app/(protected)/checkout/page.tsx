@@ -19,7 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-type PaymentMethod = "mtn_momo" | "airtel_money" | "stripe" | "bank_transfer" | "xtransfer";
+type PaymentMethod = "mtn_momo" | "airtel_money" | "stripe" | "bank_transfer" | "xtransfer" | "xtransfer_mobile";
 type CheckoutStep = "cart" | "shipping" | "payment" | "confirming" | "instructions" | "success";
 
 interface XTransferInstructions {
@@ -74,9 +74,30 @@ const PAYMENT_METHODS: {
     id: "xtransfer",
     name: "XTransfer (B2B Wire)",
     icon: Building2,
-    description: "Cross-border SWIFT wire via XTransfer. Recommended for orders from China, SE Asia, Korea, Japan. 0 receiving fees.",
+    description: "Cross-border SWIFT wire via XTransfer. Recommended for large B2B orders. 0 receiving fees.",
     fields: [],
   },
+  {
+    id: "xtransfer_mobile",
+    name: "XTransfer (Mobile Money)",
+    icon: Smartphone,
+    description: "Pay via MTN, Orange, Airtel, Vodacom, NIBSS — available in Nigeria, Cameroon, Tanzania, Côte d'Ivoire, and more.",
+    fields: ["phone", "country"],
+  },
+];
+
+const XTRANSFER_COUNTRIES: { code: string; name: string; networks: string }[] = [
+  { code: "NG", name: "Nigeria",       networks: "NIBSS"              },
+  { code: "CM", name: "Cameroon",      networks: "Orange, MTN"        },
+  { code: "CI", name: "Côte d'Ivoire", networks: "Orange, MTN, Moov"  },
+  { code: "BJ", name: "Benin",         networks: "MTN, Moov"          },
+  { code: "TZ", name: "Tanzania",      networks: "Vodacom"            },
+  { code: "ZA", name: "South Africa",  networks: "OZOW"               },
+  { code: "SN", name: "Senegal",       networks: "Orange, Free Money" },
+  { code: "RW", name: "Rwanda",        networks: "Airtel, MTN"        },
+  { code: "UG", name: "Uganda",        networks: "MTN, Airtel"        },
+  { code: "ZM", name: "Zambia",        networks: "MTN"                },
+  { code: "CD", name: "DR Congo",      networks: "Airtel, Voda"       },
 ];
 
 export default function CheckoutPage() {
@@ -89,6 +110,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pollStatus, setPollStatus] = useState<string>("");
   const [xtransferInstructions, setXtransferInstructions] = useState<XTransferInstructions | null>(null);
+  const [xtransferCountry, setXtransferCountry] = useState<string>("NG");
 
   const supplierGroups = getItemsBySupplier();
   const subtotal = getTotal();
@@ -180,6 +202,49 @@ export default function CheckoutPage() {
           setStep("success");
           useCartStore.getState().clearCart();
         }
+      } else if (selectedPayment === "xtransfer_mobile") {
+        // XTransfer Request Money — push to buyer's phone, then poll for confirmation
+        const payRes = await fetch("/api/payments/xtransfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.orderId,
+            amount: grandTotal,
+            currency: "USD",
+            phoneNumber,
+            country: xtransferCountry,
+          }),
+        });
+        const payment = await payRes.json();
+        if (!payment.success) throw new Error(payment.error ?? "Failed to send payment request");
+
+        // Poll for confirmation — same pattern as MTN MoMo
+        setPollStatus("Payment request sent to your phone. Please approve it now...");
+        const txId = payment.transactionId;
+        let attempts = 0;
+        const maxAttempts = 24; // 2 minutes at 5s intervals
+
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          const statusRes = await fetch(`/api/payments/xtransfer/status?transactionId=${txId}`);
+          const status = await statusRes.json();
+
+          if (status.status === "succeeded") {
+            clearInterval(pollInterval);
+            setStep("success");
+            useCartStore.getState().clearCart();
+          } else if (status.status === "failed" || attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            setPollStatus(
+              status.status === "failed"
+                ? "Payment was declined. Please try again."
+                : "Payment timed out. Please try again."
+            );
+            setIsSubmitting(false);
+            setStep("payment");
+          }
+        }, 5000);
+
       } else if (selectedPayment === "xtransfer") {
         // XTransfer B2B wire — fetch virtual account instructions, show instructions step
         const payRes = await fetch("/api/payments/xtransfer", {
@@ -368,8 +433,8 @@ export default function CheckoutPage() {
             {pollStatus || "Processing your payment..."}
           </h2>
           <p className="text-[var(--text-secondary)]">
-            {selectedPayment.includes("momo") || selectedPayment.includes("airtel")
-              ? "Check your phone for the USSD prompt. Enter your PIN to confirm payment."
+            {(selectedPayment.includes("momo") || selectedPayment.includes("airtel") || selectedPayment === "xtransfer_mobile")
+              ? "Check your phone for the payment prompt. Enter your PIN to confirm."
               : "Please wait while we process your payment."}
           </p>
         </div>
@@ -511,7 +576,7 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Phone number input for mobile money */}
+                {/* Phone number for MTN / Airtel */}
                 {(selectedPayment === "mtn_momo" || selectedPayment === "airtel_money") && (
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
@@ -524,6 +589,43 @@ export default function CheckoutPage() {
                       placeholder="+233 XXX XXX XXXX"
                       className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
                     />
+                  </div>
+                )}
+
+                {/* Country + phone for XTransfer Mobile Money */}
+                {selectedPayment === "xtransfer_mobile" && (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Your Country
+                      </label>
+                      <select
+                        value={xtransferCountry}
+                        onChange={(e) => setXtransferCountry(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
+                      >
+                        {XTRANSFER_COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.name} — {c.networks}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Mobile Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+234 XXX XXX XXXX"
+                        className="w-full px-4 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/30 focus:border-[var(--amber)] transition-all"
+                      />
+                      <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                        You will receive a payment approval prompt on this number.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -567,7 +669,7 @@ export default function CheckoutPage() {
 
                 <button
                   onClick={handlePlaceOrder}
-                  disabled={isSubmitting || (["mtn_momo", "airtel_money"].includes(selectedPayment) && !phoneNumber)}
+                  disabled={isSubmitting || (["mtn_momo", "airtel_money", "xtransfer_mobile"].includes(selectedPayment) && !phoneNumber)}
                   className="btn-primary w-full mt-6 !py-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

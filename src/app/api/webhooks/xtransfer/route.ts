@@ -30,8 +30,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let result: Awaited<ReturnType<typeof xtransferGateway.handleWebhook>>;
   let rawPayload: {
     eventType?: string;
-    collectionId?: string;
-    transferId?: string;
+    requestId?: string;    // Request Money (mobile money)
+    collectionId?: string; // Wire collection
+    transferId?: string;   // Payout (platform → supplier)
     referenceNo?: string;
     status?: string;
   };
@@ -46,7 +47,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const supabase = createServiceClient();
 
-  // ── Collection event (buyer → platform) ──────────────────────────────────
+  // ── Request Money event (African mobile money push — buyer → platform) ────
+  const isRequestMoney =
+    rawPayload.requestId != null ||
+    rawPayload.eventType?.startsWith("request_money");
+
+  if (isRequestMoney) {
+    const { data: tx } = await supabase
+      .from("payment_transactions")
+      .select("id, status, purchase_order_id")
+      .eq("gateway_transaction_id", rawPayload.requestId ?? "")
+      .maybeSingle();
+
+    if (!tx) {
+      console.warn("[webhooks/xtransfer] No payment_transaction for requestId", rawPayload.requestId);
+      return NextResponse.json({ received: true });
+    }
+
+    if (tx.status === "succeeded" || tx.status === "failed") {
+      return NextResponse.json({ received: true }); // idempotency
+    }
+
+    const now = new Date().toISOString();
+    if (result.status === "succeeded") {
+      await supabase
+        .from("payment_transactions")
+        .update({ status: "succeeded", updated_at: now })
+        .eq("id", tx.id);
+      await supabase
+        .from("purchase_orders")
+        .update({ status: "paid", updated_at: now })
+        .eq("id", tx.purchase_order_id);
+      console.log("[webhooks/xtransfer] Request Money paid — order:", tx.purchase_order_id, rawPayload.requestId);
+    } else if (result.status === "failed") {
+      await supabase
+        .from("payment_transactions")
+        .update({ status: "failed", updated_at: now })
+        .eq("id", tx.id);
+      console.error("[webhooks/xtransfer] Request Money failed:", rawPayload.requestId);
+    }
+    return NextResponse.json({ received: true });
+  }
+
+  // ── Wire Collection event (buyer → platform via SWIFT) ───────────────────
   const isCollection =
     rawPayload.collectionId != null ||
     rawPayload.eventType?.startsWith("collection");

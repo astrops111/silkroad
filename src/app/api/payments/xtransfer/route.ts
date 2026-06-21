@@ -5,17 +5,24 @@ import { xtransferGateway } from "@/lib/payments/gateways/xtransfer";
 /**
  * POST /api/payments/xtransfer
  *
- * Generates XTransfer bank transfer instructions for a B2B buyer to pay
- * the platform. Follows the same pattern as /api/payments/stripe and
- * /api/payments/mtn-momo — creates a payment_transactions record and
- * returns instructions to the frontend.
+ * Two XTransfer collection flows, selected by whether phoneNumber is in the body:
  *
- * The buyer makes a SWIFT/domestic wire to the platform's XTransfer
- * virtual account, including the returned reference in the memo field.
- * XTransfer fires a collection webhook when funds arrive, which updates
- * the order to "paid" via /api/webhooks/xtransfer.
+ * 1. Request Money (phoneNumber + country):
+ *    Calls XTransfer /request-money/create → buyer gets a push on their phone
+ *    (MTN, Orange, NIBSS, Vodacom…). Frontend polls /api/payments/xtransfer/status.
+ *    Webhook also updates the order when terminal.
  *
- * Body: { orderId: string, amount: number, currency: string }
+ * 2. Wire collection (no phoneNumber):
+ *    Returns the platform's XTransfer virtual account details + unique order reference.
+ *    Buyer does a SWIFT/domestic wire. Webhook fires when funds land.
+ *
+ * Body: {
+ *   orderId:     string   — purchase_orders.id (UUID)
+ *   amount:      number   — in minor units (cents)
+ *   currency:    string   — ISO 4217 (USD for wire; auto-derived from country for Request Money)
+ *   phoneNumber: string?  — triggers Request Money flow
+ *   country:     string?  — ISO 3166-1 alpha-2, required when phoneNumber is set
+ * }
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = await createClient();
@@ -23,56 +30,62 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { orderId?: string; amount?: number; currency?: string };
+  let body: {
+    orderId?: string;
+    amount?: number;
+    currency?: string;
+    phoneNumber?: string;
+    country?: string;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { orderId, amount, currency } = body;
+  const { orderId, amount, currency, phoneNumber, country } = body;
   if (!orderId || !amount || !currency) {
     return NextResponse.json(
       { error: "orderId, amount, and currency are required" },
       { status: 400 }
     );
   }
+  if (phoneNumber && !country) {
+    return NextResponse.json(
+      { error: "country is required when phoneNumber is provided" },
+      { status: 400 }
+    );
+  }
 
-  // Verify order belongs to this user and is awaiting payment
   const { data: order } = await supabase
     .from("purchase_orders")
-    .select("id, order_number, grand_total, currency, status")
+    .select("id, order_number, status")
     .eq("id", orderId)
     .single();
 
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.status !== "pending_payment") {
-    return NextResponse.json(
-      { error: "Order is not awaiting payment" },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 409 });
   }
 
-  // Generate payment instructions (reads env-var virtual account details — no XTransfer API call)
   let result: Awaited<ReturnType<typeof xtransferGateway.createPayment>>;
   try {
     result = await xtransferGateway.createPayment({
       orderId: order.order_number,
       amount,
       currency,
+      phoneNumber: phoneNumber ?? undefined,
+      metadata: country ? { country } : undefined,
     });
   } catch (err) {
     console.error("[payments/xtransfer] createPayment error:", err);
     return NextResponse.json(
-      {
-        error: err instanceof Error ? err.message : "Failed to generate payment instructions",
-        hint: "Ensure XTRANSFER_COLLECTION_BANK_NAME, XTRANSFER_COLLECTION_ACCOUNT_NO, and XTRANSFER_COLLECTION_SWIFT are set",
-      },
+      { error: err instanceof Error ? err.message : "Failed to initiate XTransfer payment" },
       { status: 500 }
     );
   }
 
-  // Record the pending payment transaction
+  // Record pending transaction
   const { error: txError } = await supabase.from("payment_transactions").insert({
     purchase_order_id: orderId,
     gateway: "xtransfer",
@@ -80,17 +93,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     amount,
     currency,
     status: result.status,
+    ...(phoneNumber ? { mobile_money_phone: phoneNumber } : {}),
     expires_at: result.expiresAt?.toISOString(),
     raw_response: result.rawResponse,
   });
 
   if (txError) {
-    // Non-fatal — instructions were generated; surface the data even if recording fails
     console.error("[payments/xtransfer] payment_transactions insert failed:", txError);
   }
 
   const raw = result.rawResponse as Record<string, unknown>;
 
+  if (raw.type === "request_money") {
+    // Frontend polls /api/payments/xtransfer/status?transactionId=xxx
+    return NextResponse.json({
+      success: true,
+      transactionId: result.transactionId,
+      status: result.status,
+      requiresAction: true,
+      actionType: "ussd_push",
+      expiresAt: result.expiresAt,
+    });
+  }
+
+  // Wire — return bank account details for display
   return NextResponse.json({
     success: true,
     transactionId: result.transactionId,
