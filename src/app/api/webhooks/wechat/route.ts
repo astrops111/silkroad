@@ -21,6 +21,13 @@ export async function POST(request: NextRequest) {
   if (!timestamp || !nonce || !signature) {
     return NextResponse.json({ code: "FAIL", message: "Missing signature headers" }, { status: 401 });
   }
+
+  // H5 — Reject notifications outside a 5-minute window to prevent replay attacks
+  const MAX_AGE_SEC = 300;
+  const ts = parseInt(timestamp ?? "0", 10);
+  if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > MAX_AGE_SEC) {
+    return NextResponse.json({ code: "FAIL", message: "Timestamp out of window" }, { status: 401 });
+  }
   const { createHmac, timingSafeEqual } = await import("crypto");
   const message = `${timestamp}\n${nonce}\n${rawBody}\n`;
   const expected = createHmac("sha256", v3Key).update(message).digest("base64");
@@ -55,6 +62,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ code: "SUCCESS", message: "OK" });
   }
 
+  // Fetch the existing transaction for idempotency + amount validation
+  const { data: tx } = await supabase
+    .from("payment_transactions")
+    .select("id, status, purchase_order_id, amount")
+    .eq("wechat_transaction_id", status.transactionId)
+    .maybeSingle();
+
+  if (!tx) {
+    console.error("[webhook/wechat] No payment_transaction for transactionId:", status.transactionId);
+    return NextResponse.json({ code: "SUCCESS", message: "OK" });
+  }
+
+  // H4 — Idempotency: skip already-terminal transactions
+  if (tx.status === "succeeded" || tx.status === "failed") {
+    return NextResponse.json({ code: "SUCCESS", message: "OK" });
+  }
+
+  // H1 — Validate webhook amount matches expected amount
+  const webhookAmount = status.amount;
+  if (webhookAmount !== undefined && Math.abs(webhookAmount - (tx.amount as number)) > 1) {
+    console.error(`[webhook/wechat] Amount mismatch: expected ${tx.amount}, got ${webhookAmount}`);
+    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+  }
+
   // Update payment transaction
   await supabase
     .from("payment_transactions")
@@ -66,12 +97,6 @@ export async function POST(request: NextRequest) {
 
   // On success, update orders
   if (status.status === "succeeded") {
-    const { data: tx } = await supabase
-      .from("payment_transactions")
-      .select("purchase_order_id")
-      .eq("wechat_transaction_id", status.transactionId)
-      .single();
-
     if (tx?.purchase_order_id) {
       await supabase
         .from("purchase_orders")

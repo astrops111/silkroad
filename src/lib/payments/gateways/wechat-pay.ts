@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes } from "crypto";
+import { createHash, createDecipheriv, createSign, randomBytes } from "crypto";
 import type {
   PaymentGateway,
   CreatePaymentParams,
@@ -29,12 +29,36 @@ function getTimestamp(): string {
 }
 
 /**
- * Generate WeChat Pay V3 signature
+ * Generate WeChat Pay V3 signature (RSA-SHA256)
  */
 function signV3(method: string, url: string, timestamp: string, nonceStr: string, body: string): string {
   const message = `${method}\n${url}\n${timestamp}\n${nonceStr}\n${body}\n`;
-  const privateKey = process.env.WECHAT_API_PRIVATE_KEY || process.env.WECHAT_API_KEY || "";
-  return createHmac("sha256", privateKey).update(message).digest("base64");
+  const pem = process.env.WECHAT_API_PRIVATE_KEY;
+  if (!pem) throw new Error("WECHAT_API_PRIVATE_KEY not configured");
+  const sign = createSign("RSA-SHA256");
+  sign.update(message, "utf8");
+  return sign.sign(pem, "base64");
+}
+
+/**
+ * Decrypt a WeChat Pay V3 webhook resource field (AES-256-GCM)
+ */
+function decryptResource(resource: { ciphertext: string; nonce: string; associated_data?: string }): unknown {
+  const apiV3Key = process.env.WECHAT_API_V3_KEY;
+  if (!apiV3Key) throw new Error("WECHAT_API_V3_KEY not configured");
+  const key = Buffer.from(apiV3Key, "utf-8");
+  const iv = Buffer.from(resource.nonce, "utf-8");
+  const cipherBuffer = Buffer.from(resource.ciphertext, "base64");
+  // Last 16 bytes of cipherBuffer is the auth tag
+  const authTag = cipherBuffer.slice(-16);
+  const encryptedData = cipherBuffer.slice(0, -16);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(authTag);
+  if (resource.associated_data) {
+    decipher.setAAD(Buffer.from(resource.associated_data, "utf-8"));
+  }
+  const decrypted = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+  return JSON.parse(decrypted.toString("utf-8"));
 }
 
 /**
@@ -273,15 +297,22 @@ export const wechatPayGateway: PaymentGateway = {
 
   async handleWebhook(payload: unknown): Promise<PaymentStatusResult> {
     const data = payload as Record<string, unknown>;
-    const resource = data.resource as Record<string, unknown> | undefined;
-
-    // WeChat V3 webhooks have encrypted resource — need to decrypt
-    // For simplicity, we handle the decrypted payload structure
     const eventType = data.event_type as string;
 
+    // WeChat Pay V3 webhook resource field is AES-256-GCM encrypted — decrypt before reading
+    const encryptedResource = data.resource as { ciphertext: string; nonce: string; associated_data?: string } | undefined;
+    if (!encryptedResource) {
+      return {
+        transactionId: "",
+        status: "failed",
+        rawResponse: { error: "Missing resource field in WeChat webhook payload" },
+      };
+    }
+    const resource = decryptResource(encryptedResource) as Record<string, unknown>;
+
     if (eventType === "TRANSACTION.SUCCESS") {
-      const outTradeNo = resource?.out_trade_no as string;
-      const amount = resource?.amount as { total: number; currency: string } | undefined;
+      const outTradeNo = resource.out_trade_no as string;
+      const amount = resource.amount as { total: number; currency: string } | undefined;
 
       return {
         transactionId: outTradeNo || "",
@@ -294,7 +325,7 @@ export const wechatPayGateway: PaymentGateway = {
     }
 
     return {
-      transactionId: (resource?.out_trade_no as string) || "",
+      transactionId: (resource.out_trade_no as string) || "",
       status: "failed",
       rawResponse: data,
     };

@@ -25,6 +25,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // H13: resolve profile for ownership check
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
   // Poll XTransfer API
   let xtStatus: Awaited<ReturnType<typeof checkRequestMoneyStatus>>;
   try {
@@ -44,6 +52,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .select("id, purchase_order_id, status")
       .eq("gateway_transaction_id", transactionId)
       .maybeSingle();
+
+    // H13: verify the transaction's order belongs to the authenticated user
+    if (tx) {
+      const { data: txOrder } = await supabase
+        .from("purchase_orders")
+        .select("buyer_user_id")
+        .eq("id", tx.purchase_order_id)
+        .single();
+      if (!txOrder || txOrder.buyer_user_id !== profile.id) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
 
     if (tx && tx.status !== "succeeded" && tx.status !== "failed") {
       const now = new Date().toISOString();

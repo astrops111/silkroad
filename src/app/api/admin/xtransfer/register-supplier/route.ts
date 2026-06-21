@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 import { registerXTransferPayee } from "@/lib/payments/gateways/xtransfer";
 
 /**
@@ -36,21 +37,11 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // H20: Use standard requireAdmin() to align with all other admin routes
+  const authResult = await requireAdmin();
+  if (isAuthError(authResult)) return authResult;
+
   const supabase = await createClient();
-
-  // Ops/admin only
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: userProfile } = await supabase
-    .from("user_profiles")
-    .select("platform_role")
-    .eq("auth_id", user.id)
-    .single();
-
-  if (!userProfile || !["ops", "admin", "superadmin"].includes(userProfile.platform_role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   let rawBody: unknown;
   try {

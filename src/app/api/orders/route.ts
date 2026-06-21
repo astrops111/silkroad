@@ -70,6 +70,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
+  // L3: If buyerCompanyId is supplied, verify the caller is a member of that company
+  if (buyerCompanyId) {
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("company_id", buyerCompanyId)
+      .maybeSingle();
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   // ── Group items by (supplierId, shippingMode) ─────────────────────────────
   type GroupEntry = {
     groupKey: string;

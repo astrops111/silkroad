@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   // ── Find payment transaction ──────────────────────────────────────────────
   const { data: tx, error: txErr } = await supabase
     .from("payment_transactions")
-    .select("id, status, purchase_order_id")
+    .select("id, status, purchase_order_id, amount")
     .eq("gateway_transaction_id", txRef)
     .maybeSingle();
 
@@ -81,6 +81,30 @@ export async function POST(req: NextRequest) {
 
   if (tx.status === "succeeded" || tx.status === "failed") {
     return NextResponse.json({ received: true }); // idempotency
+  }
+
+  // Validate webhook amount matches expected amount
+  const webhookAmount = result.amount;
+  if (webhookAmount !== undefined && Math.abs(webhookAmount - (tx.amount as number)) > 1) {
+    console.error(`[webhooks/flutterwave] Amount mismatch: expected ${tx.amount}, got ${webhookAmount}`);
+    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+  }
+
+  // H6 — Re-verify with Flutterwave API before marking order paid.
+  // The HMAC check above only proves the notification came from Flutterwave;
+  // this second call confirms the actual transaction state via their REST API.
+  if (result.status === "succeeded") {
+    let apiVerified: Awaited<ReturnType<typeof flutterwaveGateway.checkStatus>>;
+    try {
+      apiVerified = await flutterwaveGateway.checkStatus(txRef);
+    } catch (verifyErr) {
+      console.error("[webhooks/flutterwave] API re-verification failed:", verifyErr);
+      return NextResponse.json({ received: true }); // don't mark paid; retry on next webhook
+    }
+    if (apiVerified.status !== "succeeded") {
+      console.error("[webhooks/flutterwave] API re-verification did not confirm success:", apiVerified.status, txRef);
+      return NextResponse.json({ received: true });
+    }
   }
 
   await logWebhookDelivery({

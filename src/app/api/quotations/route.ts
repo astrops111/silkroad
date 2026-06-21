@@ -8,6 +8,11 @@ import { randomBytes } from "crypto";
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+
+  // H11: Always authenticate, regardless of supplierOnly flag
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = request.nextUrl;
   const rfqId = searchParams.get("rfqId");
   const supplierOnly = searchParams.get("supplierOnly") === "true";
@@ -38,9 +43,6 @@ export async function GET(request: NextRequest) {
   if (status) query = query.eq("status", status);
 
   if (supplierOnly) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("id")
@@ -107,13 +109,20 @@ export async function POST(request: NextRequest) {
   // Get supplier company
   const { data: membership } = await supabase
     .from("company_members")
-    .select("company_id, companies ( name )")
+    .select("company_id, role, companies ( name )")
     .eq("user_id", profile.id)
     .limit(1)
     .single();
 
   if (!membership) {
     return NextResponse.json({ error: "You must belong to a supplier company" }, { status: 400 });
+  }
+
+  // H12: Only supplier roles (and platform admins) may submit quotations
+  const SUPPLIER_ROLES = ["supplier_owner", "supplier_sales", "supplier_catalog", "supplier_warehouse"];
+  const ADMIN_ROLES = ["admin_super", "admin_moderator", "admin_support"];
+  if (!SUPPLIER_ROLES.includes(membership.role) && !ADMIN_ROLES.includes(membership.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Check if supplier already quoted (for revision)

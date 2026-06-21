@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 
@@ -30,8 +31,10 @@ export async function POST(request: NextRequest) {
     .trim()
     .toUpperCase();
 
-  if (!email || !email.includes("@")) {
-    return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+  const emailSchema = z.string().email();
+  const emailResult = emailSchema.safeParse(email);
+  if (!email || !emailResult.success) {
+    return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
   }
 
   const admin = createServiceClient();
@@ -54,7 +57,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (companyErr) {
-      return NextResponse.json({ error: companyErr.message }, { status: 500 });
+      console.error('[admin/suppliers/invite] create company failed:', companyErr);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     await admin.from("supplier_profiles").insert({
@@ -81,7 +85,8 @@ export async function POST(request: NextRequest) {
       await admin.from("supplier_profiles").delete().eq("company_id", companyId);
       await admin.from("companies").delete().eq("id", companyId);
     }
-    return NextResponse.json({ error: inviteErr.message }, { status: 500 });
+    console.error('[admin/suppliers/invite] invite user failed:', inviteErr);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, companyId });

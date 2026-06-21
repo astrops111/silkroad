@@ -35,13 +35,21 @@ export async function POST(request: NextRequest) {
   // Verify caller owns this order and it awaits payment
   const { data: order } = await supabase
     .from("purchase_orders")
-    .select("id, status")
+    .select("id, status, grand_total")
     .eq("id", orderId)
     .eq("buyer_user_id", profile.id)
     .single();
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.status !== "pending_payment")
     return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 400 });
+
+  // H2: validate client-supplied amount against DB source of truth
+  const requestAmount = Number(amount);
+  if (Math.abs(requestAmount - order.grand_total) > 1) {
+    return NextResponse.json({ error: "Amount does not match order total" }, { status: 400 });
+  }
+  // Always convert from the DB-sourced amount, never the client-supplied value
+  const chargeAmount = order.grand_total;
 
   const countryCode = buyerCountry || profile.country_code || "GH";
 
@@ -80,7 +88,7 @@ export async function POST(request: NextRequest) {
   } else {
     // No lock — convert at current rate
     conversion = await convertToLocalCurrency(
-      amount,
+      chargeAmount,
       currency || "USD",
       countryCode
     );
@@ -111,7 +119,7 @@ export async function POST(request: NextRequest) {
     amount: conversion.localAmount,
     currency: conversion.localCurrency,
     exchange_rate: conversion.exchangeRate,
-    amount_in_usd: currency === "USD" ? amount : null,
+    amount_in_usd: currency === "USD" ? chargeAmount : null,
     status: result.status,
     raw_response: result.rawResponse,
     raw_request: {

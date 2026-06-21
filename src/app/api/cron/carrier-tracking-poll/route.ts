@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     console.error("carrier-tracking-poll cron failed", e);
     return NextResponse.json(
-      { ok: false, error: (e as Error).message },
+      { ok: false, error: 'Internal server error' },
       { status: 500 },
     );
   }

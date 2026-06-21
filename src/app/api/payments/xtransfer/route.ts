@@ -66,7 +66,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { data: order } = await supabase
     .from("purchase_orders")
-    .select("id, order_number, status")
+    .select("id, order_number, status, grand_total")
     .eq("id", orderId)
     .eq("buyer_user_id", profile.id)
     .single();
@@ -76,19 +76,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 409 });
   }
 
+  // H2: validate client-supplied amount against DB source of truth
+  const requestAmount = Number(amount);
+  if (Math.abs(requestAmount - order.grand_total) > 1) {
+    return NextResponse.json({ error: "Amount does not match order total" }, { status: 400 });
+  }
+  // Always charge the DB-sourced amount, never the client-supplied value
+  const chargeAmount = order.grand_total;
+
   let result: Awaited<ReturnType<typeof xtransferGateway.createPayment>>;
   try {
     result = await xtransferGateway.createPayment({
       orderId: order.order_number,
-      amount,
+      amount: chargeAmount,
       currency,
       phoneNumber: phoneNumber ?? undefined,
       metadata: country ? { country } : undefined,
     });
   } catch (err) {
     console.error("[payments/xtransfer] createPayment error:", err);
+    // H17: return a generic message — never expose internal error details to the client
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to initiate XTransfer payment" },
+      { error: "Payment initiation failed. Please try again." },
       { status: 500 }
     );
   }
@@ -98,7 +107,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     purchase_order_id: orderId,
     gateway: "xtransfer",
     gateway_transaction_id: result.transactionId,
-    amount,
+    amount: chargeAmount,
     currency,
     status: result.status,
     ...(phoneNumber ? { mobile_money_phone: phoneNumber } : {}),
@@ -139,7 +148,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       swiftCode:     raw.swiftCode,
       iban:          raw.iban,
       routingNumber: raw.routingNumber,
-      amount,
+      amount:        chargeAmount,
       currency,
       expiresAt:     raw.expiresAt,
       memo:          raw.memo,

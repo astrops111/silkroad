@@ -134,7 +134,8 @@ export async function PATCH(request: NextRequest) {
     .eq("id", supplierId);
 
   if (companyError) {
-    return NextResponse.json({ error: companyError.message }, { status: 500 });
+    console.error('[admin/suppliers] status update failed:', companyError);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   // If suspending, deactivate all their products
@@ -202,7 +203,10 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
 
-  if (companyErr) return NextResponse.json({ error: companyErr.message }, { status: 500 });
+  if (companyErr) {
+    console.error('[admin/suppliers] create company failed:', companyErr);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   const { error: profileErr } = await supabase.from("supplier_profiles").insert({
     company_id: company.id,
@@ -215,7 +219,8 @@ export async function POST(request: NextRequest) {
 
   if (profileErr) {
     await supabase.from("companies").delete().eq("id", company.id);
-    return NextResponse.json({ error: profileErr.message }, { status: 500 });
+    console.error('[admin/suppliers] create supplier_profile failed:', profileErr);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, supplierId: company.id }, { status: 201 });
@@ -244,7 +249,10 @@ export async function PUT(request: NextRequest) {
   if (Object.keys(companyUpdate).length > 0) {
     companyUpdate.updated_at = new Date().toISOString();
     const { error } = await supabase.from("companies").update(companyUpdate).eq("id", supplierId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[admin/suppliers] update company fields failed:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
   }
 
   const profileUpdate: Record<string, unknown> = {};
@@ -282,7 +290,10 @@ export async function DELETE(request: NextRequest) {
     .update({ is_active: false, verification_status: "rejected" })
     .eq("id", supplierId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[admin/suppliers] soft-delete failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }

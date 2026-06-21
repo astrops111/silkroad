@@ -99,7 +99,10 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[admin/shipping-groups] create failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, groupId: data.id }, { status: 201 });
 }
@@ -129,7 +132,10 @@ export async function PUT(request: NextRequest) {
   if (update.preferred_container_type === "") update.preferred_container_type = null;
 
   const { error } = await supabase.from("product_shipping_groups").update(update).eq("id", groupId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[admin/shipping-groups] update failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
@@ -153,7 +159,10 @@ export async function DELETE(request: NextRequest) {
     .update({ is_active: false, updated_at: new Date().toISOString() })
     .eq("id", groupId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[admin/shipping-groups] deactivate failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }

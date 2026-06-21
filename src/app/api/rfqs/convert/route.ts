@@ -19,10 +19,18 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // H9: resolve profile so we can enforce ownership on the RFQ fetch
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
   const { rfqId } = await request.json();
   if (!rfqId) return NextResponse.json({ error: "rfqId required" }, { status: 400 });
 
-  // Get RFQ with awarded quotation
+  // Get RFQ with awarded quotation — only the owning buyer may convert
   const { data: rfq, error: rfqError } = await supabase
     .from("rfqs")
     .select(`
@@ -30,6 +38,7 @@ export async function POST(request: NextRequest) {
       buyer_country, awarded_quotation_id, status, delivery_country, delivery_city
     `)
     .eq("id", rfqId)
+    .eq("buyer_user_id", profile.id)
     .single();
 
   if (rfqError || !rfq) {
@@ -168,12 +177,6 @@ export async function POST(request: NextRequest) {
     .eq("id", rfqId);
 
   // Log activity
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("id")
-    .eq("auth_id", user.id)
-    .single();
-
   await supabase.from("rfq_activity_log").insert({
     rfq_id: rfqId,
     quotation_id: quotation.id,

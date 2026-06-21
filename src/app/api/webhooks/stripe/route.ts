@@ -43,6 +43,30 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
 
+  // Fetch the existing transaction for idempotency + amount validation
+  const { data: tx } = await supabase
+    .from("payment_transactions")
+    .select("id, status, purchase_order_id, amount")
+    .eq("stripe_payment_intent_id", status.transactionId)
+    .maybeSingle();
+
+  if (!tx) {
+    console.error("[webhook/stripe] No payment_transaction for intent:", status.transactionId);
+    return NextResponse.json({ received: true });
+  }
+
+  // Idempotency — skip already-terminal transactions
+  if (tx.status === "succeeded" || tx.status === "failed") {
+    return NextResponse.json({ received: true });
+  }
+
+  // Validate webhook amount matches expected amount (Stripe amounts are in minor units)
+  const webhookAmount = status.amount;
+  if (webhookAmount !== undefined && Math.abs(webhookAmount - (tx.amount as number)) > 1) {
+    console.error(`[webhook/stripe] Amount mismatch: expected ${tx.amount}, got ${webhookAmount}`);
+    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+  }
+
   // Update payment transaction
   await supabase
     .from("payment_transactions")
@@ -54,12 +78,6 @@ export async function POST(request: NextRequest) {
 
   // On successful payment, update orders and trigger invoice
   if (status.status === "succeeded") {
-    const { data: tx } = await supabase
-      .from("payment_transactions")
-      .select("purchase_order_id")
-      .eq("stripe_payment_intent_id", status.transactionId)
-      .single();
-
     if (tx?.purchase_order_id) {
       // Update order statuses
       await supabase

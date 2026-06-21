@@ -68,7 +68,10 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: true })
       .range(offset, offset + limit - 1);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[messages] fetch messages failed:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 
     // Mark messages as read
     const { data: membership } = await supabase
@@ -115,7 +118,10 @@ export async function GET(request: NextRequest) {
     .or(`buyer_company_id.in.(${companyIds.join(",")}),supplier_company_id.in.(${companyIds.join(",")})`)
     .order("last_message_at", { ascending: false, nullsFirst: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[messages] fetch conversations failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   // Add "myRole" and "unreadCount" for the current user
   const enriched = (conversations || []).map((c) => {
@@ -234,7 +240,10 @@ export async function POST(request: NextRequest) {
         .select("id")
         .single();
 
-      if (convError) return NextResponse.json({ error: convError.message }, { status: 500 });
+      if (convError) {
+        console.error('[messages] create conversation failed:', convError);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      }
       convId = conv.id;
     }
   }
@@ -246,7 +255,18 @@ export async function POST(request: NextRequest) {
     .eq("id", convId)
     .single();
 
-  const senderRole = conv && membership.company_id === conv.buyer_company_id ? "buyer" : "supplier";
+  // M8: Verify the caller's company is a participant in this conversation
+  if (!conv) {
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+  }
+  if (
+    membership.company_id !== conv.buyer_company_id &&
+    membership.company_id !== conv.supplier_company_id
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const senderRole = membership.company_id === conv.buyer_company_id ? "buyer" : "supplier";
 
   // Send message
   const { data: message, error: msgError } = await supabase
@@ -264,7 +284,10 @@ export async function POST(request: NextRequest) {
     .select("id, content, message_type, sender_name, sender_role, created_at")
     .single();
 
-  if (msgError) return NextResponse.json({ error: msgError.message }, { status: 500 });
+  if (msgError) {
+    console.error('[messages] send message failed:', msgError);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   return NextResponse.json({
     success: true,

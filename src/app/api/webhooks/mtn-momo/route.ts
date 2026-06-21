@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown reference" }, { status: 400 });
   }
 
-  // Reject callbacks for transactions that are already in a terminal state
-  if (existingTx.status === "succeeded" || existingTx.status === "refunded") {
+  // H3 — Reject callbacks for transactions that are already in a terminal state
+  if (existingTx.status === "succeeded" || existingTx.status === "failed" || existingTx.status === "refunded") {
     await logWebhookDelivery({
       webhookType: "mtn_momo",
       eventType: body.status ?? "unknown",
@@ -66,6 +66,12 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ error: "Transaction already processed" }, { status: 409 });
   }
+
+  // TODO(H1): MTN MoMo callbacks do not include an amount field in the
+  // notification body, so amount validation cannot be performed here.
+  // Consider polling the MTN API (GET /collection/v1_0/requesttopay/{referenceId})
+  // after receiving a SUCCESSFUL callback to cross-check the amount before
+  // marking the order as paid.
 
   // Update payment transaction
   await supabase

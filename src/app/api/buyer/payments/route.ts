@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data: payments } = await supabase
     .from("payment_transactions")
-    .select("id, gateway, status, amount, currency, purchase_order_id, mobile_money_phone, created_at")
+    .select("id, gateway, status, amount, currency, purchase_order_id, created_at")
     .in("purchase_order_id", orderIds)
     .order("created_at", { ascending: false });
 

@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
   if (type) query = query.eq("type", type);
 
   const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[notifications] fetch failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   // Unread count
   const { count: unreadCount } = await supabase
@@ -77,7 +80,10 @@ export async function PATCH(request: NextRequest) {
       .eq("user_id", profile.id)
       .eq("is_read", false);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[notifications] mark all read failed:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
     return NextResponse.json({ success: true, action: "mark_all_read" });
   }
 
@@ -88,7 +94,10 @@ export async function PATCH(request: NextRequest) {
       .eq("id", notificationId)
       .eq("user_id", profile.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[notifications] mark read failed:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
     return NextResponse.json({ success: true, notificationId });
   }
 

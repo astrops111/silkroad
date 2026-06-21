@@ -1,6 +1,20 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { startJobRun, completeJobRun } from "@/lib/logging/jobs";
+
+function verifyCronSecret(authHeader: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !authHeader) return false;
+  try {
+    const expected = Buffer.from(`Bearer ${secret}`, "utf-8");
+    const received = Buffer.from(authHeader, "utf-8");
+    if (expected.length !== received.length) return false;
+    return timingSafeEqual(expected, received);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/cron/pipeline-monitor
@@ -17,7 +31,7 @@ import { startJobRun, completeJobRun } from "@/lib/logging/jobs";
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(authHeader)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

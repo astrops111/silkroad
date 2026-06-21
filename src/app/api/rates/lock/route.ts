@@ -35,7 +35,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const minutes = validityMinutes || DEFAULT_LOCK_MINUTES;
+  // M7: Cap validity to 60 minutes to prevent lock abuse
+  const requestedMinutes = typeof validityMinutes === "number" && validityMinutes > 0
+    ? validityMinutes
+    : DEFAULT_LOCK_MINUTES;
+  const minutes = Math.min(requestedMinutes, 60);
 
   // Convert at current rate
   const conversion = await convertToLocalCurrency(amount, orderCurrency, buyerCountry);
@@ -61,7 +65,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[rates/lock] create rate lock failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   return NextResponse.json({

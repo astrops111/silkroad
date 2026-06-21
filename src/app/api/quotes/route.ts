@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
+
+// C11: Validate each item in the cart snapshot before persisting
+const QuoteItemSchema = z.object({
+  productId:   z.string().uuid(),
+  productName: z.string().min(1).max(500),
+  supplierId:  z.string().uuid(),
+  unitPrice:   z.number().positive().max(10_000_000),
+  quantity:    z.number().int().positive().max(100_000),
+  weightKg:    z.number().positive().max(100_000).optional(),
+}).passthrough();
+
+const QuoteItemsSchema = z.array(QuoteItemSchema).min(1).max(200);
 
 /**
  * POST /api/quotes
@@ -66,6 +79,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
   if (!destinationCountry) {
     return NextResponse.json({ error: "destinationCountry is required" }, { status: 400 });
+  }
+
+  // C11: Validate items shape and bounds
+  const itemsValidation = QuoteItemsSchema.safeParse(items);
+  if (!itemsValidation.success) {
+    return NextResponse.json(
+      { error: "Invalid items", details: itemsValidation.error.issues },
+      { status: 400 }
+    );
   }
 
   // Sum goods value from cart items (unitPrice in minor units × quantity)

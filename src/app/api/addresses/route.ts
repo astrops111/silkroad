@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[addresses] fetch failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ addresses: data || [] });
 }
 
@@ -78,6 +81,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // H14: If a companyId is provided, verify the caller is a member of that company
+  if (companyId) {
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   // If setting as default, unset other defaults
   if (isDefault) {
     const filterCol = companyId ? "company_id" : "user_id";
@@ -109,7 +125,10 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[addresses] insert failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ success: true, addressId: data.id });
 }
 
@@ -122,11 +141,44 @@ export async function PATCH(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
   const body = await request.json();
   const { addressId, ...updates } = body;
 
   if (!addressId) {
     return NextResponse.json({ error: "addressId required" }, { status: 400 });
+  }
+
+  // C9: Fetch the address first to verify ownership
+  const { data: existingAddress } = await supabase
+    .from("addresses")
+    .select("id, user_id, company_id")
+    .eq("id", addressId)
+    .maybeSingle();
+
+  if (!existingAddress) {
+    return NextResponse.json({ error: "Address not found" }, { status: 404 });
+  }
+
+  // Ownership check: caller must own the address directly or be a member of its company
+  if (existingAddress.company_id) {
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("company_id", existingAddress.company_id)
+      .maybeSingle();
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  } else if (existingAddress.user_id !== profile.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const updateData: Record<string, unknown> = {};
@@ -147,7 +199,10 @@ export async function PATCH(request: NextRequest) {
     .update(updateData)
     .eq("id", addressId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[addresses] update failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }
 
@@ -160,12 +215,47 @@ export async function DELETE(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
   const { addressId } = await request.json();
   if (!addressId) {
     return NextResponse.json({ error: "addressId required" }, { status: 400 });
   }
 
+  // C9: Verify ownership before deletion
+  const { data: existingAddress } = await supabase
+    .from("addresses")
+    .select("id, user_id, company_id")
+    .eq("id", addressId)
+    .maybeSingle();
+
+  if (!existingAddress) {
+    return NextResponse.json({ error: "Address not found" }, { status: 404 });
+  }
+
+  if (existingAddress.company_id) {
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("company_id", existingAddress.company_id)
+      .maybeSingle();
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  } else if (existingAddress.user_id !== profile.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { error } = await supabase.from("addresses").delete().eq("id", addressId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[addresses] delete failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

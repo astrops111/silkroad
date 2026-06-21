@@ -37,10 +37,11 @@ export async function requireAdmin(): Promise<
     .from("company_members")
     .select("role, company_id")
     .eq("user_id", profile.id)
+    .in("role", ADMIN_ROLES)
     .limit(1)
     .single();
 
-  if (!membership || !ADMIN_ROLES.includes(membership.role as AdminRole)) {
+  if (!membership) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

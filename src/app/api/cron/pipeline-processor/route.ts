@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getHandler } from "@/lib/pipeline";
@@ -5,6 +6,19 @@ import { computeNextRetry } from "@/lib/pipeline/retry-policy";
 import { startJobRun, completeJobRun } from "@/lib/logging/jobs";
 import { logActivity, logError } from "@/lib/logging";
 import type { PipelineEvent, EnqueueRequest } from "@/lib/pipeline/types";
+
+function verifyCronSecret(authHeader: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !authHeader) return false;
+  try {
+    const expected = Buffer.from(`Bearer ${secret}`, "utf-8");
+    const received = Buffer.from(authHeader, "utf-8");
+    if (expected.length !== received.length) return false;
+    return timingSafeEqual(expected, received);
+  } catch {
+    return false;
+  }
+}
 
 const BATCH_SIZE = 20;
 
@@ -24,7 +38,7 @@ const BATCH_SIZE = 20;
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(authHeader)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

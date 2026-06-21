@@ -1,6 +1,7 @@
 "use server";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { sanitizeText } from "@/lib/security/sanitize";
 
 // All pipeline + legacy activity types the enum supports
 export type ActivityType =
@@ -31,12 +32,17 @@ export async function logActivity(params: {
   actorEmail?: string;
   metadata?: Record<string, unknown>;
 }): Promise<string | null> {
+  // M6: Validate actorEmail — only store if it looks like a valid email address
+  if (params.actorEmail && !params.actorEmail.includes("@")) {
+    params.actorEmail = undefined;
+  }
+
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("system_activity_log")
     .insert({
       activity_type: params.activityType,
-      description:   params.description,
+      description:   sanitizeText(params.description).slice(0, 1000),
       target_type:   params.targetType  ?? null,
       target_id:     params.targetId    ?? null,
       target_label:  params.targetLabel ?? null,
@@ -99,10 +105,11 @@ export async function logError(params: {
     .from("error_logs")
     .insert({
       error_code:  params.errorCode,
-      message:     params.message,
+      message:     sanitizeText(params.message).slice(0, 1000),
       source:      params.source,
       severity:    params.severity   ?? "error",
-      stack_trace: params.stackTrace ?? null,
+      // L2: Strip stack traces in production to avoid leaking implementation details
+      stack_trace: process.env.NODE_ENV !== "production" ? (params.stackTrace ?? null) : null,
       request_id:  params.requestId  ?? null,
       user_id:     params.userId     ?? null,
       metadata:    params.metadata   ?? {},

@@ -48,6 +48,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
+  // Fetch the existing transaction for idempotency check
+  const { data: tx } = await supabase
+    .from("payment_transactions")
+    .select("id, status, purchase_order_id")
+    .eq("gateway_transaction_id", status.transactionId)
+    .maybeSingle();
+
+  if (!tx) {
+    console.error("[webhook/tigo] No payment_transaction for transactionId:", status.transactionId);
+    return NextResponse.json({ received: true });
+  }
+
+  // H4 — Idempotency: skip already-terminal transactions
+  if (tx.status === "succeeded" || tx.status === "failed") {
+    return NextResponse.json({ received: true });
+  }
+
+  // TODO(H1): Tigo Cash callbacks do not reliably include an amount field,
+  // so amount validation cannot be performed here without an additional API poll.
+  // Consider calling the Tigo transaction status API to verify the amount
+  // matches tx.amount before marking the order as paid.
+
   // Update payment transaction
   await supabase
     .from("payment_transactions")
@@ -59,12 +81,6 @@ export async function POST(request: NextRequest) {
 
   // On success, update orders
   if (status.status === "succeeded") {
-    const { data: tx } = await supabase
-      .from("payment_transactions")
-      .select("purchase_order_id")
-      .eq("gateway_transaction_id", status.transactionId)
-      .single();
-
     if (tx?.purchase_order_id) {
       await supabase
         .from("purchase_orders")

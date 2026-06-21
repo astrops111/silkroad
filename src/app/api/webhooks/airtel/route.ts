@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown reference" }, { status: 400 });
   }
 
-  // Reject callbacks for transactions already in a terminal state
-  if (existingTx.status === "succeeded" || existingTx.status === "refunded") {
+  // H3 — Reject callbacks for transactions already in a terminal state
+  if (existingTx.status === "succeeded" || existingTx.status === "failed" || existingTx.status === "refunded") {
     await logWebhookDelivery({
       webhookType: "airtel_money",
       eventType: body.status ?? "unknown",
@@ -76,6 +76,11 @@ export async function POST(request: NextRequest) {
       { status: 409 }
     );
   }
+
+  // TODO(H1): Airtel Money callbacks do not reliably include an amount field,
+  // so amount validation cannot be performed here without an additional API poll.
+  // Consider calling the Airtel transaction status API after receiving a success
+  // callback to verify the amount matches existingTx.amount before marking paid.
 
   // Update payment transaction
   await supabase

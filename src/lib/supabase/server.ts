@@ -7,12 +7,14 @@ export async function createClient() {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    console.error("Missing Supabase URL/Key in server client! URL:", !!url, "Key:", !!anonKey);
+    throw new Error(
+      "Missing required Supabase configuration: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set"
+    );
   }
 
   return createServerClient(
-    url || "https://placeholder.supabase.co",
-    anonKey || "placeholder",
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -37,12 +39,14 @@ export function createServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
-    console.error("Missing Supabase Service Key! URL:", !!url, "Key:", !!serviceKey);
+    throw new Error(
+      "Missing required Supabase configuration: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"
+    );
   }
 
   return createServerClient(
-    url || "https://placeholder.supabase.co",
-    serviceKey || "placeholder",
+    url,
+    serviceKey,
     {
       cookies: {
         getAll() {

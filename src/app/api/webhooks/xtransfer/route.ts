@@ -56,7 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (isRequestMoney) {
     const { data: tx } = await supabase
       .from("payment_transactions")
-      .select("id, status, purchase_order_id")
+      .select("id, status, purchase_order_id, amount")
       .eq("gateway_transaction_id", rawPayload.requestId ?? "")
       .maybeSingle();
 
@@ -67,6 +67,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (tx.status === "succeeded" || tx.status === "failed") {
       return NextResponse.json({ received: true }); // idempotency
+    }
+
+    // Validate webhook amount matches expected amount
+    const webhookAmount = result.amount;
+    if (webhookAmount !== undefined && Math.abs(webhookAmount - (tx.amount as number)) > 1) {
+      console.error(`[webhooks/xtransfer] Amount mismatch (requestMoney): expected ${tx.amount}, got ${webhookAmount}`);
+      return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
     }
 
     const now = new Date().toISOString();
@@ -107,7 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // It is stored as payment_transactions.gateway_transaction_id
     const { data: tx } = await supabase
       .from("payment_transactions")
-      .select("id, status, purchase_order_id")
+      .select("id, status, purchase_order_id, amount")
       .eq("gateway_transaction_id", rawPayload.referenceNo ?? "")
       .maybeSingle();
 
@@ -119,6 +126,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Idempotency — skip already-terminal transactions
     if (tx.status === "succeeded" || tx.status === "failed") {
       return NextResponse.json({ received: true });
+    }
+
+    // Validate webhook amount matches expected amount
+    const webhookAmountCollection = result.amount;
+    if (webhookAmountCollection !== undefined && Math.abs(webhookAmountCollection - (tx.amount as number)) > 1) {
+      console.error(`[webhooks/xtransfer] Amount mismatch (collection): expected ${tx.amount}, got ${webhookAmountCollection}`);
+      return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
     }
 
     if (result.status === "succeeded") {
@@ -157,19 +171,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Payout event (platform → supplier settlement) ─────────────────────────
-  const { data: settlement } = await supabase
-    .from("settlements")
-    .select("id, status")
-    .or(
-      [
-        rawPayload.transferId ? `xtransfer_transfer_id.eq.${rawPayload.transferId}` : null,
-        rawPayload.referenceNo ? `settlement_number.eq.${rawPayload.referenceNo}` : null,
-      ]
-        .filter(Boolean)
-        .join(",")
-    )
-    .limit(1)
-    .maybeSingle();
+  // M2: Use separate parameterised .eq() queries instead of .or() with string
+  // interpolation to prevent PostgREST filter injection via transferId/referenceNo.
+  let settlement: { id: string; status: string } | null = null;
+  if (rawPayload.transferId) {
+    const { data } = await supabase
+      .from("settlements")
+      .select("id, status")
+      .eq("xtransfer_transfer_id", rawPayload.transferId)
+      .maybeSingle();
+    settlement = data;
+  }
+  if (!settlement && rawPayload.referenceNo) {
+    const { data } = await supabase
+      .from("settlements")
+      .select("id, status")
+      .eq("settlement_number", rawPayload.referenceNo)
+      .maybeSingle();
+    settlement = data;
+  }
 
   if (!settlement) {
     console.warn("[webhooks/xtransfer] No settlement found for payload", rawPayload);

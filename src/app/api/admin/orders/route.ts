@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, isAuthError } from "@/lib/auth/guard";
+import { sanitizeSearchTerm } from "@/lib/security/sanitize";
 
 /**
  * GET /api/admin/orders — List all platform orders
@@ -35,7 +36,8 @@ export async function GET(request: NextRequest) {
     query = query.eq("status", status);
   }
   if (search) {
-    query = query.or(`order_number.ilike.%${search}%,buyer_company_name.ilike.%${search}%`);
+    const safeSearch = sanitizeSearchTerm(search).replace(/%/g, '\\%').replace(/_/g, '\\_');
+    query = query.or(`order_number.ilike.%${safeSearch}%,buyer_company_name.ilike.%${safeSearch}%`);
   }
 
   const { data: orders, error, count } = await query;

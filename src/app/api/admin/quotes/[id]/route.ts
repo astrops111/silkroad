@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 
 const ALLOWED_STATUSES = ["submitted", "calculating", "ready", "accepted", "paid", "expired", "cancelled"] as const;
 
@@ -9,26 +10,12 @@ export async function PATCH(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  // Verify admin role: get profile id, then check company_members role
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("id")
-    .eq("auth_id", user.id)
-    .single();
-  if (!profile) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  const { data: member } = await supabase
-    .from("company_members")
-    .select("role")
-    .eq("user_id", profile.id)
-    .in("role", ["admin_super", "admin_moderator", "admin_support", "logistics_admin", "logistics_dispatcher"])
-    .maybeSingle();
-
-  if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // C10: Use standard requireAdmin() — only admin_super | admin_moderator | admin_support
+  // pass through. Logistics roles (logistics_admin, logistics_dispatcher) are rejected here,
+  // preventing them from modifying financial fields (total_amount, shipping_cost,
+  // customs_duties, platform_fee, expires_at).
+  const authResult = await requireAdmin();
+  if (isAuthError(authResult)) return authResult;
 
   const body = await request.json();
 
@@ -54,6 +41,7 @@ export async function PATCH(
     update.status = body.status;
   }
 
+  const supabase = await createClient();
   const { error } = await supabase
     .from("buyer_quote_requests")
     .update(update)

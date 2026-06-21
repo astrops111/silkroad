@@ -244,6 +244,9 @@ export async function PATCH(request: NextRequest) {
     .eq("auth_id", user.id)
     .single();
 
+  // H10: profile must resolve before any mutation
+  if (!profile) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   switch (action) {
     case "publish": {
       const { error } = await supabase
@@ -254,7 +257,8 @@ export async function PATCH(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", rfqId)
-        .eq("status", "draft");
+        .eq("status", "draft")
+        .eq("buyer_user_id", profile.id);
 
       if (error) { console.error("[rfqs/PATCH]", error); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
@@ -272,6 +276,7 @@ export async function PATCH(request: NextRequest) {
         .from("rfqs")
         .update({ status: "cancelled", updated_at: new Date().toISOString() })
         .eq("id", rfqId)
+        .eq("buyer_user_id", profile.id)
         .in("status", ["draft", "open", "quoted"]);
 
       if (error) { console.error("[rfqs/PATCH]", error); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }

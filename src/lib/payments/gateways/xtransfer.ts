@@ -23,7 +23,7 @@
  *   XTRANSFER_ENV            — "sandbox" | "production" (defaults to sandbox)
  */
 
-import { createHmac, randomBytes } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import type {
   PaymentGateway,
   CreatePaymentParams,
@@ -55,9 +55,15 @@ function buildSignature(
 }
 
 function verifyWebhookSignature(rawBody: string, signature: string): boolean {
-  const secret = process.env.XTRANSFER_WEBHOOK_SECRET ?? "";
-  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex").toUpperCase();
-  return expected === signature.toUpperCase();
+  const secret = process.env.XTRANSFER_WEBHOOK_SECRET;
+  if (!secret) throw new Error("XTRANSFER_WEBHOOK_SECRET is not configured");
+  const expectedBuf = Buffer.from(
+    createHmac("sha256", secret).update(rawBody, "utf8").digest("hex").toUpperCase(),
+    "utf8"
+  );
+  const receivedBuf = Buffer.from(signature.toUpperCase(), "utf8");
+  if (expectedBuf.length !== receivedBuf.length) return false;
+  return timingSafeEqual(expectedBuf, receivedBuf);
 }
 
 // ── HTTP client ───────────────────────────────────────────────────────────────
@@ -324,10 +330,10 @@ export const xtransferGateway: PaymentGateway = {
   },
 
   /** Verify and parse an inbound XTransfer webhook callback. */
-  async handleWebhook(payload: unknown, signature?: string): Promise<PaymentStatusResult> {
+  async handleWebhook(payload: unknown, signature: string): Promise<PaymentStatusResult> {
     const rawBody = typeof payload === "string" ? payload : JSON.stringify(payload);
 
-    if (signature && !verifyWebhookSignature(rawBody, signature)) {
+    if (!verifyWebhookSignature(rawBody, signature)) {
       throw new Error("XTransfer webhook signature verification failed");
     }
 

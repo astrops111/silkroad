@@ -251,6 +251,10 @@ export async function getSystemAnalytics() {
 
 /* ------------------------------------------------------------------ */
 /*  Helper: Log a system activity (call from other server actions)     */
+/*                                                                      */
+/*  @deprecated Use logActivity from "@/lib/logging" instead.          */
+/*  That version is type-safe (ActivityType enum), validates actorEmail,*/
+/*  and sanitizes description before insert.                            */
 /* ------------------------------------------------------------------ */
 
 export async function logActivity(params: {
@@ -266,7 +270,7 @@ export async function logActivity(params: {
   userAgent?: string;
 }) {
   const supabase = createServiceClient();
-  await supabase.from("system_activity_log").insert({
+  const { error } = await supabase.from("system_activity_log").insert({
     activity_type: params.activityType,
     actor_id: params.actorId ?? null,
     actor_email: params.actorEmail ?? null,
@@ -278,10 +282,17 @@ export async function logActivity(params: {
     ip_address: params.ipAddress ?? null,
     user_agent: params.userAgent ?? null,
   });
+  if (error) {
+    console.error("[system-logs] logActivity insert failed:", error.message);
+  }
 }
 
 /* ------------------------------------------------------------------ */
 /*  Helper: Log an error (call from catch blocks)                      */
+/*                                                                      */
+/*  @deprecated Use logError from "@/lib/logging" instead.             */
+/*  That version sanitizes the message and strips stack traces in       */
+/*  production.                                                         */
 /* ------------------------------------------------------------------ */
 
 export async function logError(params: {
@@ -295,7 +306,7 @@ export async function logError(params: {
   metadata?: Record<string, unknown>;
 }) {
   const supabase = createServiceClient();
-  await supabase.from("error_logs").insert({
+  const { error } = await supabase.from("error_logs").insert({
     error_code: params.errorCode ?? null,
     message: params.message,
     stack_trace: params.stackTrace ?? null,
@@ -305,4 +316,7 @@ export async function logError(params: {
     user_id: params.userId ?? null,
     metadata: params.metadata ?? {},
   });
+  if (error) {
+    console.error("[system-logs] logError insert failed:", error.message);
+  }
 }

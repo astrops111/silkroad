@@ -21,6 +21,14 @@ import type {
 const GATEWAY_URL = "https://openapi.alipay.com/gateway.do";
 const SANDBOX_URL = "https://openapi-sandbox.dl.alipaydev.com/gateway.do";
 
+// Startup env-var check
+if (!process.env.ALIPAY_PRIVATE_KEY) {
+  console.error("[alipay] ALIPAY_PRIVATE_KEY is not set — signing will fail at runtime");
+}
+if (!process.env.ALIPAY_ALIPAY_PUBLIC_KEY) {
+  console.error("[alipay] ALIPAY_ALIPAY_PUBLIC_KEY is not set — webhook verification will fail at runtime");
+}
+
 function getGatewayUrl(): string {
   return process.env.ALIPAY_ENVIRONMENT === "sandbox" ? SANDBOX_URL : GATEWAY_URL;
 }
@@ -279,9 +287,18 @@ export const alipayGateway: PaymentGateway = {
   async handleWebhook(payload: unknown): Promise<PaymentStatusResult> {
     const params = payload as Record<string, string>;
 
+    // Reject immediately if the signature field is absent
+    if (!params.sign) {
+      return {
+        transactionId: params.out_trade_no || "",
+        status: "failed",
+        rawResponse: { error: "Missing signature field" },
+      };
+    }
+
     // Verify signature
     const signature = params.sign;
-    if (signature && !verifySignature(params, signature)) {
+    if (!verifySignature(params, signature)) {
       return {
         transactionId: params.out_trade_no || "",
         status: "failed",

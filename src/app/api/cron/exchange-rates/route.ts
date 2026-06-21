@@ -1,5 +1,19 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+
+function verifyCronSecret(authHeader: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !authHeader) return false;
+  try {
+    const expected = Buffer.from(`Bearer ${secret}`, "utf-8");
+    const received = Buffer.from(authHeader, "utf-8");
+    if (expected.length !== received.length) return false;
+    return timingSafeEqual(expected, received);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/cron/exchange-rates — Update exchange rates from external API
@@ -21,8 +35,7 @@ const SUPPORTED_CURRENCIES = [
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized calls
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronSecret(authHeader)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
