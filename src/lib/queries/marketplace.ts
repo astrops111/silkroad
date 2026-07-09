@@ -23,6 +23,10 @@ export async function searchProducts(filters: SearchFilters = {}) {
   const limit = filters.limit ?? 20;
   const offset = (page - 1) * limit;
 
+  if (filters.originCountries && filters.originCountries.length > 0) {
+    return searchProductsByOrigin(filters, page, limit, offset);
+  }
+
   let query = supabase
     .from("products")
     .select(
@@ -37,26 +41,6 @@ export async function searchProducts(filters: SearchFilters = {}) {
     )
     .eq("moderation_status", "approved")
     .eq("is_active", true);
-
-  if (filters.originCountries && filters.originCountries.length > 0) {
-    const { data: originRows } = await supabase
-      .from("products_with_origin")
-      .select("id")
-      .in("resolved_country", filters.originCountries);
-    const ids = (originRows ?? [])
-      .map((row) => row.id)
-      .filter((id): id is string => id !== null);
-    if (ids.length === 0) {
-      return {
-        products: [],
-        total: 0,
-        totalPages: 0,
-        page,
-        error: undefined,
-      };
-    }
-    query = query.in("id", ids);
-  }
 
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     query = query.in("category_id", filters.categoryIds);
@@ -107,6 +91,70 @@ export async function searchProducts(filters: SearchFilters = {}) {
     totalPages: Math.ceil((count ?? 0) / limit),
     page,
     error: error?.message,
+  };
+}
+
+async function searchProductsByOrigin(
+  filters: SearchFilters,
+  page: number,
+  limit: number,
+  offset: number
+) {
+  const supabase = await createClient();
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc("search_product_ids", {
+    p_category_ids:
+      filters.categoryIds && filters.categoryIds.length > 0
+        ? filters.categoryIds
+        : filters.category
+        ? [filters.category]
+        : null,
+    p_origin_countries: filters.originCountries ?? null,
+    p_search: filters.search ?? null,
+    p_price_min: filters.priceMin !== undefined ? Math.round(filters.priceMin * 100) : null,
+    p_price_max: filters.priceMax !== undefined ? Math.round(filters.priceMax * 100) : null,
+    p_moq_max: filters.moqMax ?? null,
+    p_sort: filters.sort ?? "newest",
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  if (rpcError) {
+    return { products: [], total: 0, totalPages: 0, page, error: rpcError.message };
+  }
+
+  const rpcRows = (rpcData ?? []) as { id: string; total_count: number }[];
+  const pageIds = rpcRows.map((row) => row.id);
+  const total = rpcRows.length > 0 ? Number(rpcRows[0].total_count) : 0;
+
+  if (pageIds.length === 0) {
+    return { products: [], total: 0, totalPages: 0, page, error: undefined };
+  }
+
+  const { data: embedRows, error: embedError } = await supabase
+    .from("products")
+    .select(
+      `
+      *,
+      categories (*),
+      product_images (*),
+      product_pricing_tiers (*),
+      companies:supplier_id (id, name, slug, logo_url, verification_status, country_code)
+    `
+    )
+    .in("id", pageIds);
+
+  const orderIndex = new Map(pageIds.map((id, i) => [id, i]));
+  const products = ((embedRows ?? []) as ProductWithDetails[]).sort(
+    (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0)
+  );
+
+  return {
+    products,
+    total,
+    totalPages: Math.ceil(total / limit),
+    page,
+    error: embedError?.message,
   };
 }
 

@@ -9149,6 +9149,23 @@ export type Database = {
         Args: { p_conversation_id: string; p_reader_company_id: string }
         Returns: undefined
       }
+      search_product_ids: {
+        Args: {
+          p_category_ids?: string[]
+          p_limit?: number
+          p_moq_max?: number
+          p_offset?: number
+          p_origin_countries?: string[]
+          p_price_max?: number
+          p_price_min?: number
+          p_search?: string
+          p_sort?: string
+        }
+        Returns: {
+          id: string
+          total_count: number
+        }[]
+      }
       search_products: {
         Args: {
           filter_category?: string
@@ -9373,6 +9390,7 @@ export type Database = {
         | "escrow"
         | "platform_wallet"
         | "xtransfer"
+        | "flutterwave"
       payment_status:
         | "pending"
         | "processing"
@@ -9902,6 +9920,7 @@ export const Constants = {
         "escrow",
         "platform_wallet",
         "xtransfer",
+        "flutterwave",
       ],
       payment_status: [
         "pending",
