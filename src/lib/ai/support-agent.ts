@@ -62,7 +62,6 @@ PLATFORM INFO:
 - Supports mobile money (MTN MoMo, Airtel Money, Tigo Cash, M-Pesa), Stripe, Alipay, WeChat Pay
 - Own logistics fleet with real-time tracking
 - Operates in 27+ African countries + China
-- Escrow-based payments with dispute protection
 
 USER CONTEXT:
 - Company: ${context.companyName}

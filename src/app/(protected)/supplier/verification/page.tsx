@@ -167,7 +167,6 @@ export default function SupplierVerificationPage() {
               "Verified badge on your profile and products",
               "Higher visibility in search results",
               "Increased buyer trust and conversion rates",
-              "Access to Trade Assurance orders",
               "Priority customer support",
             ].map((benefit) => (
               <li key={benefit} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">

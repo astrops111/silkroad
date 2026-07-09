@@ -32,12 +32,11 @@
     "products": "Produits",
     "commodities": "Matières premières",
     "suppliers": "Fournisseurs",
-    "rfq": "Demande de prix",
-    "tradeAssurance": "Assurance commerce"
+    "rfq": "Demande de prix"
   },
   "home": {
     "heroTitle": "La Route de la Soie, réinventée pour l'Afrique",
-    "heroSubtitle": "Connectez-vous avec des fabricants et fournisseurs vérifiés en Chine et en Afrique. Assurance commerce, paiements mobiles et logistique pour le commerce B2B intercontinental.",
+    "heroSubtitle": "Connectez-vous avec des fabricants et fournisseurs vérifiés en Chine et en Afrique. Paiements mobiles et logistique pour le commerce B2B intercontinental.",
     "browseProducts": "Parcourir les produits",
     "becomeSupplier": "Devenir fournisseur",
     "howItWorks": "Comment ça marche",
@@ -70,7 +69,7 @@
     "confirmPassword": "Confirmer le mot de passe",
     "chooseRole": "Comment utiliserez-vous SilkRoad Afrique ?",
     "iAmBuyer": "Je suis acheteur",
-    "buyerDesc": "Achetez des produits auprès de fournisseurs vérifiés avec prix de gros et assurance commerce.",
+    "buyerDesc": "Achetez des produits auprès de fournisseurs vérifiés avec prix de gros.",
     "iAmSupplier": "Je suis fournisseur",
     "supplierDesc": "Publiez vos produits, atteignez des acheteurs africains et chinois avec paiements intégrés.",
     "companyName": "Nom de l'entreprise",
@@ -100,7 +99,6 @@
     "addToCart": "Ajouter au panier",
     "contactSupplier": "Contacter le fournisseur",
     "requestQuote": "Demander un devis",
-    "tradeAssurance": "Assurance commerce",
     "verifiedSupplier": "Fournisseur vérifié",
     "sampleAvailable": "Échantillon disponible"
   },

@@ -29,7 +29,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { labelKey: "buyHowToBuy", href: "/how-to-buy" },
       { labelKey: "buyRfq", href: "/dashboard/rfq" },
-      { labelKey: "buyTradeAssurance", href: "/trade-assurance" },
       { labelKey: "buyBuyerProtection", href: "/buyer-protection" },
       { labelKey: "buyPaymentMethods", href: "/payments" },
       { labelKey: "buyCustoms", href: "/customs" },

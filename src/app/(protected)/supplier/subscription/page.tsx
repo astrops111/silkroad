@@ -69,7 +69,6 @@ const TIERS = [
       "Custom storefront branding",
       "API access",
       "Promoted listings (20/mo)",
-      "Trade assurance priority",
       "Multi-user accounts",
     ],
   },

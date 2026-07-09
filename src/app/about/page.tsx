@@ -206,7 +206,7 @@ function SocialProof() {
   const testimonials = [
     {
       quote:
-        "We reduced our sourcing costs by 35% by going direct through Silk Road Africa. The escrow system gives us confidence we never had with wire transfers.",
+        "We reduced our sourcing costs by 35% by going direct through Silk Road Africa. Having one accountable party for the whole order gives us confidence we never had with wire transfers.",
       name: "Amara Diallo",
       role: "Procurement Manager",
       company: "TechHub Ghana",

@@ -32,12 +32,11 @@
     "products": "Produtos",
     "commodities": "Commodities",
     "suppliers": "Fornecedores",
-    "rfq": "Cotação",
-    "tradeAssurance": "Garantia Comercial"
+    "rfq": "Cotação"
   },
   "home": {
     "heroTitle": "A Rota da Seda, reinventada para a África",
-    "heroSubtitle": "Conecte-se com fabricantes e fornecedores verificados na China e África. Garantia comercial, pagamentos móveis e logística para comércio B2B intercontinental.",
+    "heroSubtitle": "Conecte-se com fabricantes e fornecedores verificados na China e África. Pagamentos móveis e logística para comércio B2B intercontinental.",
     "browseProducts": "Ver Produtos",
     "becomeSupplier": "Seja Fornecedor",
     "howItWorks": "Como Funciona",
@@ -70,7 +69,7 @@
     "confirmPassword": "Confirmar senha",
     "chooseRole": "Como você usará o SilkRoad África?",
     "iAmBuyer": "Sou Comprador",
-    "buyerDesc": "Compre de fornecedores verificados com preços em volume e garantia comercial.",
+    "buyerDesc": "Compre de fornecedores verificados com preços em volume.",
     "iAmSupplier": "Sou Fornecedor",
     "supplierDesc": "Liste seus produtos, alcance compradores africanos e chineses com pagamentos integrados.",
     "companyName": "Nome da empresa",
@@ -100,7 +99,6 @@
     "addToCart": "Adicionar ao Carrinho",
     "contactSupplier": "Contactar Fornecedor",
     "requestQuote": "Solicitar Cotação",
-    "tradeAssurance": "Garantia Comercial",
     "verifiedSupplier": "Fornecedor Verificado",
     "sampleAvailable": "Amostra Disponível"
   },

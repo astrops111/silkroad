@@ -68,9 +68,8 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Payment data</strong> — mobile-money numbers (MTN MoMo,
-                M-Pesa, Airtel Money), bank-transfer references, escrow-release
-                instructions. We do not store full card numbers; card payments are
-                handled by Stripe.
+                M-Pesa, Airtel Money), bank-transfer references. We do not store
+                full card numbers; card payments are handled by Stripe.
               </li>
               <li>
                 <strong>Device and usage data</strong> — IP address, browser type,
@@ -89,8 +88,7 @@ export default function PrivacyPage() {
                 quotations, process orders, coordinate logistics and customs.
               </li>
               <li>
-                Process payments, release escrow, issue refunds, and resolve
-                disputes.
+                Process payments, issue refunds, and resolve disputes.
               </li>
               <li>
                 Run sanctions / denied-party screening and comply with export, import,

@@ -53,7 +53,7 @@ export default function TermsPage() {
             <p>
               Silk Road Africa operates a curated, single-direction B2B marketplace
               where buyers located in Africa purchase goods sourced from verified
-              suppliers in China. We handle sourcing, quotation, payment escrow,
+              suppliers in China. We handle sourcing, quotation, payment processing,
               logistics coordination, customs, and last-mile delivery.
             </p>
             <p>
@@ -123,8 +123,9 @@ export default function TermsPage() {
                 transfer, and card (via Stripe) depending on your country.
               </li>
               <li>
-                Payments are held in escrow until you confirm delivery or the
-                inspection period lapses.
+                Orders are confirmed once payment is received. Refunds and remedies
+                for delivery issues are handled per Section 7 within the inspection
+                period.
               </li>
               <li>
                 Failed payments, chargebacks, or reversals may delay or cancel an

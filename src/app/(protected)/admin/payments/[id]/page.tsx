@@ -92,6 +92,7 @@ export default function PaymentDetailPage() {
   }
 
   function copyRef() {
+    if (!payment) return;
     navigator.clipboard.writeText(payment.reference);
     toast.success("Reference copied");
   }

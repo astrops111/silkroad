@@ -31,13 +31,13 @@ export function TwoUpValue() {
               className="text-2xl lg:text-3xl font-bold text-white tracking-tight leading-tight max-w-md"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              {t("tradeAssuranceTitle")}
+              {t("supplierVettingTitle")}
             </h3>
             <p className="mt-3 text-sm lg:text-base text-white/80 max-w-md leading-relaxed">
-              {t("tradeAssuranceBody")}
+              {t("supplierVettingBody")}
             </p>
             <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white group-hover:gap-2.5 transition-all">
-              {t("tradeAssuranceCta")}
+              {t("supplierVettingCta")}
               <ArrowRight className="w-4 h-4" />
             </span>
           </Link>

@@ -4,11 +4,11 @@ import { useEffect, useState, use } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Building2, Smartphone, CreditCard, Shield,
+  ArrowLeft, Building2, Smartphone, CreditCard,
   Loader2, CheckCircle2,
 } from "lucide-react";
 
-type PaymentMethod = "xtransfer" | "xtransfer_mobile" | "mtn_momo" | "airtel_money" | "stripe";
+type PaymentMethod = "flutterwave" | "xtransfer" | "xtransfer_mobile" | "mtn_momo" | "airtel_money" | "stripe";
 
 interface WireInstructions {
   reference: string;
@@ -44,9 +44,10 @@ const PAYMENT_METHODS: {
   id: PaymentMethod; name: string; icon: typeof CreditCard;
   description: string; badge?: "recommended" | "fallback";
 }[] = [
-  { id: "xtransfer",        name: "B2B Wire Transfer",        icon: Building2,  description: "SWIFT wire via XTransfer. 0 receiving fees. 1–3 business days.", badge: "recommended" },
+  { id: "flutterwave",      name: "Pay with Flutterwave",     icon: CreditCard, description: "Card, bank transfer & mobile money — Africa's leading payment gateway.", badge: "recommended" },
+  { id: "xtransfer",        name: "B2B Wire Transfer",        icon: Building2,  description: "SWIFT wire via XTransfer. 0 receiving fees. 1–3 business days." },
   { id: "xtransfer_mobile", name: "Mobile Money (XTransfer)", icon: Smartphone, description: "MTN, Orange, Airtel, Vodacom, NIBSS, OZOW. Instant." },
-  { id: "stripe",           name: "Card Payment",             icon: CreditCard, description: "Visa, Mastercard via Stripe." },
+  { id: "stripe",           name: "Card Payment (Stripe)",    icon: CreditCard, description: "Visa, Mastercard via Stripe." },
   { id: "mtn_momo",         name: "MTN Mobile Money",         icon: Smartphone, description: "Via Flutterwave.", badge: "fallback" },
   { id: "airtel_money",     name: "Airtel Money",             icon: Smartphone, description: "Via Flutterwave.", badge: "fallback" },
 ];
@@ -56,7 +57,7 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId") ?? "";
 
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("xtransfer");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("flutterwave");
   const [buyerCountry, setBuyerCountry] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pollStatus, setPollStatus] = useState("");
@@ -76,6 +77,31 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
         setCurrency(d.quote?.currency ?? "USD");
       });
   }, [id]);
+
+  // Flutterwave's hosted card checkout redirects back here with ?status=&tx_ref=
+  useEffect(() => {
+    const flwStatus = searchParams.get("status");
+    const txRef = searchParams.get("tx_ref");
+    if (!flwStatus || !txRef) return;
+
+    if (flwStatus !== "successful") {
+      setError("Payment was not completed.");
+      return;
+    }
+
+    setStep("confirming");
+    setPollStatus("Confirming your payment…");
+    fetch(`/api/payments/flutterwave/status?transactionId=${txRef}`)
+      .then((r) => r.json())
+      .then((s) => {
+        if (s.status === "succeeded") setStep("success");
+        else {
+          setError(s.status === "failed" ? "Payment was declined." : "Payment is still processing — check your orders shortly.");
+          setStep("pay");
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCountryChange = (country: string) => {
     setBuyerCountry(country);
@@ -149,24 +175,38 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
         if (data.requiresAction && data.actionUrl) { window.location.href = data.actionUrl; return; }
         if (data.status === "succeeded") setStep("success");
 
-      } else {
-        const res = await fetch("/api/payments/mtn-momo", {
+      } else if (selectedPayment === "flutterwave") {
+        const returnUrl = `${window.location.origin}/quotes/${id}/pay?orderId=${orderId}`;
+        const res = await fetch("/api/payments/flutterwave", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId, phoneNumber, currency, amount: totalAmount }),
+          body: JSON.stringify({ orderId, amount: totalAmount, currency, buyerCountry, returnUrl }),
+        });
+        const data = await res.json();
+        if (!data.success && !data.requiresAction) throw new Error(data.message ?? "Failed to initiate payment");
+        if (data.requiresAction && data.actionUrl) { window.location.href = data.actionUrl; return; }
+        if (data.status === "succeeded") setStep("success");
+
+      } else {
+        // mtn_momo / airtel_money — both charged via Flutterwave's mobile money API
+        const network = selectedPayment === "mtn_momo" ? "MTN" : "AIRTEL";
+        const res = await fetch("/api/payments/flutterwave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId, phoneNumber, currency, amount: totalAmount, buyerCountry, network }),
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.message ?? "Payment failed");
-        setPollStatus("Waiting for payment confirmation…");
+        setPollStatus("Payment request sent to your phone. Please approve it now…");
         const txId = data.transactionId;
         let attempts = 0;
         const poll = setInterval(async () => {
           attempts++;
-          const s = await fetch(`/api/payments/mtn-momo/status?transactionId=${txId}`).then((r) => r.json());
+          const s = await fetch(`/api/payments/flutterwave/status?transactionId=${txId}`).then((r) => r.json());
           if (s.status === "succeeded") { clearInterval(poll); setStep("success"); }
           else if (s.status === "failed" || attempts >= 24) {
             clearInterval(poll);
-            setError("Payment failed or timed out.");
+            setError(s.status === "failed" ? "Payment was declined." : "Payment timed out.");
             setIsSubmitting(false);
             setStep("pay");
           }
@@ -387,8 +427,8 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
         </button>
 
         <div className="mt-4 flex items-center gap-2 justify-center text-xs text-[var(--text-tertiary)]">
-          <Shield className="w-3.5 h-3.5 text-[var(--success)]" />
-          Protected by Silk Road Africa Trade Assurance
+          <Smartphone className="w-3.5 h-3.5 text-[var(--success)]" />
+          Pay directly in {currency} via mobile money — no forex conversion needed
         </div>
       </div>
     </div>

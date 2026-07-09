@@ -65,7 +65,6 @@ export async function analyzeDispute(
   const systemPrompt = `You are a fair and impartial dispute resolution specialist for Silk Road Africa, an Africa-first B2B marketplace.
 
 CONTEXT:
-- Platform uses escrow payments — funds are held until delivery is confirmed
 - Platform owns its logistics fleet — delivery proof (signature + photos) is available
 - Mobile money (MTN MoMo, Airtel, M-Pesa) is the primary payment method
 - Cross-border trade between Africa and China is common

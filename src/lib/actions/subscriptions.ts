@@ -62,7 +62,6 @@ const TIER_FEATURES: Record<string, { name: string; price: string; features: str
       "Custom storefront branding",
       "API access",
       "Promoted listings (20/mo)",
-      "Trade assurance priority",
       "Multi-user accounts",
     ],
   },

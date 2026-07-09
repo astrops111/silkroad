@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       addresses: {
@@ -381,6 +406,7 @@ export type Database = {
           fapiao_code: string | null
           fapiao_number: string | null
           golden_tax_response: Json | null
+          html_storage_path: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -399,6 +425,7 @@ export type Database = {
           recipient_company_name: string | null
           recipient_tax_id: string | null
           settlement_id: string | null
+          shipment_id: string | null
           status: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id: string | null
@@ -424,6 +451,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -442,6 +470,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id?: string | null
@@ -467,6 +496,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -485,6 +515,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           supplier_order_id?: string | null
@@ -528,6 +559,7 @@ export type Database = {
           fapiao_code: string | null
           fapiao_number: string | null
           golden_tax_response: Json | null
+          html_storage_path: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -546,6 +578,7 @@ export type Database = {
           recipient_company_name: string | null
           recipient_tax_id: string | null
           settlement_id: string | null
+          shipment_id: string | null
           status: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id: string | null
@@ -571,6 +604,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -589,6 +623,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id?: string | null
@@ -614,6 +649,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -632,6 +668,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           supplier_order_id?: string | null
@@ -660,6 +697,7 @@ export type Database = {
           fapiao_code: string | null
           fapiao_number: string | null
           golden_tax_response: Json | null
+          html_storage_path: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -678,6 +716,7 @@ export type Database = {
           recipient_company_name: string | null
           recipient_tax_id: string | null
           settlement_id: string | null
+          shipment_id: string | null
           status: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id: string | null
@@ -703,6 +742,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -721,6 +761,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id?: string | null
@@ -746,6 +787,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -764,6 +806,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           supplier_order_id?: string | null
@@ -792,6 +835,7 @@ export type Database = {
           fapiao_code: string | null
           fapiao_number: string | null
           golden_tax_response: Json | null
+          html_storage_path: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -810,6 +854,7 @@ export type Database = {
           recipient_company_name: string | null
           recipient_tax_id: string | null
           settlement_id: string | null
+          shipment_id: string | null
           status: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id: string | null
@@ -835,6 +880,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -853,6 +899,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           supplier_order_id?: string | null
@@ -878,6 +925,7 @@ export type Database = {
           fapiao_code?: string | null
           fapiao_number?: string | null
           golden_tax_response?: Json | null
+          html_storage_path?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -896,6 +944,7 @@ export type Database = {
           recipient_company_name?: string | null
           recipient_tax_id?: string | null
           settlement_id?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           supplier_order_id?: string | null
@@ -973,6 +1022,7 @@ export type Database = {
           actual_total_minor: number | null
           assigned_driver_id: string | null
           assigned_vehicle_id: string | null
+          at_hub_since: string | null
           bill_of_lading: string | null
           booking_number: string | null
           carrier_scac: string | null
@@ -982,18 +1032,25 @@ export type Database = {
           created_at: string
           currency: string | null
           current_location: Json | null
+          customs_api_provider: string | null
+          customs_api_ref: string | null
+          customs_api_submitted_at: string | null
+          customs_assessed_currency: string | null
           customs_broker_name: string | null
           customs_broker_ref: string | null
           customs_cleared_at: string | null
           customs_declaration_no: string | null
+          customs_duty_assessed_minor: number | null
           customs_duty_paid_minor: number | null
           customs_filed_at: string | null
           customs_notes: string | null
+          customs_other_assessed_minor: number | null
           customs_other_paid_minor: number | null
           customs_paid_currency: string | null
           customs_status:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor: number | null
           customs_vat_paid_minor: number | null
           delivered_at: string | null
           delivery_address: string | null
@@ -1003,9 +1060,11 @@ export type Database = {
           delivery_country: string | null
           delivery_gps: Json | null
           delivery_landmark: string | null
+          demurrage_flagged_at: string | null
           destination_zone_id: string | null
           dispatched_at: string | null
           estimated_delivery_at: string | null
+          free_time_days: number
           hs_codes: string[] | null
           id: string
           incoterm_detail: string | null
@@ -1058,6 +1117,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1067,18 +1127,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1088,9 +1155,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1143,6 +1212,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1152,18 +1222,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1173,9 +1250,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1253,6 +1332,7 @@ export type Database = {
           actual_total_minor: number | null
           assigned_driver_id: string | null
           assigned_vehicle_id: string | null
+          at_hub_since: string | null
           bill_of_lading: string | null
           booking_number: string | null
           carrier_scac: string | null
@@ -1262,18 +1342,25 @@ export type Database = {
           created_at: string
           currency: string | null
           current_location: Json | null
+          customs_api_provider: string | null
+          customs_api_ref: string | null
+          customs_api_submitted_at: string | null
+          customs_assessed_currency: string | null
           customs_broker_name: string | null
           customs_broker_ref: string | null
           customs_cleared_at: string | null
           customs_declaration_no: string | null
+          customs_duty_assessed_minor: number | null
           customs_duty_paid_minor: number | null
           customs_filed_at: string | null
           customs_notes: string | null
+          customs_other_assessed_minor: number | null
           customs_other_paid_minor: number | null
           customs_paid_currency: string | null
           customs_status:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor: number | null
           customs_vat_paid_minor: number | null
           delivered_at: string | null
           delivery_address: string | null
@@ -1283,9 +1370,11 @@ export type Database = {
           delivery_country: string | null
           delivery_gps: Json | null
           delivery_landmark: string | null
+          demurrage_flagged_at: string | null
           destination_zone_id: string | null
           dispatched_at: string | null
           estimated_delivery_at: string | null
+          free_time_days: number
           hs_codes: string[] | null
           id: string
           incoterm_detail: string | null
@@ -1338,6 +1427,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1347,18 +1437,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1368,9 +1465,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1423,6 +1522,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1432,18 +1532,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1453,9 +1560,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1511,6 +1620,7 @@ export type Database = {
           actual_total_minor: number | null
           assigned_driver_id: string | null
           assigned_vehicle_id: string | null
+          at_hub_since: string | null
           bill_of_lading: string | null
           booking_number: string | null
           carrier_scac: string | null
@@ -1520,18 +1630,25 @@ export type Database = {
           created_at: string
           currency: string | null
           current_location: Json | null
+          customs_api_provider: string | null
+          customs_api_ref: string | null
+          customs_api_submitted_at: string | null
+          customs_assessed_currency: string | null
           customs_broker_name: string | null
           customs_broker_ref: string | null
           customs_cleared_at: string | null
           customs_declaration_no: string | null
+          customs_duty_assessed_minor: number | null
           customs_duty_paid_minor: number | null
           customs_filed_at: string | null
           customs_notes: string | null
+          customs_other_assessed_minor: number | null
           customs_other_paid_minor: number | null
           customs_paid_currency: string | null
           customs_status:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor: number | null
           customs_vat_paid_minor: number | null
           delivered_at: string | null
           delivery_address: string | null
@@ -1541,9 +1658,11 @@ export type Database = {
           delivery_country: string | null
           delivery_gps: Json | null
           delivery_landmark: string | null
+          demurrage_flagged_at: string | null
           destination_zone_id: string | null
           dispatched_at: string | null
           estimated_delivery_at: string | null
+          free_time_days: number
           hs_codes: string[] | null
           id: string
           incoterm_detail: string | null
@@ -1596,6 +1715,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1605,18 +1725,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1626,9 +1753,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1681,6 +1810,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1690,18 +1820,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1711,9 +1848,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1769,6 +1908,7 @@ export type Database = {
           actual_total_minor: number | null
           assigned_driver_id: string | null
           assigned_vehicle_id: string | null
+          at_hub_since: string | null
           bill_of_lading: string | null
           booking_number: string | null
           carrier_scac: string | null
@@ -1778,18 +1918,25 @@ export type Database = {
           created_at: string
           currency: string | null
           current_location: Json | null
+          customs_api_provider: string | null
+          customs_api_ref: string | null
+          customs_api_submitted_at: string | null
+          customs_assessed_currency: string | null
           customs_broker_name: string | null
           customs_broker_ref: string | null
           customs_cleared_at: string | null
           customs_declaration_no: string | null
+          customs_duty_assessed_minor: number | null
           customs_duty_paid_minor: number | null
           customs_filed_at: string | null
           customs_notes: string | null
+          customs_other_assessed_minor: number | null
           customs_other_paid_minor: number | null
           customs_paid_currency: string | null
           customs_status:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor: number | null
           customs_vat_paid_minor: number | null
           delivered_at: string | null
           delivery_address: string | null
@@ -1799,9 +1946,11 @@ export type Database = {
           delivery_country: string | null
           delivery_gps: Json | null
           delivery_landmark: string | null
+          demurrage_flagged_at: string | null
           destination_zone_id: string | null
           dispatched_at: string | null
           estimated_delivery_at: string | null
+          free_time_days: number
           hs_codes: string[] | null
           id: string
           incoterm_detail: string | null
@@ -1854,6 +2003,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1863,18 +2013,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1884,9 +2041,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -1939,6 +2098,7 @@ export type Database = {
           actual_total_minor?: number | null
           assigned_driver_id?: string | null
           assigned_vehicle_id?: string | null
+          at_hub_since?: string | null
           bill_of_lading?: string | null
           booking_number?: string | null
           carrier_scac?: string | null
@@ -1948,18 +2108,25 @@ export type Database = {
           created_at?: string
           currency?: string | null
           current_location?: Json | null
+          customs_api_provider?: string | null
+          customs_api_ref?: string | null
+          customs_api_submitted_at?: string | null
+          customs_assessed_currency?: string | null
           customs_broker_name?: string | null
           customs_broker_ref?: string | null
           customs_cleared_at?: string | null
           customs_declaration_no?: string | null
+          customs_duty_assessed_minor?: number | null
           customs_duty_paid_minor?: number | null
           customs_filed_at?: string | null
           customs_notes?: string | null
+          customs_other_assessed_minor?: number | null
           customs_other_paid_minor?: number | null
           customs_paid_currency?: string | null
           customs_status?:
             | Database["public"]["Enums"]["customs_status_enum"]
             | null
+          customs_vat_assessed_minor?: number | null
           customs_vat_paid_minor?: number | null
           delivered_at?: string | null
           delivery_address?: string | null
@@ -1969,9 +2136,11 @@ export type Database = {
           delivery_country?: string | null
           delivery_gps?: Json | null
           delivery_landmark?: string | null
+          demurrage_flagged_at?: string | null
           destination_zone_id?: string | null
           dispatched_at?: string | null
           estimated_delivery_at?: string | null
+          free_time_days?: number
           hs_codes?: string[] | null
           id?: string
           incoterm_detail?: string | null
@@ -2019,6 +2188,110 @@ export type Database = {
           voyage_no?: string | null
         }
         Relationships: []
+      }
+      buyer_quote_requests: {
+        Row: {
+          admin_notes: string | null
+          buyer_company_name: string | null
+          buyer_notes: string | null
+          buyer_tax_id: string | null
+          buyer_user_id: string
+          cargo_ready_date: string | null
+          cost_components: Json | null
+          created_at: string
+          currency: string
+          customs_duties: number | null
+          destination_city: string | null
+          destination_country: string
+          destination_port_code: string | null
+          estimated_transit_days: number | null
+          expires_at: string | null
+          id: string
+          incoterms: string
+          items: Json
+          origin_country: string | null
+          origin_port_code: string | null
+          platform_fee: number | null
+          product_subtotal: number | null
+          purchase_order_id: string | null
+          quote_number: string
+          shipping_cost: number | null
+          shipping_mode: string
+          status: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          buyer_company_name?: string | null
+          buyer_notes?: string | null
+          buyer_tax_id?: string | null
+          buyer_user_id: string
+          cargo_ready_date?: string | null
+          cost_components?: Json | null
+          created_at?: string
+          currency?: string
+          customs_duties?: number | null
+          destination_city?: string | null
+          destination_country: string
+          destination_port_code?: string | null
+          estimated_transit_days?: number | null
+          expires_at?: string | null
+          id?: string
+          incoterms?: string
+          items?: Json
+          origin_country?: string | null
+          origin_port_code?: string | null
+          platform_fee?: number | null
+          product_subtotal?: number | null
+          purchase_order_id?: string | null
+          quote_number?: string
+          shipping_cost?: number | null
+          shipping_mode?: string
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          buyer_company_name?: string | null
+          buyer_notes?: string | null
+          buyer_tax_id?: string | null
+          buyer_user_id?: string
+          cargo_ready_date?: string | null
+          cost_components?: Json | null
+          created_at?: string
+          currency?: string
+          customs_duties?: number | null
+          destination_city?: string | null
+          destination_country?: string
+          destination_port_code?: string | null
+          estimated_transit_days?: number | null
+          expires_at?: string | null
+          id?: string
+          incoterms?: string
+          items?: Json
+          origin_country?: string | null
+          origin_port_code?: string | null
+          platform_fee?: number | null
+          product_subtotal?: number | null
+          purchase_order_id?: string | null
+          quote_number?: string
+          shipping_cost?: number | null
+          shipping_mode?: string
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_quote_requests_buyer_user_id_fkey"
+            columns: ["buyer_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       buyer_requests: {
         Row: {
@@ -3465,6 +3738,7 @@ export type Database = {
           fuel_surcharge_pct: number | null
           id: string
           is_active: boolean | null
+          live_rate_expires_at: string | null
           metadata: Json | null
           min_charge: number | null
           origin_country: string | null
@@ -3493,6 +3767,7 @@ export type Database = {
           fuel_surcharge_pct?: number | null
           id?: string
           is_active?: boolean | null
+          live_rate_expires_at?: string | null
           metadata?: Json | null
           min_charge?: number | null
           origin_country?: string | null
@@ -3521,6 +3796,7 @@ export type Database = {
           fuel_surcharge_pct?: number | null
           id?: string
           is_active?: boolean | null
+          live_rate_expires_at?: string | null
           metadata?: Json | null
           min_charge?: number | null
           origin_country?: string | null
@@ -4858,6 +5134,84 @@ export type Database = {
         }
         Relationships: []
       }
+      pipeline_events: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          created_by: string | null
+          error_history: Json
+          event_type: Database["public"]["Enums"]["pipeline_event_type"]
+          id: string
+          idempotency_key: string | null
+          last_attempt_at: string | null
+          last_error: string | null
+          locked_until: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json
+          processed_at: string | null
+          purchase_order_id: string | null
+          result: Json | null
+          shipment_id: string | null
+          status: Database["public"]["Enums"]["pipeline_event_status"]
+          supplier_order_id: string | null
+          triggered_by_id: string | null
+          triggered_by_type:
+            | Database["public"]["Enums"]["pipeline_event_type"]
+            | null
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          created_by?: string | null
+          error_history?: Json
+          event_type: Database["public"]["Enums"]["pipeline_event_type"]
+          id?: string
+          idempotency_key?: string | null
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json
+          processed_at?: string | null
+          purchase_order_id?: string | null
+          result?: Json | null
+          shipment_id?: string | null
+          status?: Database["public"]["Enums"]["pipeline_event_status"]
+          supplier_order_id?: string | null
+          triggered_by_id?: string | null
+          triggered_by_type?:
+            | Database["public"]["Enums"]["pipeline_event_type"]
+            | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          created_by?: string | null
+          error_history?: Json
+          event_type?: Database["public"]["Enums"]["pipeline_event_type"]
+          id?: string
+          idempotency_key?: string | null
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json
+          processed_at?: string | null
+          purchase_order_id?: string | null
+          result?: Json | null
+          shipment_id?: string | null
+          status?: Database["public"]["Enums"]["pipeline_event_status"]
+          supplier_order_id?: string | null
+          triggered_by_id?: string | null
+          triggered_by_type?:
+            | Database["public"]["Enums"]["pipeline_event_type"]
+            | null
+        }
+        Relationships: []
+      }
       platform_wallets: {
         Row: {
           balance: number | null
@@ -4947,6 +5301,39 @@ export type Database = {
         }
         Relationships: []
       }
+      privacy_requests: {
+        Row: {
+          created_at: string
+          details: string | null
+          email: string
+          full_name: string
+          id: string
+          request_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          email: string
+          full_name: string
+          id?: string
+          request_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          request_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_certifications: {
         Row: {
           cert_number: string | null
@@ -4981,6 +5368,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_certifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_with_origin"
             referencedColumns: ["id"]
           },
         ]
@@ -5021,6 +5415,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_with_origin"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_pricing_tiers: {
@@ -5057,6 +5458,81 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_pricing_tiers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_with_origin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_shipping_groups: {
+        Row: {
+          code: string | null
+          country_code: string | null
+          created_at: string
+          description: string | null
+          group_type: string
+          id: string
+          is_active: boolean | null
+          min_order_amount: number | null
+          moq: number | null
+          name: string
+          notes: string | null
+          preferred_container_type:
+            | Database["public"]["Enums"]["container_type"]
+            | null
+          preferred_origin_port_id: string | null
+          product_mix: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          code?: string | null
+          country_code?: string | null
+          created_at?: string
+          description?: string | null
+          group_type?: string
+          id?: string
+          is_active?: boolean | null
+          min_order_amount?: number | null
+          moq?: number | null
+          name: string
+          notes?: string | null
+          preferred_container_type?:
+            | Database["public"]["Enums"]["container_type"]
+            | null
+          preferred_origin_port_id?: string | null
+          product_mix?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string | null
+          country_code?: string | null
+          created_at?: string
+          description?: string | null
+          group_type?: string
+          id?: string
+          is_active?: boolean | null
+          min_order_amount?: number | null
+          moq?: number | null
+          name?: string
+          notes?: string | null
+          preferred_container_type?:
+            | Database["public"]["Enums"]["container_type"]
+            | null
+          preferred_origin_port_id?: string | null
+          product_mix?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_shipping_groups_preferred_origin_port_id_fkey"
+            columns: ["preferred_origin_port_id"]
+            isOneToOne: false
+            referencedRelation: "ports"
             referencedColumns: ["id"]
           },
         ]
@@ -5103,16 +5579,26 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_with_origin"
+            referencedColumns: ["id"]
+          },
         ]
       }
       products: {
         Row: {
+          allow_mix_shipping: boolean
           base_price: number
           box_pack_qty: number | null
           brand: string | null
           category_id: string | null
+          category_ids: string[] | null
           cogs: number | null
           compare_price: number | null
+          container_size_ft: number | null
           created_at: string | null
           currency: string | null
           description: string | null
@@ -5124,6 +5610,8 @@ export type Database = {
           jan_code: string | null
           lead_time_days: number | null
           legal_category: string | null
+          min_order_amount: number | null
+          min_order_grouped_by: string | null
           moderated_at: string | null
           moderated_by: string | null
           moderation_status:
@@ -5139,6 +5627,7 @@ export type Database = {
           scent: string | null
           search_vector: unknown
           shelf_life_days: number | null
+          shipping_group_id: string | null
           shipping_mode: string | null
           skin_hair_type: string | null
           slug: string
@@ -5153,12 +5642,15 @@ export type Database = {
           weight_kg: number | null
         }
         Insert: {
+          allow_mix_shipping?: boolean
           base_price: number
           box_pack_qty?: number | null
           brand?: string | null
           category_id?: string | null
+          category_ids?: string[] | null
           cogs?: number | null
           compare_price?: number | null
+          container_size_ft?: number | null
           created_at?: string | null
           currency?: string | null
           description?: string | null
@@ -5170,6 +5662,8 @@ export type Database = {
           jan_code?: string | null
           lead_time_days?: number | null
           legal_category?: string | null
+          min_order_amount?: number | null
+          min_order_grouped_by?: string | null
           moderated_at?: string | null
           moderated_by?: string | null
           moderation_status?:
@@ -5185,6 +5679,7 @@ export type Database = {
           scent?: string | null
           search_vector?: unknown
           shelf_life_days?: number | null
+          shipping_group_id?: string | null
           shipping_mode?: string | null
           skin_hair_type?: string | null
           slug: string
@@ -5199,12 +5694,15 @@ export type Database = {
           weight_kg?: number | null
         }
         Update: {
+          allow_mix_shipping?: boolean
           base_price?: number
           box_pack_qty?: number | null
           brand?: string | null
           category_id?: string | null
+          category_ids?: string[] | null
           cogs?: number | null
           compare_price?: number | null
+          container_size_ft?: number | null
           created_at?: string | null
           currency?: string | null
           description?: string | null
@@ -5216,6 +5714,8 @@ export type Database = {
           jan_code?: string | null
           lead_time_days?: number | null
           legal_category?: string | null
+          min_order_amount?: number | null
+          min_order_grouped_by?: string | null
           moderated_at?: string | null
           moderated_by?: string | null
           moderation_status?:
@@ -5231,6 +5731,7 @@ export type Database = {
           scent?: string | null
           search_vector?: unknown
           shelf_life_days?: number | null
+          shipping_group_id?: string | null
           shipping_mode?: string | null
           skin_hair_type?: string | null
           slug?: string
@@ -5250,6 +5751,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_shipping_group_id_fkey"
+            columns: ["shipping_group_id"]
+            isOneToOne: false
+            referencedRelation: "product_shipping_groups"
             referencedColumns: ["id"]
           },
           {
@@ -5325,6 +5833,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promoted_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_with_origin"
             referencedColumns: ["id"]
           },
           {
@@ -5819,6 +6334,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_with_origin"
             referencedColumns: ["id"]
           },
           {
@@ -6824,6 +7346,7 @@ export type Database = {
           total_commission: number
           total_tax_on_commission: number | null
           updated_at: string | null
+          xtransfer_transfer_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -6848,6 +7371,7 @@ export type Database = {
           total_commission: number
           total_tax_on_commission?: number | null
           updated_at?: string | null
+          xtransfer_transfer_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -6872,6 +7396,7 @@ export type Database = {
           total_commission?: number
           total_tax_on_commission?: number | null
           updated_at?: string | null
+          xtransfer_transfer_id?: string | null
         }
         Relationships: [
           {
@@ -7801,6 +8326,9 @@ export type Database = {
           trade_terms_default: Database["public"]["Enums"]["trade_term"] | null
           updated_at: string | null
           warehouse_addresses: Json | null
+          xtransfer_payee_id: string | null
+          xtransfer_payee_status: string | null
+          xtransfer_payout_currency: string | null
         }
         Insert: {
           average_rating?: number | null
@@ -7832,6 +8360,9 @@ export type Database = {
           trade_terms_default?: Database["public"]["Enums"]["trade_term"] | null
           updated_at?: string | null
           warehouse_addresses?: Json | null
+          xtransfer_payee_id?: string | null
+          xtransfer_payee_status?: string | null
+          xtransfer_payout_currency?: string | null
         }
         Update: {
           average_rating?: number | null
@@ -7863,6 +8394,9 @@ export type Database = {
           trade_terms_default?: Database["public"]["Enums"]["trade_term"] | null
           updated_at?: string | null
           warehouse_addresses?: Json | null
+          xtransfer_payee_id?: string | null
+          xtransfer_payee_status?: string | null
+          xtransfer_payout_currency?: string | null
         }
         Relationships: [
           {
@@ -7976,9 +8510,11 @@ export type Database = {
           effective_from: string | null
           effective_to: string | null
           excise_pct: number | null
+          external_ref: string | null
           hs_prefix: string
           id: string
           is_active: boolean | null
+          last_verified_at: string | null
           notes: string | null
           other_fees: Json | null
           preferential_origin_countries: string[] | null
@@ -7995,9 +8531,11 @@ export type Database = {
           effective_from?: string | null
           effective_to?: string | null
           excise_pct?: number | null
+          external_ref?: string | null
           hs_prefix: string
           id?: string
           is_active?: boolean | null
+          last_verified_at?: string | null
           notes?: string | null
           other_fees?: Json | null
           preferential_origin_countries?: string[] | null
@@ -8014,9 +8552,11 @@ export type Database = {
           effective_from?: string | null
           effective_to?: string | null
           excise_pct?: number | null
+          external_ref?: string | null
           hs_prefix?: string
           id?: string
           is_active?: boolean | null
+          last_verified_at?: string | null
           notes?: string | null
           other_fees?: Json | null
           preferential_origin_countries?: string[] | null
@@ -8025,6 +8565,48 @@ export type Database = {
           source?: Database["public"]["Enums"]["rate_source"]
           updated_at?: string | null
           vat_pct?: number | null
+        }
+        Relationships: []
+      }
+      tariff_refresh_runs: {
+        Row: {
+          checked: number
+          created_at: string
+          details: Json | null
+          failed: number
+          finished_at: string | null
+          id: string
+          inserted: number
+          provider: string
+          refreshed: number
+          skipped: number
+          started_at: string
+        }
+        Insert: {
+          checked?: number
+          created_at?: string
+          details?: Json | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          inserted?: number
+          provider: string
+          refreshed?: number
+          skipped?: number
+          started_at?: string
+        }
+        Update: {
+          checked?: number
+          created_at?: string
+          details?: Json | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          inserted?: number
+          provider?: string
+          refreshed?: number
+          skipped?: number
+          started_at?: string
         }
         Relationships: []
       }
@@ -8434,10 +9016,86 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products_with_origin: {
+        Row: {
+          id: string | null
+          resolved_country: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      auth_company_id: { Args: never; Returns: string }
+      auth_profile_id: { Args: never; Returns: string }
       caller_has_paid_company: { Args: never; Returns: boolean }
+      claim_pipeline_events: {
+        Args: { p_batch_size?: number }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          created_by: string | null
+          error_history: Json
+          event_type: Database["public"]["Enums"]["pipeline_event_type"]
+          id: string
+          idempotency_key: string | null
+          last_attempt_at: string | null
+          last_error: string | null
+          locked_until: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json
+          processed_at: string | null
+          purchase_order_id: string | null
+          result: Json | null
+          shipment_id: string | null
+          status: Database["public"]["Enums"]["pipeline_event_status"]
+          supplier_order_id: string | null
+          triggered_by_id: string | null
+          triggered_by_type:
+            | Database["public"]["Enums"]["pipeline_event_type"]
+            | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pipeline_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_settlement: {
+        Args: { p_id: string }
+        Returns: {
+          created_at: string | null
+          currency: string | null
+          gross_sales: number
+          id: string
+          line_items: Json | null
+          logistics_charges: number | null
+          mobile_money_phone: string | null
+          mobile_money_provider: string | null
+          net_payout: number
+          paid_at: string | null
+          payout_method: string | null
+          payout_reference: string | null
+          period_end: string
+          period_start: string
+          settlement_number: string
+          status: Database["public"]["Enums"]["settlement_status"] | null
+          stripe_transfer_id: string | null
+          supplier_id: string
+          supplier_order_ids: string[] | null
+          total_commission: number
+          total_tax_on_commission: number | null
+          updated_at: string | null
+          xtransfer_transfer_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "settlements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_notification: {
         Args: {
           p_action_url?: string
@@ -8452,6 +9110,22 @@ export type Database = {
         }
         Returns: string
       }
+      enqueue_pipeline_event: {
+        Args: {
+          p_event_type: Database["public"]["Enums"]["pipeline_event_type"]
+          p_idempotency_key?: string
+          p_max_attempts?: number
+          p_next_retry_at?: string
+          p_payload?: Json
+          p_purchase_order_id?: string
+          p_shipment_id?: string
+          p_supplier_order_id?: string
+          p_triggered_by_id?: string
+          p_triggered_by_type?: Database["public"]["Enums"]["pipeline_event_type"]
+        }
+        Returns: string
+      }
+      expire_carrier_api_lanes: { Args: never; Returns: undefined }
       expire_overdue_rfqs: { Args: never; Returns: undefined }
       expire_stale_rate_locks: { Args: never; Returns: undefined }
       get_user_companies: { Args: never; Returns: string[] }
@@ -8459,6 +9133,18 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_logistics: { Args: never; Returns: boolean }
       is_paid_member: { Args: { company: string }; Returns: boolean }
+      log_pipeline_activity: {
+        Args: {
+          p_activity_type: Database["public"]["Enums"]["system_activity_type"]
+          p_actor_id?: string
+          p_description: string
+          p_metadata?: Json
+          p_target_id?: string
+          p_target_label?: string
+          p_target_type?: string
+        }
+        Returns: string
+      }
       mark_messages_read: {
         Args: { p_conversation_id: string; p_reader_company_id: string }
         Returns: undefined
@@ -8539,6 +9225,8 @@ export type Database = {
         | "duty_unpaid"
         | "restricted_goods"
         | "other"
+        | "demurrage"
+        | "detention"
       customs_status_enum:
         | "not_required"
         | "pending"
@@ -8684,6 +9372,7 @@ export type Database = {
         | "bank_transfer"
         | "escrow"
         | "platform_wallet"
+        | "xtransfer"
       payment_status:
         | "pending"
         | "processing"
@@ -8693,6 +9382,38 @@ export type Database = {
         | "expired"
         | "cancelled"
       payment_terms: "immediate" | "net_30" | "net_60" | "deposit_balance"
+      pipeline_event_status:
+        | "pending"
+        | "processing"
+        | "succeeded"
+        | "failed"
+        | "dead"
+        | "cancelled"
+      pipeline_event_type:
+        | "order.payment_confirmed"
+        | "order.supplier_notified"
+        | "order.supplier_shipped"
+        | "shipment.created"
+        | "shipment.freight_booked"
+        | "shipment.export_customs_filed"
+        | "shipment.export_cleared"
+        | "shipment.origin_departed"
+        | "shipment.arrived_destination"
+        | "customs.arrival_notice_received"
+        | "customs.entry_filed"
+        | "customs.duties_assessed"
+        | "customs.duties_paid"
+        | "customs.cleared"
+        | "customs.hold_opened"
+        | "customs.hold_resolved"
+        | "delivery.scheduled"
+        | "delivery.picked_up"
+        | "delivery.completed"
+        | "dispute_window.opened"
+        | "dispute_window.closed"
+        | "shipment.stalled"
+        | "customs.demurrage_warning"
+        | "settlement.triggered"
       platform_role:
         | "buyer"
         | "buyer_staff"
@@ -8723,6 +9444,7 @@ export type Database = {
         | "rate_card"
         | "tariff_db"
         | "tariff_api"
+        | "bsa"
       rfq_status:
         | "draft"
         | "open"
@@ -8742,6 +9464,8 @@ export type Database = {
         | "paid"
         | "failed"
         | "disputed"
+        | "cancelled"
+        | "voided"
       shipment_cost_category:
         | "freight"
         | "fuel"
@@ -8805,6 +9529,20 @@ export type Database = {
         | "system_event"
         | "config_changed"
         | "role_changed"
+        | "pipeline_event_enqueued"
+        | "pipeline_event_processed"
+        | "pipeline_event_failed"
+        | "pipeline_event_dead"
+        | "supplier_order_confirmed"
+        | "customs_entry_filed"
+        | "customs_cleared"
+        | "customs_hold_opened"
+        | "customs_hold_resolved"
+        | "delivery_confirmed"
+        | "dispute_window_opened"
+        | "dispute_window_closed"
+        | "order_stalled"
+        | "error_logged"
       tax_system: "africa_vat" | "cn_vat" | "stripe_tax" | "manual"
       tax_type: "taxable" | "zero_rated" | "exempt" | "mixed"
       trade_term: "fob" | "cif" | "exw" | "ddp" | "dap" | "cpt" | "fca"
@@ -8947,6 +9685,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       address_format: ["africa_landmark", "cn_province", "international"],
@@ -8997,6 +9738,8 @@ export const Constants = {
         "duty_unpaid",
         "restricted_goods",
         "other",
+        "demurrage",
+        "detention",
       ],
       customs_status_enum: [
         "not_required",
@@ -9158,6 +9901,7 @@ export const Constants = {
         "bank_transfer",
         "escrow",
         "platform_wallet",
+        "xtransfer",
       ],
       payment_status: [
         "pending",
@@ -9169,6 +9913,40 @@ export const Constants = {
         "cancelled",
       ],
       payment_terms: ["immediate", "net_30", "net_60", "deposit_balance"],
+      pipeline_event_status: [
+        "pending",
+        "processing",
+        "succeeded",
+        "failed",
+        "dead",
+        "cancelled",
+      ],
+      pipeline_event_type: [
+        "order.payment_confirmed",
+        "order.supplier_notified",
+        "order.supplier_shipped",
+        "shipment.created",
+        "shipment.freight_booked",
+        "shipment.export_customs_filed",
+        "shipment.export_cleared",
+        "shipment.origin_departed",
+        "shipment.arrived_destination",
+        "customs.arrival_notice_received",
+        "customs.entry_filed",
+        "customs.duties_assessed",
+        "customs.duties_paid",
+        "customs.cleared",
+        "customs.hold_opened",
+        "customs.hold_resolved",
+        "delivery.scheduled",
+        "delivery.picked_up",
+        "delivery.completed",
+        "dispute_window.opened",
+        "dispute_window.closed",
+        "shipment.stalled",
+        "customs.demurrage_warning",
+        "settlement.triggered",
+      ],
       platform_role: [
         "buyer",
         "buyer_staff",
@@ -9201,6 +9979,7 @@ export const Constants = {
         "rate_card",
         "tariff_db",
         "tariff_api",
+        "bsa",
       ],
       rfq_status: [
         "draft",
@@ -9222,6 +10001,8 @@ export const Constants = {
         "paid",
         "failed",
         "disputed",
+        "cancelled",
+        "voided",
       ],
       shipment_cost_category: [
         "freight",
@@ -9289,6 +10070,20 @@ export const Constants = {
         "system_event",
         "config_changed",
         "role_changed",
+        "pipeline_event_enqueued",
+        "pipeline_event_processed",
+        "pipeline_event_failed",
+        "pipeline_event_dead",
+        "supplier_order_confirmed",
+        "customs_entry_filed",
+        "customs_cleared",
+        "customs_hold_opened",
+        "customs_hold_resolved",
+        "delivery_confirmed",
+        "dispute_window_opened",
+        "dispute_window_closed",
+        "order_stalled",
+        "error_logged",
       ],
       tax_system: ["africa_vat", "cn_vat", "stripe_tax", "manual"],
       tax_type: ["taxable", "zero_rated", "exempt", "mixed"],

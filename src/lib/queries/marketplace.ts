@@ -2,15 +2,16 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { ProductWithDetails } from "./products";
+import { MARKETPLACE_COUNTRIES, isMarketplaceCountry } from "@/lib/countries";
 
 interface SearchFilters {
   category?: string;
   categoryIds?: string[];
+  originCountries?: string[];
   search?: string;
   priceMin?: number;
   priceMax?: number;
   moqMax?: number;
-  tradeAssurance?: boolean;
   sort?: "newest" | "price_asc" | "price_desc" | "popular";
   page?: number;
   limit?: number;
@@ -36,6 +37,26 @@ export async function searchProducts(filters: SearchFilters = {}) {
     )
     .eq("moderation_status", "approved")
     .eq("is_active", true);
+
+  if (filters.originCountries && filters.originCountries.length > 0) {
+    const { data: originRows } = await supabase
+      .from("products_with_origin")
+      .select("id")
+      .in("resolved_country", filters.originCountries);
+    const ids = (originRows ?? [])
+      .map((row) => row.id)
+      .filter((id): id is string => id !== null);
+    if (ids.length === 0) {
+      return {
+        products: [],
+        total: 0,
+        totalPages: 0,
+        page,
+        error: undefined,
+      };
+    }
+    query = query.in("id", ids);
+  }
 
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     query = query.in("category_id", filters.categoryIds);
@@ -111,6 +132,31 @@ export async function getProductDetail(productId: string) {
     product: data as ProductWithDetails | null,
     error: error?.message,
   };
+}
+
+export async function getCountryFacets(): Promise<Record<string, number>> {
+  const supabase = await createClient();
+  const [{ data: origins }, { data: activeProducts }] = await Promise.all([
+    supabase.from("products_with_origin").select("id, resolved_country"),
+    supabase
+      .from("products")
+      .select("id")
+      .eq("moderation_status", "approved")
+      .eq("is_active", true),
+  ]);
+
+  const activeIds = new Set((activeProducts ?? []).map((p) => p.id));
+  const counts: Record<string, number> = Object.fromEntries(
+    MARKETPLACE_COUNTRIES.map((code) => [code, 0])
+  );
+
+  for (const row of origins ?? []) {
+    if (!row.id || !activeIds.has(row.id)) continue;
+    if (!isMarketplaceCountry(row.resolved_country)) continue;
+    counts[row.resolved_country] = (counts[row.resolved_country] ?? 0) + 1;
+  }
+
+  return counts;
 }
 
 export async function getFeaturedProducts(limit = 8) {

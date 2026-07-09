@@ -58,7 +58,6 @@ const SUPPLIER = {
   coverGradient: "from-[#1a2744] via-[#1e3a5f] to-[#0f2030]",
   verified: true,
   goldSupplier: true,
-  tradeAssurance: true,
   yearsOnPlatform: 6,
   established: 2008,
   province: "Guangdong",
@@ -112,7 +111,7 @@ const SUPPLIER = {
     annualOutputValue: "2,400+ machines per year",
     nearestPort: "Guangzhou / Shenzhen / Nansha",
     averageLeadTime: "15-30 days (standard), 7-12 days (in-stock models)",
-    paymentTerms: "T/T (30% deposit + 70% before shipping), L/C at sight, Trade Assurance",
+    paymentTerms: "T/T (30% deposit + 70% before shipping), L/C at sight",
     samplePolicy: "Free factory visit & live demo; sample machines available for select models",
     afterSalesService: "24-month warranty, lifetime technical support, spare parts within 48hrs",
     tradeCapacity: "120 x 40ft containers / year",
@@ -169,7 +168,7 @@ const PRODUCTS = [
     rating: 4.8,
     reviews: 142,
     orders: 320,
-    tags: ["Hot Sale", "Trade Assurance"],
+    tags: ["Hot Sale"],
   },
   {
     id: "p2",
@@ -197,7 +196,7 @@ const PRODUCTS = [
     rating: 4.7,
     reviews: 95,
     orders: 210,
-    tags: ["Trade Assurance"],
+    tags: [],
   },
   {
     id: "p4",
@@ -239,7 +238,7 @@ const PRODUCTS = [
     rating: 4.7,
     reviews: 128,
     orders: 380,
-    tags: ["Trade Assurance", "Hot Sale"],
+    tags: ["Hot Sale"],
   },
   {
     id: "p7",
@@ -267,7 +266,7 @@ const PRODUCTS = [
     rating: 4.8,
     reviews: 24,
     orders: 42,
-    tags: ["New Arrival", "Trade Assurance"],
+    tags: ["New Arrival"],
   },
   {
     id: "p9",
@@ -281,7 +280,7 @@ const PRODUCTS = [
     rating: 5.0,
     reviews: 12,
     orders: 18,
-    tags: ["Premium", "Trade Assurance"],
+    tags: ["Premium"],
   },
   {
     id: "p10",
@@ -295,7 +294,7 @@ const PRODUCTS = [
     rating: 4.6,
     reviews: 56,
     orders: 145,
-    tags: ["Trade Assurance"],
+    tags: [],
   },
   {
     id: "p11",
@@ -323,7 +322,7 @@ const PRODUCTS = [
     rating: 4.5,
     reviews: 315,
     orders: 890,
-    tags: ["Best Seller", "Trade Assurance"],
+    tags: ["Best Seller"],
   },
   {
     id: "p13",
@@ -351,7 +350,7 @@ const PRODUCTS = [
     rating: 4.6,
     reviews: 19,
     orders: 35,
-    tags: ["Trade Assurance"],
+    tags: [],
   },
   {
     id: "p15",
@@ -604,12 +603,6 @@ function SupplierHero() {
                       Gold Supplier
                     </span>
                   )}
-                  {SUPPLIER.tradeAssurance && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--indigo)]/10 text-[var(--indigo-light)] border border-[var(--indigo)]/20">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Trade Assurance
-                    </span>
-                  )}
                   <span className="text-xs text-[var(--text-tertiary)]">
                     · {SUPPLIER.yearsOnPlatform} yrs on platform
                   </span>
@@ -790,9 +783,7 @@ function ProductsTab() {
                     <span
                       key={tag}
                       className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
-                        tag === "Trade Assurance"
-                          ? "bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/20"
-                          : tag === "Hot Sale"
+                        tag === "Hot Sale"
                           ? "bg-[var(--terracotta)]/15 text-[var(--terracotta)] border border-[var(--terracotta)]/20"
                           : tag === "Best Seller"
                           ? "bg-[var(--amber)]/15 text-[var(--amber-dark)] border border-[var(--amber)]/20"
@@ -1036,30 +1027,6 @@ function ProfileTab() {
             <MessageSquare className="w-4 h-4" />
             Send Inquiry
           </button>
-        </div>
-
-        {/* Trade Assurance */}
-        <div className="p-6 rounded-xl bg-[var(--success)]/5 border border-[var(--success)]/15">
-          <div className="flex items-center gap-2 mb-3">
-            <Shield className="w-5 h-5 text-[var(--success)]" />
-            <h4 className="text-sm font-bold text-[var(--success)]">
-              Trade Assurance
-            </h4>
-          </div>
-          <ul className="space-y-2 text-xs text-[var(--text-secondary)] leading-relaxed">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)] mt-0.5 shrink-0" />
-              Payments protected by platform escrow
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)] mt-0.5 shrink-0" />
-              Product quality guaranteed or refund
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)] mt-0.5 shrink-0" />
-              On-time shipment guarantee
-            </li>
-          </ul>
         </div>
       </div>
     </div>

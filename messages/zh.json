@@ -33,7 +33,6 @@
     "commodities": "大宗商品",
     "suppliers": "供应商",
     "rfq": "询价",
-    "tradeAssurance": "贸易保障",
     "about": "关于我们",
     "howItWorks": "运作方式",
     "sell": "在丝路非洲开店",
@@ -85,13 +84,13 @@
       "hero": {
         "badge": "产品门户 · 中国 → 非洲",
         "headline": "对接 12,000 家认证中国工厂",
-        "tagline": "电子、机械、纺织、建筑——直接对接工厂，最低起订量低至 10 件，资金托管保障，覆盖 27 个非洲国家的门到门物流。",
+        "tagline": "电子、机械、纺织、建筑——直接对接工厂，最低起订量低至 10 件，覆盖 27 个非洲国家的门到门物流。",
         "browseCta": "浏览产品",
         "switchCta": "或从非洲出口",
         "slide2": {
           "badge": "三步轻松下单 · 1 · 2 · 3",
           "headline": "询价。下单。直达。",
-          "tagline": "从询价到门口仅需三步——寻源、支付、清关、末端配送，全由我们打包搞定。",
+          "tagline": "从询价到门口仅需三步——以本地货币通过移动支付付款，寻源、清关、末端配送全由我们打包搞定。",
           "cta": "查看下单流程",
           "step1": "提交询价",
           "step2": "确认下单",
@@ -106,8 +105,8 @@
       },
       "promo": {
         "eyebrow": "本周新品",
-        "headline": "新买家前 3 单免费贸易保障",
-        "body": "本月注册即享前三笔订单零平台托管费。",
+        "headline": "新买家前 3 单享 9 折优惠",
+        "body": "本月注册，即可享受前三笔订单折扣优惠。",
         "cta": "立即领取"
       },
       "rfqBox": {
@@ -147,7 +146,7 @@
       },
       "cta": {
         "headline": "立即开始采购",
-        "body": "加入 50,000+ 非洲企业，与认证中国制造商对接——每笔订单都有贸易保障。",
+        "body": "加入 50,000+ 非洲企业，与认证中国制造商对接。",
         "buyer": "注册成为买家",
         "supplier": "成为供应商"
       }
@@ -156,13 +155,13 @@
       "hero": {
         "badge": "大宗商品门户 · 非洲 → 中国",
         "headline": "把非洲精品出口到全球最大市场",
-        "tagline": "咖啡、可可、茶叶、矿产、香料、特色作物——让合作社和生产者直接对接认证中国进口商。公平贸易认证、全程可溯源、当地货币托管结算。",
+        "tagline": "咖啡、可可、茶叶、矿产、香料、特色作物——让合作社和生产者直接对接认证中国进口商。公平贸易认证、全程可溯源、当地货币结算。",
         "browseCta": "浏览大宗商品",
         "switchCta": "或从中国采购",
         "slide2": {
           "badge": "合作社 · 公平贸易 · 可溯源",
           "headline": "上架·收到报价·MoMo到账",
-          "tagline": "从上架到收款三步完成——我们负责买家匹配、托管结算、报关文件及 MTN MoMo / Airtel Money 打款。",
+          "tagline": "从上架到收款三步完成——我们负责买家匹配、报关文件及 MTN MoMo / Airtel Money 打款。",
           "cta": "上架大宗商品",
           "step1": "上架批次",
           "step2": "收到报价",
@@ -224,9 +223,9 @@
       }
     },
     "twoUpValue": {
-      "tradeAssuranceTitle": "源自经过筛选的中国制造商",
-      "tradeAssuranceBody": "每家工厂都经过我们中国采购团队的实地审核、证照核验与样品测试。您只需对接丝路，工厂这一端由我们把关。",
-      "tradeAssuranceCta": "我们如何筛选供应商",
+      "supplierVettingTitle": "大牌品质，甄选供应商",
+      "supplierVettingBody": "我们从亚洲最具信誉的制造商中甄选每一家供应商——实地审核、证照核验、样品测试——确保每件产品都是正品、大牌品质。您只需对接丝路，工厂这一端由我们把关。",
+      "supplierVettingCta": "我们如何筛选供应商",
       "logisticsTitle": "自营物流，门到门",
       "logisticsBody": "我们自有的车队、司机、保税仓覆盖 27 个非洲国家。实时追踪、清关代办、保险已含。",
       "logisticsCta": "查看覆盖"
@@ -289,6 +288,8 @@
       "supplierRegionHeading": "供应商地区",
       "filterChipLabel": "筛选",
       "clear": "清除",
+      "countryHeading": "国家",
+      "countryAll": "全部国家",
       "categoryAll": "全部分类",
       "categoryHome": "家居",
       "categoryHotels": "酒店",
@@ -299,7 +300,6 @@
       "moqAny": "任意",
       "moqUnits": "{range} 件",
       "filterVerified": "仅认证供应商",
-      "filterTradeAssurance": "贸易保障",
       "filter4Star": "4 星以上",
       "searchPlaceholder": "搜索产品、供应商或关键词...",
       "searchButton": "搜索",
@@ -341,7 +341,7 @@
       "step2Title": "请求报价",
       "step2Desc": "提交需求，从多家认证供应商获得有竞争力的报价。",
       "step3Title": "安全支付",
-      "step3Desc": "通过托管或移动支付付款，资金安全保管至确认交付与品质。",
+      "step3Desc": "通过移动支付或银行转账付款，收到付款后订单即确认。",
       "step4Title": "运输与追踪",
       "step4Desc": "门到门物流，实时追踪，清关文件与保险一应俱全。",
       "ctaTitle": "准备好开始第一笔订单了吗？",
@@ -352,7 +352,7 @@
     "about": {
       "eyebrow": "关于丝路非洲",
       "title": "为两片大陆构建贸易基础设施",
-      "subtitle": "我们把中国制造商与非洲企业、非洲生产者与中国进口商连接到同一个 B2B 平台上——为这个贸易场景的真实需求而构建：移动支付、保税物流、多语言支持、每笔订单的贸易保障。",
+      "subtitle": "我们把中国制造商与非洲企业、非洲生产者与中国进口商连接到同一个 B2B 平台上——为这个贸易场景的真实需求而构建：移动支付、保税物流、多语言支持。",
       "flowEyebrow": "双向贸易",
       "flowTitle": "丝路上的贸易流动",
       "flowSubtitle": "两个货源市场。一个平台。每笔交易两端均经过认证。",
@@ -373,7 +373,7 @@
       "pillarsEyebrow": "我们的工作",
       "pillarsTitle": "跨洲 B2B 的四大支柱",
       "pillar1Title": "可信可靠的商家",
-      "pillar1Body": "每家供应商都经过 KYC 身份核验、营业执照审核与产能工厂审查后才被收录。订单由丝路非洲接单履约，而非陌生商家；资金托管、第三方验货、专属运营团队在货出问题时随时介入。",
+      "pillar1Body": "每家供应商都甄选自亚洲最具信誉的制造商，并经过 KYC 身份核验、营业执照审核与产能工厂审查后才被收录——确保您获得正品、大牌品质。订单由丝路非洲接单履约，而非陌生商家；第三方验货、专属运营团队在货出问题时随时介入。",
       "pillar2Title": "自营物流",
       "pillar2Body": "我们自有的车队、司机、保税仓将货物门到门送达 27+ 非洲国家——而非依赖第三方承运商。",
       "pillar3Title": "本地化支付",
@@ -391,12 +391,12 @@
       "ctaSupplier": "我要销售"
     },
     "footer": {
-      "trust1Title": "贸易保障",
-      "trust1Body": "每笔订单托管",
+      "trust1Title": "甄选供应商",
+      "trust1Body": "大牌品质，工厂审核",
       "trust2Title": "自营物流",
       "trust2Body": "覆盖整个非洲门到门",
-      "trust3Title": "移动支付",
-      "trust3Body": "MoMo、Airtel、M-Pesa",
+      "trust3Title": "本地货币支付",
+      "trust3Body": "MoMo、Airtel、M-Pesa——无需换汇",
       "trust4Title": "全天候支持",
       "trust4Body": "6 种语言，真人客服",
       "newsletterTitle": "每周一封贸易情报",
@@ -412,7 +412,6 @@
       "buyHeading": "在丝路采购",
       "buyHowToBuy": "采购指南",
       "buyRfq": "发起询价",
-      "buyTradeAssurance": "贸易保障",
       "buyBuyerProtection": "买家保护",
       "buyPaymentMethods": "支付方式",
       "buyCustoms": "清关与关税",
@@ -456,7 +455,7 @@
   },
   "home": {
     "heroTitle": "丝绸之路，为非洲重新构想",
-    "heroSubtitle": "连接中国和非洲的认证制造商和供应商。贸易保障、移动支付和物流，专为跨洲B2B商务打造。",
+    "heroSubtitle": "连接中国和非洲的认证制造商和供应商。移动支付和物流，专为跨洲B2B商务打造。",
     "browseProducts": "浏览产品",
     "becomeSupplier": "成为供应商",
     "howItWorks": "如何运作",
@@ -489,7 +488,7 @@
     "confirmPassword": "确认密码",
     "chooseRole": "您将如何使用丝路非洲？",
     "iAmBuyer": "我是买家",
-    "buyerDesc": "从认证供应商采购产品，获取批量价格、贸易保障和物流支持。",
+    "buyerDesc": "从认证供应商采购产品，获取批量价格和物流支持。",
     "iAmSupplier": "我是供应商",
     "supplierDesc": "上架产品，触达非洲和中国买家，使用集成支付管理订单。",
     "companyName": "公司名称",
@@ -519,7 +518,6 @@
     "addToCart": "加入购物车",
     "contactSupplier": "联系供应商",
     "requestQuote": "请求报价",
-    "tradeAssurance": "贸易保障",
     "verifiedSupplier": "认证供应商",
     "sampleAvailable": "可提供样品"
   },
@@ -658,7 +656,7 @@
       "explore": "查看",
       "pillarTrade": {
         "title": "信用证贸易",
-        "body": "基于 UCP 600 信用证交易，单据受控放款。不设第三方托管，资金凭经检验的提单在银行间直接结算。"
+        "body": "基于 UCP 600 信用证交易，单据受控放款。资金凭经检验的提单在银行间直接结算。"
       },
       "pillarFreight": {
         "title": "自营海运",

@@ -380,11 +380,6 @@ export default function CheckoutPage() {
                     Continue to Shipping Details
                   </button>
                 )}
-
-                <div className="mt-4 flex items-center gap-2 justify-center text-xs text-[var(--text-tertiary)]">
-                  <Shield className="w-3.5 h-3.5 text-[var(--success)]" />
-                  Protected by Silk Road Africa Trade Assurance
-                </div>
               </div>
             </div>
           </div>

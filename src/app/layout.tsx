@@ -9,7 +9,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Silk Road Africa — China-Africa B2B Trade Platform",
   description:
-    "The premier bidirectional B2B marketplace connecting Chinese manufacturers with African businesses and African producers with Chinese importers. Trade assurance, escrow payments, and verified suppliers.",
+    "The premier bidirectional B2B marketplace connecting Chinese manufacturers with African businesses and African producers with Chinese importers. Verified suppliers and door-to-door logistics.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

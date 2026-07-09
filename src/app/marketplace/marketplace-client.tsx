@@ -10,6 +10,7 @@ import { Footer } from "@/components/ui/footer";
 import { Tooltip } from "@/components/ui/tooltip";
 import { imageForSlug } from "@/lib/category-images";
 import { regionMeta, tradeMeta } from "@/lib/product-labels";
+import { MARKETPLACE_COUNTRIES } from "@/lib/countries";
 import {
   SlidersHorizontal,
   Grid3X3,
@@ -46,7 +47,6 @@ export interface MarketplaceProduct {
   reviews: number;
   responseTime: string;
   image: string;
-  tradeAssurance: boolean;
   category: string;
   tags: string[];
 }
@@ -75,9 +75,8 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 142,
     responseTime: "< 24h",
     image: "from-slate-200 to-slate-300",
-    tradeAssurance: true,
     category: "Furniture",
-    tags: ["Hot Sale", "Trade Assurance"],
+    tags: ["Hot Sale"],
   },
   {
     id: "2",
@@ -91,7 +90,6 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 891,
     responseTime: "< 2h",
     image: "from-indigo-100 to-blue-200",
-    tradeAssurance: true,
     category: "Consumer Electronics",
     tags: ["Best Seller"],
   },
@@ -107,7 +105,6 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 2340,
     responseTime: "< 4h",
     image: "from-amber-50 to-orange-100",
-    tradeAssurance: true,
     category: "Beauty",
     tags: ["Top Rated"],
   },
@@ -123,9 +120,8 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 567,
     responseTime: "< 6h",
     image: "from-sky-100 to-cyan-200",
-    tradeAssurance: true,
     category: "Hotel Interiors",
-    tags: ["Trade Assurance", "Hot Sale"],
+    tags: ["Hot Sale"],
   },
   {
     id: "5",
@@ -139,9 +135,8 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 89,
     responseTime: "< 12h",
     image: "from-yellow-100 to-amber-200",
-    tradeAssurance: true,
     category: "Hotel Interiors",
-    tags: ["Trade Assurance"],
+    tags: [],
   },
   {
     id: "6",
@@ -155,7 +150,6 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 234,
     responseTime: "< 8h",
     image: "from-stone-100 to-neutral-200",
-    tradeAssurance: false,
     category: "Groceries",
     tags: [],
   },
@@ -171,9 +165,8 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 1205,
     responseTime: "< 3h",
     image: "from-emerald-50 to-green-100",
-    tradeAssurance: true,
     category: "Consumer Electronics",
-    tags: ["Best Seller", "Trade Assurance"],
+    tags: ["Best Seller"],
   },
   {
     id: "8",
@@ -187,7 +180,6 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 178,
     responseTime: "< 6h",
     image: "from-lime-50 to-green-100",
-    tradeAssurance: true,
     category: "Baby Products",
     tags: ["Hot Sale"],
   },
@@ -375,7 +367,6 @@ function FilterSidebar({
 
   const supplierFilters = [
     { label: t("filterVerified"), checked: false },
-    { label: t("filterTradeAssurance"), checked: true },
     { label: t("filter4Star"), checked: false },
   ];
 
@@ -519,30 +510,6 @@ function FilterSidebar({
               ))}
             </div>
           </div>
-
-          {/* Supplier location */}
-          <div>
-            <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              {t("supplierRegionHeading")}
-            </h4>
-            <div className="space-y-2">
-              {[
-                "Guangdong",
-                "Zhejiang",
-                "Fujian",
-                "Jiangsu",
-                "Shandong",
-              ].map((region) => (
-                <label
-                  key={region}
-                  className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
-                >
-                  <div className="w-4 h-4 rounded border border-[var(--border-strong)]" />
-                  {region}
-                </label>
-              ))}
-            </div>
-          </div>
         </div>
       </aside>
     </>
@@ -589,9 +556,7 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
             <span
               key={tag}
               className={`px-2 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold rounded-full ${
-                tag === "Trade Assurance"
-                  ? "bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/20"
-                  : tag === "Hot Sale"
+                tag === "Hot Sale"
                   ? "bg-[var(--terracotta)]/15 text-[var(--terracotta)] border border-[var(--terracotta)]/20"
                   : tag === "Best Seller"
                   ? "bg-[var(--amber)]/15 text-[var(--amber-dark)] border border-[var(--amber)]/20"
@@ -695,9 +660,11 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
 export function MarketplaceClient({
   initialProducts,
   subcategories = [],
+  countryFacets = {},
 }: {
   initialProducts?: MarketplaceProduct[];
   subcategories?: MarketplaceSubcategory[];
+  countryFacets?: Record<string, number>;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -709,18 +676,36 @@ export function MarketplaceClient({
 
   const categorySlug = searchParams.get("category");
   const subSlug = searchParams.get("sub");
+  const countryParam = searchParams.get("country");
+  const activeCountry = MARKETPLACE_COUNTRIES.find((c) => c === countryParam) ?? null;
   const activeCategory = CATEGORIES.find((c) => c.slug === categorySlug) ?? null;
   const activeCategoryLabel = activeCategory ? t(activeCategory.key) : "";
+  const totalCountryCount = MARKETPLACE_COUNTRIES.reduce(
+    (sum, code) => sum + (countryFacets[code] ?? 0),
+    0
+  );
+
+  const countryHrefFor = (code: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (code) params.set("country", code);
+    else params.delete("country");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
 
   const displayProducts = useMemo(() => {
-    if (!activeCategory || !activeCategory.matchLabel || activeCategory.slug === null) {
-      return allProducts;
-    }
-    // Server already filtered by category for real DB products — only re-filter mock fallback
+    // Server already filtered by category/country for real DB products — only re-filter mock fallback
     const usingMock = !initialProducts || initialProducts.length === 0;
     if (!usingMock) return allProducts;
-    return allProducts.filter((p) => p.category === activeCategory.matchLabel);
-  }, [allProducts, activeCategory, initialProducts]);
+    return allProducts.filter((p) => {
+      const matchesCategory =
+        !activeCategory || !activeCategory.matchLabel || activeCategory.slug === null
+          ? true
+          : p.category === activeCategory.matchLabel;
+      const matchesCountry = !activeCountry || p.originCountry === activeCountry;
+      return matchesCategory && matchesCountry;
+    });
+  }, [allProducts, activeCategory, activeCountry, initialProducts]);
 
   const clearFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -734,6 +719,49 @@ export function MarketplaceClient({
     <>
       <Navbar />
       <main className="pt-[104px] lg:pt-[184px] min-h-screen bg-[var(--surface-secondary)]">
+        {/* Country bar */}
+        <div className="bg-[var(--obsidian)] border-b border-[var(--border-subtle)]">
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <span className="shrink-0 text-xs font-semibold text-white/50 tracking-[0.1em] uppercase mr-1">
+              {t("countryHeading")}
+            </span>
+            <Link
+              href={countryHrefFor(null)}
+              scroll={false}
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                !activeCountry
+                  ? "bg-[var(--amber)] text-[var(--obsidian)]"
+                  : "text-white/70 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              {t("countryAll")}
+              <span className="text-xs opacity-70">({totalCountryCount})</span>
+            </Link>
+            {MARKETPLACE_COUNTRIES.map((code) => {
+              const meta = regionMeta(code);
+              const active = code === activeCountry;
+              return (
+                <Link
+                  key={code}
+                  href={countryHrefFor(code)}
+                  scroll={false}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-[var(--amber)] text-[var(--obsidian)]"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <span aria-hidden className="text-sm leading-none">
+                    {meta.flag}
+                  </span>
+                  {meta.label}
+                  <span className="text-xs opacity-70">({countryFacets[code] ?? 0})</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Hero bar */}
         <div className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)]">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">

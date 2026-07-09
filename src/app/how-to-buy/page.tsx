@@ -116,7 +116,7 @@ function HowToBuySteps() {
       number: "04",
       icon: Wallet,
       title: "Pay the way your business already pays",
-      desc: "Funds are held in Trade Assurance escrow — released to us only after you confirm the goods arrived in the state you ordered.",
+      desc: "Pay directly in your local currency via mobile money — no forex conversion needed. We confirm the order once payment is received.",
       bullets: [
         "MTN MoMo, Airtel Money, M-Pesa, Orange Money",
         "USD / EUR / CNY bank transfer and SWIFT",
@@ -138,7 +138,7 @@ function HowToBuySteps() {
       number: "06",
       icon: PackageCheck,
       title: "Receive, inspect, and confirm",
-      desc: "Sign for the delivery, inspect the goods, and confirm in your dashboard. Only then is escrow released. Raise a dispute in one click if anything is wrong.",
+      desc: "Sign for the delivery, inspect the goods, and confirm in your dashboard. Raise a dispute in one click if anything is wrong.",
       bullets: [
         "7-day inspection window on every order",
         "Mediated dispute resolution with full refund protection",
@@ -218,8 +218,8 @@ function Protections() {
   const items = [
     {
       icon: ShieldCheck,
-      title: "Trade Assurance on every order",
-      body: "Payments are held in escrow until you confirm delivery and quality. Mediated dispute resolution within 72 hours.",
+      title: "Verified suppliers, every order",
+      body: "Every factory is vetted before listing, and every order includes quality inspection. Mediated dispute resolution within 72 hours.",
     },
     {
       icon: CreditCard,
@@ -244,7 +244,7 @@ function Protections() {
             className="mt-3 text-3xl lg:text-4xl font-bold tracking-tight text-[var(--obsidian)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Your money is safe until the goods are in your hands
+            Verified suppliers and support at every step
           </h2>
         </div>
 
@@ -290,7 +290,7 @@ function FAQ() {
     },
     {
       q: "What happens if the goods arrive damaged?",
-      a: "Raise a dispute from your dashboard within 7 days of delivery. Escrow stays frozen until resolution. Most disputes close within 72 hours with a full or partial refund.",
+      a: "Raise a dispute from your dashboard within 7 days of delivery. Most disputes close within 72 hours with a full or partial refund.",
     },
     {
       q: "What's the minimum order?",

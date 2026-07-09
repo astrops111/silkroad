@@ -203,7 +203,6 @@ export function Navbar() {
   const TOP_LINKS = [
     { label: t("products"), href: "/marketplace" },
     { label: t("rfq"), href: "/request" },
-    { label: t("tradeAssurance"), href: "/trade-assurance" },
   ];
 
   useEffect(() => {

@@ -32,12 +32,11 @@
     "products": "Bidhaa",
     "commodities": "Bidhaa Ghafi",
     "suppliers": "Wasambazaji",
-    "rfq": "Ombi la Bei",
-    "tradeAssurance": "Dhamana ya Biashara"
+    "rfq": "Ombi la Bei"
   },
   "home": {
     "heroTitle": "Njia ya Hariri, Imebuniwa Upya kwa Afrika",
-    "heroSubtitle": "Ungana na wazalishaji na wasambazaji waliothibitishwa kutoka China na Afrika. Dhamana ya biashara, malipo ya simu na usafirishaji kwa biashara ya B2B.",
+    "heroSubtitle": "Ungana na wazalishaji na wasambazaji waliothibitishwa kutoka China na Afrika. Malipo ya simu na usafirishaji kwa biashara ya B2B.",
     "browseProducts": "Vinjari Bidhaa",
     "becomeSupplier": "Kuwa Msambazaji",
     "howItWorks": "Jinsi Inavyofanya Kazi",
@@ -100,7 +99,6 @@
     "addToCart": "Ongeza kwenye Kikapu",
     "contactSupplier": "Wasiliana na Msambazaji",
     "requestQuote": "Omba Bei",
-    "tradeAssurance": "Dhamana ya Biashara",
     "verifiedSupplier": "Msambazaji Aliyethibitishwa",
     "sampleAvailable": "Sampuli Inapatikana"
   },
