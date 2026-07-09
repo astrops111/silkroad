@@ -19,10 +19,6 @@
     {
       "path": "/api/cron/expire-quotes",
       "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/tariff-refresh",
-      "schedule": "0 3 * * *"
     }
   ]
 }

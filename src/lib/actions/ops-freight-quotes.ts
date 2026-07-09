@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/queries/user";
 import {
   LiveFreightLaneProvider,
   DBFxProvider,
-  LiveTariffProvider,
+  DBTariffProvider,
   quoteLandedCost,
   type CargoItem,
   type ContainerType,
@@ -119,7 +119,7 @@ function toLandedCostInput(form: OpsQuoteFormInput): LandedCostInput {
 }
 
 const lanes = new LiveFreightLaneProvider();
-const tariffs = new LiveTariffProvider();
+const tariffs = new DBTariffProvider();
 const fx = new DBFxProvider();
 
 // ============================================================

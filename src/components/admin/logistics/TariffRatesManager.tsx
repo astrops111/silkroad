@@ -27,6 +27,7 @@ import {
   type TariffRateInput,
 } from "@/lib/actions/logistics-reference";
 import type { RateSource, TariffRateRowView } from "@/lib/queries/logistics-reference";
+import { WitsTariffImporter } from "./WitsTariffImporter";
 
 const SOURCES: RateSource[] = ["tariff_db", "tariff_api"];
 
@@ -156,6 +157,7 @@ export function TariffRatesManager({
           className="max-w-xs"
         />
         <div className="ml-auto" />
+        <WitsTariffImporter portCountries={portCountries} />
         <Button onClick={openCreate} size="sm">
           <Plus className="mr-1 size-4" /> Add tariff
         </Button>

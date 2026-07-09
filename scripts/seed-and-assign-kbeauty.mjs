@@ -187,6 +187,7 @@ for (const p of toSeed) {
     currency: "USD",
     origin_country: "KR",
     is_active: true,
+    moderation_status: "approved",
     shipping_group_id: GROUP_ID,
   }).select("id").single();
 

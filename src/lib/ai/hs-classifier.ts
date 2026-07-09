@@ -1,12 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { normalizeHsCode } from "@/lib/logistics/tariffs/simplyduty";
+import { normalizeHsCode } from "@/lib/logistics/tariffs/hs";
 
 // ============================================================
 // HS Code Classifier — product description → Harmonized System heading
 // ============================================================
 //
-// Feeds the "classification" half of the SimplyDuty-style pipeline; the
-// "duty rate" half already exists in landed-cost/providers/live-tariff.ts.
+// Feeds the "classification" half of the tariff pipeline; the "duty rate"
+// half is the tariff_rates lookup in landed-cost/providers/db-tariff.ts.
 // Candidates are HS-6 (the level harmonized across all countries) — national
 // tariff schedules extend it to 8/10 digits, which the model should not guess.
 
