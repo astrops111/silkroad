@@ -3,6 +3,57 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateOrderTax } from "@/lib/tax";
 import { calculateShippingCost } from "@/lib/logistics/rates/calculator";
 import { createOrderSchema } from "@/lib/validators/order";
+
+/**
+ * GET /api/orders — List buyer's purchase orders
+ * Query: status, search, limit, offset
+ */
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
+  const { searchParams } = request.nextUrl;
+  const status = searchParams.get("status");
+  const search = searchParams.get("search");
+  const limit = Math.min(50, parseInt(searchParams.get("limit") ?? "20", 10));
+  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+
+  let query = supabase
+    .from("purchase_orders")
+    .select(
+      `id, order_number, status, currency, grand_total, created_at,
+       supplier_orders (
+         id, supplier_id, status, total_amount,
+         companies ( name ),
+         supplier_order_items ( product_name, quantity )
+       )`,
+      { count: "exact" }
+    )
+    .eq("buyer_user_id", profile.id)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status) query = query.eq("status", status);
+  if (search) query = query.ilike("order_number", `%${search}%`);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("[orders/GET]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  return NextResponse.json({ orders: data ?? [], total: count ?? 0, limit, offset });
+}
 import { onOrderPlacedOpsNotify } from "@/lib/email/events";
 import {
   shippingGroupKey,
