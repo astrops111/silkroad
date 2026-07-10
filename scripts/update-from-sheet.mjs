@@ -162,12 +162,12 @@ for (const row of dataRows) {
     hs_code:            "3304.99",
     shipping_mode:      "either",
     allow_mix_shipping: true,
-    min_order_amount:   10000,
+    min_order_amount:   1000000,
   };
 
   if (barcode)    dbUpdate.jan_code     = barcode;
   if (koreanName) dbUpdate.name_local   = koreanName;
-  if (moqQty)     dbUpdate.moq          = moqQty;
+  dbUpdate.moq = moqQty ? moqQty * 10 : 10;
   if (moqQty)     dbUpdate.box_pack_qty = moqQty;
 
   let matched = false;

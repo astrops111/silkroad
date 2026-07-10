@@ -28,6 +28,8 @@ import {
   type TopCategoryWithCount,
 } from "@/lib/queries/categories";
 import { imageForSlug } from "@/lib/category-images";
+import { getCountryFacets } from "@/lib/queries/marketplace";
+import { regionMeta } from "@/lib/product-labels";
 
 /* ============================================================
    HERO — Products portal (China → Africa, rotating carousel)
@@ -108,6 +110,70 @@ function HeroSection() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   IMPORT FROM REGION (DB-driven country facets)
+   ============================================================ */
+const IMPORT_REGIONS = ["CN", "KR", "JP", "TW"] as const;
+
+function ImportFromRegion({
+  countryFacets,
+}: {
+  countryFacets: Record<string, number>;
+}) {
+  const t = useTranslations("marketing.products.importRegion");
+
+  return (
+    <section className="py-14 lg:py-16 bg-[var(--surface-primary)] border-b border-[var(--border-subtle)]">
+      <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
+        <div className="mb-8">
+          <span className="text-xs font-semibold text-[var(--amber-dark)] tracking-[0.15em] uppercase">
+            {t("eyebrow")}
+          </span>
+          <h2
+            className="mt-2 text-2xl lg:text-3xl font-bold tracking-tight text-[var(--obsidian)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {t("title")}
+          </h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-xl">
+            {t("subtitle")}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {IMPORT_REGIONS.map((code) => {
+            const meta = regionMeta(code);
+            const count = countryFacets[code] ?? 0;
+            return (
+              <Link
+                key={code}
+                href={`/marketplace?country=${code}`}
+                className="group flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-5 py-7 text-center hover:border-[var(--amber)]/40 hover:shadow-lg transition-all duration-300"
+              >
+                <span className="text-4xl leading-none" aria-hidden>
+                  {meta.flag}
+                </span>
+                <div>
+                  <div className="text-sm font-bold text-[var(--obsidian)]">
+                    {meta.label}
+                  </div>
+                  <div className="mt-1 text-xs text-[var(--text-tertiary)]">
+                    {t("products", { count: formatCount(count) })}
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--amber-dark)] opacity-0 group-hover:opacity-100 transition-opacity">
+                  {t("browse")}
+                  <ArrowRight className="w-3 h-3" />
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -385,21 +451,28 @@ function CTASection() {
 }
 
 export default async function ProductsPortalHome() {
-  const [categories, locale] = await Promise.all([
+  const [categories, countryFacets, locale] = await Promise.all([
     getTopLevelCategoriesWithCount(),
+    getCountryFacets(),
     getLocale(),
   ]);
 
   return (
-    <ProductsPortalHomeInner categories={categories} locale={locale} />
+    <ProductsPortalHomeInner
+      categories={categories}
+      countryFacets={countryFacets}
+      locale={locale}
+    />
   );
 }
 
 function ProductsPortalHomeInner({
   categories,
+  countryFacets,
   locale,
 }: {
   categories: TopCategoryWithCount[];
+  countryFacets: Record<string, number>;
   locale: string;
 }) {
   const tRail = useTranslations("marketing.products.rail");
@@ -434,6 +507,7 @@ function ProductsPortalHomeInner({
       <Navbar />
       <main className="flex-1">
         <HeroSection />
+        <ImportFromRegion countryFacets={countryFacets} />
         <FeaturedCategories categories={categories} locale={locale} />
         <ProductRail
           eyebrow={tRail("eyebrow")}

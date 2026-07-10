@@ -40,7 +40,6 @@ const ADVANCED_ITEMS = [
   { icon: ShoppingCart, label: "Orders", href: "/supplier/orders" },
   { icon: Truck, label: "Shipments", href: "/supplier/shipments" },
   { icon: BarChart3, label: "Analytics", href: "/supplier/analytics" },
-  { icon: Crown, label: "Subscription", href: "/supplier/subscription" },
 ];
 
 interface SupplierShellProps {

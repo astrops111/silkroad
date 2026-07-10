@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "Silk Road Afrika",
-    "tagline": "Jukwaa la Biashara B2B China-Afrika",
+    "tagline": "Jukwaa la Biashara B2B Dunia-Afrika",
     "signIn": "Ingia",
     "signUp": "Fungua akaunti",
     "signOut": "Toka",
@@ -36,7 +36,7 @@
   },
   "home": {
     "heroTitle": "Njia ya Hariri, Imebuniwa Upya kwa Afrika",
-    "heroSubtitle": "Ungana na wazalishaji na wasambazaji waliothibitishwa kutoka China na Afrika. Malipo ya simu na usafirishaji kwa biashara ya B2B.",
+    "heroSubtitle": "Ungana na wazalishaji na wasambazaji waliothibitishwa kutoka duniani kote na Afrika. Malipo ya simu na usafirishaji kwa biashara ya B2B.",
     "browseProducts": "Vinjari Bidhaa",
     "becomeSupplier": "Kuwa Msambazaji",
     "howItWorks": "Jinsi Inavyofanya Kazi",
@@ -71,7 +71,7 @@
     "iAmBuyer": "Mimi ni Mnunuzi",
     "buyerDesc": "Nunua bidhaa kutoka kwa wasambazaji waliothibitishwa na bei za jumla.",
     "iAmSupplier": "Mimi ni Msambazaji",
-    "supplierDesc": "Orodhesha bidhaa zako, fikia wanunuzi wa Afrika na China.",
+    "supplierDesc": "Orodhesha bidhaa zako, fikia wanunuzi wa Afrika na duniani kote.",
     "companyName": "Jina la kampuni",
     "country": "Nchi",
     "checkEmail": "Angalia barua pepe yako",

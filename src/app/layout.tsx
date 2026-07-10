@@ -7,9 +7,9 @@ import { rtlLocales, type Locale } from "@/i18n/routing";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Silk Road Africa — China-Africa B2B Trade Platform",
+  title: "Silk Road Africa — World-Africa B2B Trade Platform",
   description:
-    "The premier bidirectional B2B marketplace connecting Chinese manufacturers with African businesses and African producers with Chinese importers. Verified suppliers and door-to-door logistics.",
+    "The premier bidirectional B2B marketplace connecting manufacturers worldwide with African businesses and African producers with importers worldwide. Verified suppliers and door-to-door logistics.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

@@ -74,7 +74,7 @@ export default async function ResourcesLandingPage() {
                 <dt className="text-xs text-slate-400 uppercase tracking-wider">
                   {t("statFx")}
                 </dt>
-                <dd className="text-2xl font-semibold mt-1">USD · CNY</dd>
+                <dd className="text-2xl font-semibold mt-1">USD · Local</dd>
               </div>
             </dl>
           </div>

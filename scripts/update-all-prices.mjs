@@ -3,9 +3,9 @@
 //
 // Fields written per product:
 //   description             ← built from name, Korean name, volume, brand, barcode, MOQ
-//   base_price              ← detected price col (USD × 100 → cents)
-//   cogs                    ← supply price from ANUA order sheet (ANUA only); else = base_price
-//   moq, box_pack_qty       ← col immediately before price col (integer-validated)
+//   cogs                    ← supply price from ANUA order sheet (ANUA only); else detected price col (USD × 100 → cents)
+//   base_price              ← cogs, no markup (displayed price = actual cost)
+//   box_pack_qty            ← col immediately before price col (integer-validated); moq = 10 × that (10-box minimum)
 //   jan_code                ← col 0 barcode
 //   name_local              ← Korean name column
 //   brand                   ← brand key
@@ -15,7 +15,7 @@
 //   hs_code                 ← "3304.99"
 //   shipping_mode           ← "either"
 //   allow_mix_shipping      ← true
-//   min_order_amount        ← 10000 (cents = $100)
+//   min_order_amount        ← 1000000 (cents = $10,000)
 //
 // Run: node --env-file=.env scripts/update-all-prices.mjs
 
@@ -242,14 +242,17 @@ for (const [brand, filename] of Object.entries(BRAND_FILES)) {
     const priceUSD = parseFloat(priceRaw);
     if (!priceRaw || isNaN(priceUSD) || priceUSD <= 0) { skipped++; continue; }
 
-    const basePriceCents = Math.round(priceUSD * 100);
-    const moqQty         = moqRaw ? (parseInt(moqRaw, 10) || null) : null;
+    const sheetPriceCents = Math.round(priceUSD * 100);
+    const moqQty          = moqRaw ? (parseInt(moqRaw, 10) || null) : null;
 
-    // Use actual supply price for ANUA COGS; fall back to base_price for other brands
+    // Use actual supply price for ANUA COGS; fall back to the sheet price for other brands
     const cogsCents =
       brand === "ANUA" && barcode && anuaSupplyPrices.has(barcode)
         ? anuaSupplyPrices.get(barcode)
-        : basePriceCents;
+        : sheetPriceCents;
+
+    // Displayed base_price = cost, no markup — CSV/sheet price passes through as-is
+    const basePriceCents = cogsCents;
 
     const description = buildDescription({ englishName, koreanName, volume, barcode, brand, moqQty });
 
@@ -264,12 +267,12 @@ for (const [brand, filename] of Object.entries(BRAND_FILES)) {
       hs_code:            "3304.99",
       shipping_mode:      "either",
       allow_mix_shipping: true,
-      min_order_amount:   10000,
+      min_order_amount:   1000000,
     };
 
     if (barcode)    dbUpdate.jan_code     = barcode;
     if (koreanName) dbUpdate.name_local   = koreanName;
-    if (moqQty)     dbUpdate.moq          = moqQty;
+    dbUpdate.moq = moqQty ? moqQty * 10 : 10;
     if (moqQty)     dbUpdate.box_pack_qty = moqQty;
 
     let matched = false;

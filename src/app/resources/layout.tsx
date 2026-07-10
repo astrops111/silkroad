@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
-  title: "Silk Road Resources — Africa → China Natural Resources Portal",
+  title: "Silk Road Resources — Africa → World Natural Resources Portal",
   description:
     "Source metals, minerals, timber, agricultural commodities and raw materials from verified African producers. LC-backed trade, inspection, freight and FX handled end-to-end.",
 };
@@ -71,7 +71,7 @@ export default async function ResourcesLayout({
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 text-xs text-slate-400 flex flex-wrap items-center justify-between gap-4">
           <span>
             © {new Date().getFullYear()} Silk Road Resources · LC-backed
-            Africa → China trade
+            Africa → World trade
           </span>
           <span>
             {t("compliance")}: Kimberley · OECD 3TG · CITES · GACC

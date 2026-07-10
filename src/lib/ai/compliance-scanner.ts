@@ -116,7 +116,7 @@ RULES:
 - INFO flags = advisory information
 - Be specific about which country's regulation applies
 - Include HS-code-specific duties when possible
-- For China-Africa routes, flag common issues: undervaluation, mis-classification, counterfeit risk`;
+- For world-Africa routes, flag common issues: undervaluation, mis-classification, counterfeit risk`;
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",

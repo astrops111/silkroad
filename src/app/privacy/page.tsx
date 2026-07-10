@@ -7,7 +7,7 @@ import { Footer } from "@/components/ui/footer";
 export const metadata: Metadata = {
   title: "Privacy Policy — Silk Road Africa",
   description:
-    "How Silk Road Africa collects, uses, protects, and shares buyer and supplier data across our China-to-Africa B2B platform.",
+    "How Silk Road Africa collects, uses, protects, and shares buyer and supplier data across our World-Africa B2B platform.",
 };
 
 const LAST_UPDATED = "April 23, 2026";
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
           <div className="max-w-[760px] mx-auto px-6 lg:px-10 prose-legal">
             <p className="lead">
               Silk Road Africa (&quot;we&quot;, &quot;us&quot;) operates a cross-border B2B marketplace
-              that connects buyers in Africa with verified suppliers in China. This
+              that connects buyers in Africa with verified suppliers worldwide. This
               policy explains what personal and business data we collect, how we use
               and share it, and the choices you have.
             </p>
@@ -92,8 +92,8 @@ export default function PrivacyPage() {
               </li>
               <li>
                 Run sanctions / denied-party screening and comply with export, import,
-                and anti-money-laundering obligations in China and in destination
-                countries.
+                and anti-money-laundering obligations in supplier countries of origin
+                and in destination countries.
               </li>
               <li>
                 Communicate order updates, shipment tracking, and service notices via
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
 
             <h2>4. Cross-border transfers</h2>
             <p>
-              Because our platform connects China and Africa, personal data is
+              Because our platform connects the world and Africa, personal data is
               transferred across borders. We rely on contractual safeguards and, where
               applicable, standard contractual clauses. See our{" "}
               <Link href="/compliance">Trade Compliance</Link> page for additional

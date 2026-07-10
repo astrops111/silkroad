@@ -7,7 +7,7 @@ import { Footer } from "@/components/ui/footer";
 export const metadata: Metadata = {
   title: "Terms of Service — Silk Road Africa",
   description:
-    "Terms governing use of Silk Road Africa, the cross-border B2B marketplace connecting African buyers with Chinese suppliers.",
+    "Terms governing use of Silk Road Africa, the cross-border B2B marketplace connecting African buyers with suppliers worldwide.",
 };
 
 const LAST_UPDATED = "April 23, 2026";
@@ -53,7 +53,7 @@ export default function TermsPage() {
             <p>
               Silk Road Africa operates a curated, single-direction B2B marketplace
               where buyers located in Africa purchase goods sourced from verified
-              suppliers in China. We handle sourcing, quotation, payment processing,
+              suppliers worldwide. We handle sourcing, quotation, payment processing,
               logistics coordination, customs, and last-mile delivery.
             </p>
             <p>

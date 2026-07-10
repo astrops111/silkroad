@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Promotion limits per tier
+// Plan-tier gating is disabled for now — every company gets the same
+// promotion quota regardless of tier. Restore per-tier values here to
+// bring the paywall back.
 const TIER_LIMITS: Record<string, number> = {
-  free: 0,
-  standard: 0,
+  free: 5,
+  standard: 5,
   gold: 5,
-  verified: 20,
+  verified: 5,
 };
 
 /**

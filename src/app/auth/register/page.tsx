@@ -265,7 +265,7 @@ function RegisterForm() {
                   I&apos;m a Supplier
                 </div>
                 <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                  List your products, reach African & Chinese buyers, and manage
+                  List your products, reach African & global buyers, and manage
                   orders with integrated payments.
                 </p>
               </button>

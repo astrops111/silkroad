@@ -21,7 +21,7 @@ import { Footer } from "@/components/ui/footer";
 export const metadata: Metadata = {
   title: "How to Buy — Silk Road Africa",
   description:
-    "Step-by-step guide to placing a B2B order on Silk Road Africa: browse curated China-sourced products, place a request, pay via mobile money or bank transfer, and receive door-to-door delivery across Africa.",
+    "Step-by-step guide to placing a B2B order on Silk Road Africa: browse curated products sourced from around the world, place a request, pay via mobile money or bank transfer, and receive door-to-door delivery across Africa.",
 };
 
 function PageHeader() {
@@ -55,9 +55,9 @@ function PageHeader() {
           How to buy on Silk Road Africa
         </h1>
         <p className="mt-5 text-lg text-white/80 max-w-2xl leading-relaxed">
-          Place your first B2B order in minutes. We source from verified Chinese
-          factories and handle logistics, customs, and last-mile delivery to your
-          door — so you only pay for what actually arrives.
+          Place your first B2B order in minutes. We source from verified
+          factories worldwide and handle logistics, customs, and last-mile
+          delivery to your door — so you only pay for what actually arrives.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -85,7 +85,7 @@ function HowToBuySteps() {
       title: "Browse or search the marketplace",
       desc: "Find products across Home, Hotels, Consumer Electronics, Beauty, Groceries, and Baby categories. Filter by MOQ, destination country, and delivery window.",
       bullets: [
-        "12,000+ SKUs curated from verified Chinese manufacturers",
+        "12,000+ SKUs curated from verified manufacturers worldwide",
         "Every listing shows a landed price for your country",
         "Save items to your shortlist without an account",
       ],

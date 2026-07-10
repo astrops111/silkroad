@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "Silk Road Afrique",
-    "tagline": "Plateforme B2B Chine-Afrique",
+    "tagline": "Plateforme B2B Monde-Afrique",
     "signIn": "Se connecter",
     "signUp": "Créer un compte",
     "signOut": "Déconnexion",
@@ -36,12 +36,12 @@
   },
   "home": {
     "heroTitle": "La Route de la Soie, réinventée pour l'Afrique",
-    "heroSubtitle": "Connectez-vous avec des fabricants et fournisseurs vérifiés en Chine et en Afrique. Paiements mobiles et logistique pour le commerce B2B intercontinental.",
+    "heroSubtitle": "Connectez-vous avec des fabricants et fournisseurs vérifiés dans le monde entier et en Afrique. Paiements mobiles et logistique pour le commerce B2B intercontinental.",
     "browseProducts": "Parcourir les produits",
     "becomeSupplier": "Devenir fournisseur",
     "howItWorks": "Comment ça marche",
     "step1Title": "Trouvez des produits",
-    "step1Desc": "Parcourez les fournisseurs vérifiés et comparez les prix des fabricants en Chine et en Afrique.",
+    "step1Desc": "Parcourez les fournisseurs vérifiés et comparez les prix des fabricants dans le monde entier et en Afrique.",
     "step2Title": "Demandez des devis",
     "step2Desc": "Soumettez des demandes de prix et recevez des offres compétitives de plusieurs fournisseurs.",
     "step3Title": "Paiement sécurisé",
@@ -71,7 +71,7 @@
     "iAmBuyer": "Je suis acheteur",
     "buyerDesc": "Achetez des produits auprès de fournisseurs vérifiés avec prix de gros.",
     "iAmSupplier": "Je suis fournisseur",
-    "supplierDesc": "Publiez vos produits, atteignez des acheteurs africains et chinois avec paiements intégrés.",
+    "supplierDesc": "Publiez vos produits, atteignez des acheteurs africains et du monde entier avec paiements intégrés.",
     "companyName": "Nom de l'entreprise",
     "country": "Pays",
     "checkEmail": "Vérifiez votre e-mail",

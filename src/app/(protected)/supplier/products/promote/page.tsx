@@ -10,11 +10,9 @@ import {
   MousePointer,
   MessageSquare,
   Loader2,
-  Star,
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Crown,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -47,7 +45,6 @@ const PLACEMENT_LABELS: Record<string, string> = {
 
 export default function PromotePage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [tier, setTier] = useState("free");
   const [limit, setLimit] = useState(0);
   const [used, setUsed] = useState(0);
   const [remaining, setRemaining] = useState(0);
@@ -61,7 +58,6 @@ export default function PromotePage() {
       .then((r) => r.json())
       .then((data) => {
         setPromotions(data.promotions || []);
-        setTier(data.tier || "free");
         setLimit(data.limit || 0);
         setUsed(data.used || 0);
         setRemaining(data.remaining || 0);
@@ -89,10 +85,6 @@ export default function PromotePage() {
             Boost your products to the top of search results and category pages
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber-dark)" }}>
-          <Star className="w-3.5 h-3.5" />
-          {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
-        </div>
       </div>
 
       {/* Quota Bar */}
@@ -115,13 +107,6 @@ export default function PromotePage() {
             }}
           />
         </div>
-        {limit === 0 && (
-          <div className="mt-3 flex items-center gap-2 text-xs" style={{ color: "var(--amber-dark)" }}>
-            <Crown className="w-3.5 h-3.5" />
-            Upgrade to Gold ($149/mo) or Verified ($299/mo) to unlock promoted listings.
-            <Link href="/supplier/subscription" className="underline font-semibold">Upgrade</Link>
-          </div>
-        )}
       </div>
 
       {/* Performance KPIs */}
@@ -151,7 +136,7 @@ export default function PromotePage() {
             <Megaphone className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--text-tertiary)" }} />
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>No active promotions</p>
             <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
-              {limit > 0 ? "Go to your products list and click \"Promote\" on any approved product." : "Upgrade your subscription to start promoting products."}
+              Go to your products list and click &quot;Promote&quot; on any approved product.
             </p>
           </div>
         ) : (

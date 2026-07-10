@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "Silk Road África",
-    "tagline": "Plataforma B2B China-África",
+    "tagline": "Plataforma B2B Mundo-África",
     "signIn": "Entrar",
     "signUp": "Criar conta",
     "signOut": "Sair",
@@ -36,7 +36,7 @@
   },
   "home": {
     "heroTitle": "A Rota da Seda, reinventada para a África",
-    "heroSubtitle": "Conecte-se com fabricantes e fornecedores verificados na China e África. Pagamentos móveis e logística para comércio B2B intercontinental.",
+    "heroSubtitle": "Conecte-se com fabricantes e fornecedores verificados em todo o mundo e na África. Pagamentos móveis e logística para comércio B2B intercontinental.",
     "browseProducts": "Ver Produtos",
     "becomeSupplier": "Seja Fornecedor",
     "howItWorks": "Como Funciona",
@@ -71,7 +71,7 @@
     "iAmBuyer": "Sou Comprador",
     "buyerDesc": "Compre de fornecedores verificados com preços em volume.",
     "iAmSupplier": "Sou Fornecedor",
-    "supplierDesc": "Liste seus produtos, alcance compradores africanos e chineses com pagamentos integrados.",
+    "supplierDesc": "Liste seus produtos, alcance compradores africanos e de todo o mundo com pagamentos integrados.",
     "companyName": "Nome da empresa",
     "country": "País",
     "checkEmail": "Verifique seu e-mail",

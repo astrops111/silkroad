@@ -66,7 +66,7 @@ export async function sendWelcomeEmail(email: string, name: string) {
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #14110F;">Welcome to SilkRoad Africa, ${name}!</h1>
-        <p style="color: #4C463D;">Your account has been created successfully. You're now part of the largest China-Africa B2B trade platform.</p>
+        <p style="color: #4C463D;">Your account has been created successfully. You're now part of the largest World-Africa B2B trade platform.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Go to Dashboard</a>
       </div>
     `,

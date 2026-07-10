@@ -8,7 +8,7 @@ import type { TradeTerm } from "@/lib/supabase/database.types";
 import { canSupply } from "@/lib/company-access";
 
 // Listed price = COGS × this markup. COGS is supplier-internal; buyers see base_price only.
-const COGS_MARKUP = 1.4;
+const COGS_MARKUP = 1.0;
 
 type ActionResult<T = undefined> = {
   success: boolean;

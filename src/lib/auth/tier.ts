@@ -12,7 +12,11 @@ export interface TierStatus {
   companyIds: string[];
 }
 
-const PAID_TIERS: CompanyTier[] = ["standard", "gold"];
+// Plan-tier gating is disabled for now — every tier counts as paid so RFQ
+// submission and quotation sending are free for all companies. Restore to
+// ["standard", "gold"] (and re-enable is_paid_member() in the DB, see
+// migration 00092) to bring the paywall back.
+const PAID_TIERS: CompanyTier[] = ["free", "standard", "gold", "verified"];
 
 /**
  * Resolve the paid-tier status of the current caller. Free-tier gated

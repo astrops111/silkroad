@@ -7,7 +7,7 @@ import { Footer } from "@/components/ui/footer";
 export const metadata: Metadata = {
   title: "Trade Compliance — Silk Road Africa",
   description:
-    "How Silk Road Africa handles export controls, sanctions screening, import regulations, duties, product safety, and anti-counterfeit obligations across our China-to-Africa trade lanes.",
+    "How Silk Road Africa handles export controls, sanctions screening, import regulations, duties, product safety, and anti-counterfeit obligations across our World-Africa trade lanes.",
 };
 
 const LAST_UPDATED = "April 23, 2026";
@@ -45,9 +45,9 @@ export default function CompliancePage() {
           <div className="max-w-[760px] mx-auto px-6 lg:px-10 prose-legal">
             <p className="lead">
               Cross-border B2B trade is regulated on both ends. This page describes
-              how Silk Road Africa meets export obligations in China and import
-              obligations in each destination country — and what we expect from
-              buyers and suppliers on the platform.
+              how Silk Road Africa meets export obligations in supplier countries
+              of origin and import obligations in each destination country — and
+              what we expect from buyers and suppliers on the platform.
             </p>
 
             <h2>1. Our shared responsibilities</h2>
@@ -59,8 +59,8 @@ export default function CompliancePage() {
             <ul>
               <li>
                 <strong>Suppliers</strong> are responsible for accurate product
-                classification, origin declarations, and export licensing inside
-                China.
+                classification, origin declarations, and export licensing in
+                their country of origin.
               </li>
               <li>
                 <strong>Buyers</strong> are responsible for ensuring the goods are
@@ -94,15 +94,15 @@ export default function CompliancePage() {
               refusal, suspension, and statutory reporting where required.
             </p>
 
-            <h2>3. Export controls (China)</h2>
+            <h2>3. Export controls (country of origin)</h2>
             <p>
-              Our suppliers operate under China&apos;s Export Control Law, Customs Law,
-              and related regulations. For the curated consumer categories we
-              support — home, hotel supplies, consumer electronics, beauty, baby
-              products, groceries — export licences are rarely required beyond
-              standard customs declarations. Where a licence is required (for
-              example, dual-use items), we will not ship until the supplier
-              produces the licence and we independently verify it.
+              Our suppliers operate under the export control, customs, and related
+              trade laws of their country of origin. For the curated consumer
+              categories we support — home, hotel supplies, consumer electronics,
+              beauty, baby products, groceries — export licences are rarely
+              required beyond standard customs declarations. Where a licence is
+              required (for example, dual-use items), we will not ship until the
+              supplier produces the licence and we independently verify it.
             </p>
 
             <h2>4. Import regulations (destinations)</h2>
