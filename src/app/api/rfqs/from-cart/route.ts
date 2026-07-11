@@ -10,6 +10,8 @@ import { logActivity } from "@/lib/crm/activities";
 
 const cartItemSchema = z.object({
   productId: z.string().min(1),
+  variantId: z.string().optional(),
+  variantName: z.string().optional(),
   supplierId: z.string().min(1),
   supplierName: z.string().min(1),
   productName: z.string().min(1),
@@ -184,7 +186,8 @@ export async function POST(request: NextRequest) {
         return {
           rfq_id: rfq.id,
           product_id: item.productId,
-          product_name: item.productName,
+          variant_id: item.variantId ?? null,
+          product_name: item.variantName ? `${item.productName} — ${item.variantName}` : item.productName,
           quantity: boxes,
           unit: "boxes",
           target_unit_price: boxPriceCents,
@@ -197,7 +200,8 @@ export async function POST(request: NextRequest) {
       return {
         rfq_id: rfq.id,
         product_id: item.productId,
-        product_name: item.productName,
+        variant_id: item.variantId ?? null,
+        product_name: item.variantName ? `${item.productName} — ${item.variantName}` : item.productName,
         quantity: item.quantity,
         unit: "pieces",
         target_unit_price: Math.round(item.unitPrice),

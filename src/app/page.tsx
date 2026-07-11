@@ -124,23 +124,19 @@ const IMPORT_REGIONS = ["CN", "KR", "JP", "TW"] as const;
 const REGION_SKYLINE: Record<(typeof IMPORT_REGIONS)[number], { city: string; image: string }> = {
   CN: {
     city: "China",
-    image:
-      "https://images.pexels.com/photos/30685890/pexels-photo-30685890.jpeg?auto=compress&cs=tinysrgb&w=900",
+    image: "/regions/china.webp",
   },
   JP: {
     city: "Japan",
-    image:
-      "https://images.pexels.com/photos/31393692/pexels-photo-31393692.jpeg?auto=compress&cs=tinysrgb&w=900",
+    image: "/regions/japan.webp",
   },
   KR: {
     city: "Korea",
-    image:
-      "https://images.pexels.com/photos/12640885/pexels-photo-12640885.jpeg?auto=compress&cs=tinysrgb&w=900",
+    image: "/regions/korea.webp",
   },
   TW: {
     city: "Taiwan",
-    image:
-      "https://images.pexels.com/photos/18477467/pexels-photo-18477467.jpeg?auto=compress&cs=tinysrgb&w=900",
+    image: "/regions/taiwan.webp",
   },
 };
 
