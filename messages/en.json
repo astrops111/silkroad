@@ -314,7 +314,8 @@
       "sortPriceLowHigh": "Price: Low to High",
       "sortPriceHighLow": "Price: High to Low",
       "sortNewest": "Newest",
-      "sortMostPopular": "Most Popular"
+      "sortMostPopular": "Most Popular",
+      "perPageLabel": "Show:"
     },
     "howItWorks": {
       "eyebrow": "How Silk Road Africa Works",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -79,6 +79,9 @@ const CATEGORIES = [
   { slug: "baby-products", key: "categoryBabyProducts", matchLabel: "Baby & Kids" },
   { slug: "groceries", key: "categoryGroceries", matchLabel: "Groceries" },
 ] as const;
+
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
+const DEFAULT_PAGE_SIZE = 50;
 
 const PRODUCTS: MarketplaceProduct[] = [
   {
@@ -996,6 +999,7 @@ export function MarketplaceClient({
   brandFacets = {},
   topCategories = [],
   subcategoriesByParent = {},
+  totalProductCount,
 }: {
   initialProducts?: MarketplaceProduct[];
   subcategories?: MarketplaceSubcategory[];
@@ -1003,6 +1007,7 @@ export function MarketplaceClient({
   brandFacets?: Record<string, number>;
   topCategories?: MarketplaceTopCategory[];
   subcategoriesByParent?: Record<string, MarketplaceSubcategory[]>;
+  totalProductCount?: number;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -1031,6 +1036,19 @@ export function MarketplaceClient({
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
+  const requestedPageSize = Number(searchParams.get("limit"));
+  const pageSize = (PAGE_SIZE_OPTIONS as readonly number[]).includes(requestedPageSize)
+    ? requestedPageSize
+    : DEFAULT_PAGE_SIZE;
+
+  const handlePageSizeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (e.target.value === String(DEFAULT_PAGE_SIZE)) params.delete("limit");
+    else params.set("limit", e.target.value);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const displayProducts = useMemo(() => {
     // Server already filtered by category/country for real DB products — only re-filter mock fallback
     const usingMock = !initialProducts || initialProducts.length === 0;
@@ -1044,6 +1062,11 @@ export function MarketplaceClient({
       return matchesCategory && matchesCountry;
     });
   }, [allProducts, activeCategory, activeCountry, initialProducts]);
+
+  // Real filtered total from the server when available (matches the sidebar's
+  // category counts); falls back to the visible list length only when running
+  // on mock data (totalProductCount is undefined in that case).
+  const productCountForDisplay = totalProductCount ?? displayProducts.length;
 
   const clearFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1114,7 +1137,7 @@ export function MarketplaceClient({
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
               {activeCategory && activeCategory.slug
                 ? t("productCount", {
-                    count: displayProducts.length,
+                    count: productCountForDisplay,
                     category: activeCategoryLabel,
                   })
                 : t("subtitle")}
@@ -1188,7 +1211,7 @@ export function MarketplaceClient({
                     {t("filtersHeading")}
                   </button>
                   <span className="text-sm text-[var(--text-tertiary)]">
-                    {t("productsFound", { count: displayProducts.length })}
+                    {t("productsFound", { count: productCountForDisplay })}
                   </span>
                 </div>
 
@@ -1203,6 +1226,24 @@ export function MarketplaceClient({
                       <option>{t("sortPriceHighLow")}</option>
                       <option>{t("sortNewest")}</option>
                       <option>{t("sortMostPopular")}</option>
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-[var(--text-tertiary)]" />
+                  </div>
+
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-primary)]">
+                    <span className="text-[var(--text-tertiary)] text-xs">
+                      {t("perPageLabel")}
+                    </span>
+                    <select
+                      value={pageSize}
+                      onChange={handlePageSizeChange}
+                      className="bg-transparent text-sm font-medium text-[var(--text-primary)] outline-none cursor-pointer"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
                     </select>
                     <ChevronDown className="w-3 h-3 text-[var(--text-tertiary)]" />
                   </div>

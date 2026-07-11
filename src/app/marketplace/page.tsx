@@ -1,9 +1,8 @@
 import { searchProducts, getCountryFacets, getBrandFacets } from "@/lib/queries/marketplace";
 import {
-  getSubcategoriesByParentSlug,
-  getCategoryBySlug,
   getTopLevelCategoriesWithCount,
   getCategories,
+  type Category,
 } from "@/lib/queries/categories";
 import { applyMarkup } from "@/lib/pricing";
 import { isMarketplaceCountry } from "@/lib/countries";
@@ -15,6 +14,30 @@ import {
 import { ShoppingAssistantWidget } from "@/components/ai/shopping-assistant-widget";
 import { RecommendationRail } from "@/components/ai/recommendation-rail";
 
+// Collects a category id plus every descendant at any depth (the tree here
+// goes up to 3 levels — Beauty > Facial > Serum & Essence, for example — and
+// products can be assigned at any leaf, not just direct children).
+function collectDescendantIds(rootId: string, allCategories: Category[]): string[] {
+  const childrenByParentId = new Map<string, string[]>();
+  for (const c of allCategories) {
+    if (!c.parent_id) continue;
+    const list = childrenByParentId.get(c.parent_id) ?? [];
+    list.push(c.id);
+    childrenByParentId.set(c.parent_id, list);
+  }
+  const ids = [rootId];
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    const children = childrenByParentId.get(current) ?? [];
+    for (const childId of children) {
+      ids.push(childId);
+      queue.push(childId);
+    }
+  }
+  return ids;
+}
+
 const MARKETPLACE_CATEGORY_SLUGS = [
   "home",
   "hotels",
@@ -24,19 +47,27 @@ const MARKETPLACE_CATEGORY_SLUGS = [
   "groceries",
 ] as const;
 
+export const MARKETPLACE_PAGE_SIZES = [20, 50, 100, 200] as const;
+export const MARKETPLACE_DEFAULT_PAGE_SIZE = 50;
+
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; country?: string; brand?: string }>;
+  searchParams: Promise<{ category?: string; country?: string; brand?: string; limit?: string }>;
 }) {
   const sp = await searchParams;
   const activeCategorySlug = sp.category ?? null;
   const activeCountry = isMarketplaceCountry(sp.country) ? sp.country.toUpperCase() : null;
   const activeBrands = sp.brand ? sp.brand.split(",").filter(Boolean) : undefined;
+  const requestedLimit = Number(sp.limit);
+  const pageSize = MARKETPLACE_PAGE_SIZES.includes(requestedLimit as (typeof MARKETPLACE_PAGE_SIZES)[number])
+    ? requestedLimit
+    : MARKETPLACE_DEFAULT_PAGE_SIZE;
 
   let products: MarketplaceProduct[] = [];
   let subcategories: MarketplaceSubcategory[] = [];
   let categoryIds: string[] | undefined;
+  let totalProductCount: number | undefined;
   const [countryFacets, brandFacets, allTopCategories, allCategories] = await Promise.all([
     getCountryFacets(),
     getBrandFacets(),
@@ -74,20 +105,17 @@ export default async function MarketplacePage({
   }
 
   if (activeCategorySlug) {
-    const [parentCat, subs] = await Promise.all([
-      getCategoryBySlug(activeCategorySlug),
-      getSubcategoriesByParentSlug(activeCategorySlug),
-    ]);
-    subcategories = subs.map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      nameLocal: s.name_local,
-    }));
-    categoryIds = [
-      ...(parentCat ? [parentCat.id] : []),
-      ...subs.map((s) => s.id),
-    ];
+    const parentCat = allCategories.find((c) => c.slug === activeCategorySlug);
+    if (parentCat) {
+      const directChildren = allCategories.filter((c) => c.parent_id === parentCat.id);
+      subcategories = directChildren.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        nameLocal: s.name_local,
+      }));
+      categoryIds = collectDescendantIds(parentCat.id, allCategories);
+    }
   }
 
   try {
@@ -96,8 +124,9 @@ export default async function MarketplacePage({
       originCountries: activeCountry ? [activeCountry] : undefined,
       brands: activeBrands,
       sort: "newest",
-      limit: 20,
+      limit: pageSize,
     });
+    totalProductCount = result.total;
     products = result.products.map((p) => {
       // Suppliers selling by the box (carton) — box_pack_qty > 1 — quote and
       // sell per box, not per piece; mirrors the product detail page's logic.
@@ -143,6 +172,7 @@ export default async function MarketplacePage({
         brandFacets={brandFacets}
         topCategories={topCategories}
         subcategoriesByParent={subcategoriesByParent}
+        totalProductCount={totalProductCount}
       />
       <RecommendationRail title="Recommended for you" forMe />
       <ShoppingAssistantWidget />

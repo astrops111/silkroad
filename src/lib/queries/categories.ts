@@ -101,14 +101,24 @@ export async function getAdminCategoryTree(): Promise<CategoryWithChildren[]> {
 
 export async function getCategoryProductCounts(): Promise<Record<string, number>> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("category_id")
-    .not("category_id", "is", null);
+  // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
+  // products, so this must be paginated or counts are silently truncated.
   const counts: Record<string, number> = {};
-  for (const row of data ?? []) {
-    const id = (row as { category_id: string | null }).category_id;
-    if (id) counts[id] = (counts[id] ?? 0) + 1;
+  let from = 0;
+  const PAGE = 1000;
+  for (;;) {
+    const { data } = await supabase
+      .from("products")
+      .select("category_id")
+      .not("category_id", "is", null)
+      .range(from, from + PAGE - 1);
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      const id = (row as { category_id: string | null }).category_id;
+      if (id) counts[id] = (counts[id] ?? 0) + 1;
+    }
+    if (data.length < PAGE) break;
+    from += PAGE;
   }
   return counts;
 }

@@ -190,23 +190,47 @@ export async function getProductDetail(productId: string) {
   };
 }
 
+async function fetchAllRows<T>(
+  query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  let all: T[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  for (;;) {
+    const { data } = await query(from, from + PAGE - 1);
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 export async function getCountryFacets(): Promise<Record<string, number>> {
   const supabase = await createClient();
-  const [{ data: origins }, { data: activeProducts }] = await Promise.all([
-    supabase.from("products_with_origin").select("id, resolved_country"),
-    supabase
-      .from("products")
-      .select("id")
-      .eq("moderation_status", "approved")
-      .eq("is_active", true),
+  // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
+  // products, so both queries must be paginated or counts are silently
+  // truncated to whatever happened to be in the first page.
+  const [origins, activeProducts] = await Promise.all([
+    fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
+      supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
+    ),
+    fetchAllRows<{ id: string }>((from, to) =>
+      supabase
+        .from("products")
+        .select("id")
+        .eq("moderation_status", "approved")
+        .eq("is_active", true)
+        .range(from, to)
+    ),
   ]);
 
-  const activeIds = new Set((activeProducts ?? []).map((p) => p.id));
+  const activeIds = new Set(activeProducts.map((p) => p.id));
   const counts: Record<string, number> = Object.fromEntries(
     MARKETPLACE_COUNTRIES.map((code) => [code, 0])
   );
 
-  for (const row of origins ?? []) {
+  for (const row of origins) {
     if (!row.id || !activeIds.has(row.id)) continue;
     if (!isMarketplaceCountry(row.resolved_country)) continue;
     counts[row.resolved_country] = (counts[row.resolved_country] ?? 0) + 1;
@@ -217,15 +241,18 @@ export async function getCountryFacets(): Promise<Record<string, number>> {
 
 export async function getBrandFacets(): Promise<Record<string, number>> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("brand")
-    .eq("moderation_status", "approved")
-    .eq("is_active", true)
-    .not("brand", "is", null);
+  const rows = await fetchAllRows<{ brand: string | null }>((from, to) =>
+    supabase
+      .from("products")
+      .select("brand")
+      .eq("moderation_status", "approved")
+      .eq("is_active", true)
+      .not("brand", "is", null)
+      .range(from, to)
+  );
 
   const counts: Record<string, number> = {};
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const brand = row.brand;
     if (!brand) continue;
     counts[brand] = (counts[brand] ?? 0) + 1;
