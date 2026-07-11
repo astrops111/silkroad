@@ -31,6 +31,7 @@ while (true) {
     .from("products")
     .select("id, name, brand, base_price, jan_code, box_pack_qty, moq, slug")
     .eq("supplier_id", company.id)
+    .eq("is_active", true)
     .range(from, from + PAGE - 1);
   if (error) { console.error(error.message); process.exit(1); }
   if (!data || data.length === 0) break;
