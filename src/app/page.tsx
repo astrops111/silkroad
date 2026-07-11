@@ -121,6 +121,29 @@ function HeroSection() {
    ============================================================ */
 const IMPORT_REGIONS = ["CN", "KR", "JP", "TW"] as const;
 
+const REGION_SKYLINE: Record<(typeof IMPORT_REGIONS)[number], { city: string; image: string }> = {
+  CN: {
+    city: "China",
+    image:
+      "https://images.pexels.com/photos/30685890/pexels-photo-30685890.jpeg?auto=compress&cs=tinysrgb&w=900",
+  },
+  JP: {
+    city: "Japan",
+    image:
+      "https://images.pexels.com/photos/31393692/pexels-photo-31393692.jpeg?auto=compress&cs=tinysrgb&w=900",
+  },
+  KR: {
+    city: "Korea",
+    image:
+      "https://images.pexels.com/photos/12640885/pexels-photo-12640885.jpeg?auto=compress&cs=tinysrgb&w=900",
+  },
+  TW: {
+    city: "Taiwan",
+    image:
+      "https://images.pexels.com/photos/18477467/pexels-photo-18477467.jpeg?auto=compress&cs=tinysrgb&w=900",
+  },
+};
+
 function ImportFromRegion({
   countryFacets,
 }: {
@@ -149,28 +172,41 @@ function ImportFromRegion({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {IMPORT_REGIONS.map((code) => {
             const meta = regionMeta(code);
+            const { city, image } = REGION_SKYLINE[code];
             const count = countryFacets[code] ?? 0;
             return (
               <Link
                 key={code}
                 href={`/marketplace?country=${code}`}
-                className="group flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-5 py-7 text-center hover:border-[var(--amber)]/40 hover:shadow-lg transition-all duration-300"
+                className="group relative isolate flex flex-col justify-end p-5 h-48 lg:h-56 rounded-2xl overflow-hidden border border-[var(--border-subtle)] hover:shadow-lg transition-all duration-300"
               >
-                <span className="text-4xl leading-none" aria-hidden>
+                <Image
+                  src={image}
+                  alt={`${city} skyline, ${meta.label}`}
+                  fill
+                  sizes="(max-width: 640px) 50vw, 25vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.04] -z-10"
+                />
+                <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+
+                <span className="absolute top-4 right-4 text-2xl leading-none" aria-hidden>
                   {meta.flag}
                 </span>
+
                 <div>
-                  <div className="text-sm font-bold text-[var(--obsidian)]">
-                    {meta.label}
-                  </div>
-                  <div className="mt-1 text-xs text-[var(--text-tertiary)]">
+                  <h3
+                    className="text-base lg:text-lg font-bold text-white leading-tight"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {city}
+                  </h3>
+                  <p className="text-xs text-white/75 mt-0.5">{meta.label}</p>
+                  <p className="text-xs text-white/60 mt-1.5">
                     {t("products", { count: formatCount(count) })}
-                  </div>
+                  </p>
                 </div>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--amber-dark)] opacity-0 group-hover:opacity-100 transition-opacity">
-                  {t("browse")}
-                  <ArrowRight className="w-3 h-3" />
-                </span>
+
+                <ArrowUpRight className="absolute bottom-4 right-4 w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
             );
           })}
