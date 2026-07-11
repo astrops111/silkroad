@@ -12,6 +12,7 @@ interface SearchFilters {
   priceMin?: number;
   priceMax?: number;
   moqMax?: number;
+  brands?: string[];
   sort?: "newest" | "price_asc" | "price_desc" | "popular";
   page?: number;
   limit?: number;
@@ -65,6 +66,10 @@ export async function searchProducts(filters: SearchFilters = {}) {
     query = query.lte("moq", filters.moqMax);
   }
 
+  if (filters.brands && filters.brands.length > 0) {
+    query = query.in("brand", filters.brands);
+  }
+
   // Sorting
   switch (filters.sort) {
     case "price_asc":
@@ -115,6 +120,7 @@ async function searchProductsByOrigin(
     p_price_min: filters.priceMin !== undefined ? Math.round(filters.priceMin * 100) : null,
     p_price_max: filters.priceMax !== undefined ? Math.round(filters.priceMax * 100) : null,
     p_moq_max: filters.moqMax ?? null,
+    p_brands: filters.brands && filters.brands.length > 0 ? filters.brands : null,
     p_sort: filters.sort ?? "newest",
     p_limit: limit,
     p_offset: offset,
@@ -206,6 +212,24 @@ export async function getCountryFacets(): Promise<Record<string, number>> {
     counts[row.resolved_country] = (counts[row.resolved_country] ?? 0) + 1;
   }
 
+  return counts;
+}
+
+export async function getBrandFacets(): Promise<Record<string, number>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("products")
+    .select("brand")
+    .eq("moderation_status", "approved")
+    .eq("is_active", true)
+    .not("brand", "is", null);
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const brand = row.brand;
+    if (!brand) continue;
+    counts[brand] = (counts[brand] ?? 0) + 1;
+  }
   return counts;
 }
 

@@ -1,5 +1,9 @@
-import { searchProducts, getCountryFacets } from "@/lib/queries/marketplace";
-import { getSubcategoriesByParentSlug, getCategoryBySlug } from "@/lib/queries/categories";
+import { searchProducts, getCountryFacets, getBrandFacets } from "@/lib/queries/marketplace";
+import {
+  getSubcategoriesByParentSlug,
+  getCategoryBySlug,
+  getTopLevelCategoriesWithCount,
+} from "@/lib/queries/categories";
 import { applyMarkup } from "@/lib/pricing";
 import { isMarketplaceCountry } from "@/lib/countries";
 import {
@@ -10,19 +14,43 @@ import {
 import { ShoppingAssistantWidget } from "@/components/ai/shopping-assistant-widget";
 import { RecommendationRail } from "@/components/ai/recommendation-rail";
 
+const MARKETPLACE_CATEGORY_SLUGS = [
+  "home",
+  "hotels",
+  "consumer-electronics",
+  "beauty",
+  "baby-products",
+  "groceries",
+] as const;
+
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; country?: string }>;
+  searchParams: Promise<{ category?: string; country?: string; brand?: string }>;
 }) {
   const sp = await searchParams;
   const activeCategorySlug = sp.category ?? null;
   const activeCountry = isMarketplaceCountry(sp.country) ? sp.country.toUpperCase() : null;
+  const activeBrands = sp.brand ? sp.brand.split(",").filter(Boolean) : undefined;
 
   let products: MarketplaceProduct[] = [];
   let subcategories: MarketplaceSubcategory[] = [];
   let categoryIds: string[] | undefined;
-  const countryFacets = await getCountryFacets();
+  const [countryFacets, brandFacets, allTopCategories] = await Promise.all([
+    getCountryFacets(),
+    getBrandFacets(),
+    getTopLevelCategoriesWithCount(),
+  ]);
+  const topCategories = MARKETPLACE_CATEGORY_SLUGS.map((slug) =>
+    allTopCategories.find((c) => c.slug === slug)
+  )
+    .filter((c): c is NonNullable<typeof c> => c != null)
+    .map((c) => ({
+      slug: c.slug,
+      name: c.name,
+      nameLocal: c.name_local,
+      productCount: c.productCount,
+    }));
 
   if (activeCategorySlug) {
     const [parentCat, subs] = await Promise.all([
@@ -45,6 +73,7 @@ export default async function MarketplacePage({
     const result = await searchProducts({
       categoryIds,
       originCountries: activeCountry ? [activeCountry] : undefined,
+      brands: activeBrands,
       sort: "newest",
       limit: 20,
     });
@@ -90,6 +119,8 @@ export default async function MarketplacePage({
         initialProducts={products}
         subcategories={subcategories}
         countryFacets={countryFacets}
+        brandFacets={brandFacets}
+        topCategories={topCategories}
       />
       <RecommendationRail title="Recommended for you" forMe />
       <ShoppingAssistantWidget />

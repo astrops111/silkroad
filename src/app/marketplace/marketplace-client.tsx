@@ -35,6 +35,13 @@ export interface MarketplaceSubcategory {
   nameLocal: string | null;
 }
 
+export interface MarketplaceTopCategory {
+  slug: string;
+  name: string;
+  nameLocal: string | null;
+  productCount: number;
+}
+
 export interface MarketplaceProduct {
   id: string;
   name: string;
@@ -347,6 +354,143 @@ function SubcategoryGrid({
   );
 }
 
+/* ============================================================
+   TOP CATEGORY TICKER — auto-scrolling, seamless loop, pause on hover
+   Shown when browsing "All" (no category selected yet); mirrors the
+   SubcategoryGrid ticker that takes over once a category is picked.
+   ============================================================ */
+function TopCategoryTicker({
+  topCategories,
+}: {
+  topCategories: MarketplaceTopCategory[];
+}) {
+  const locale = useLocale();
+  const t = useTranslations("marketing.marketplace");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let rafId: number;
+    let last = performance.now();
+    const pxPerSec = 70;
+
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      if (!pausedRef.current && el.scrollWidth > el.clientWidth) {
+        el.scrollLeft += (pxPerSec * dt) / 1000;
+        const half = el.scrollWidth / 2;
+        if (el.scrollLeft >= half) el.scrollLeft -= half;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [topCategories.length]);
+
+  const pause = () => {
+    pausedRef.current = true;
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+  };
+  const scheduleResume = (delay = 1500) => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      pausedRef.current = false;
+    }, delay);
+  };
+
+  const scrollByDelta = (dx: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    pause();
+    el.scrollBy({ left: dx, behavior: "smooth" });
+    scheduleResume(2500);
+  };
+
+  if (topCategories.length === 0) return null;
+
+  const renderTile = (
+    cat: MarketplaceTopCategory,
+    keySuffix: string,
+    duplicate: boolean,
+  ) => {
+    const label = locale === "zh" && cat.nameLocal ? cat.nameLocal : cat.name;
+    return (
+      <Link
+        key={`${cat.slug}-${keySuffix}`}
+        href={`/marketplace?category=${cat.slug}`}
+        scroll={false}
+        draggable={false}
+        aria-hidden={duplicate || undefined}
+        tabIndex={duplicate ? -1 : undefined}
+        className="group relative shrink-0 block w-[120px] sm:w-[140px] aspect-square overflow-hidden rounded-xl border border-[var(--border-subtle)] hover:border-[var(--amber)]/50 hover:shadow-sm transition-all"
+      >
+        <Image
+          src={imageForSlug(cat.slug)}
+          alt={duplicate ? "" : label}
+          fill
+          sizes="(max-width: 640px) 120px, 140px"
+          className="object-cover transition-transform duration-300 group-hover:scale-[1.04] pointer-events-none"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-2">
+          <p className="text-xs sm:text-[13px] font-semibold text-white leading-tight line-clamp-2">
+            {label}
+          </p>
+          <p className="text-[10px] text-white/70 mt-0.5">
+            {t("productsCount", { count: cat.productCount })}
+          </p>
+        </div>
+      </Link>
+    );
+  };
+
+  return (
+    <div className="relative mb-8 group/ticker">
+      {/* edge fades */}
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-[var(--surface-secondary)] to-transparent z-10" />
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[var(--surface-secondary)] to-transparent z-10" />
+
+      {/* Carousel arrows — desktop only */}
+      <button
+        type="button"
+        onClick={() => scrollByDelta(-360)}
+        aria-label="Previous"
+        className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-[var(--border-subtle)] items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover/ticker:opacity-100 transition-opacity"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => scrollByDelta(360)}
+        aria-label="Next"
+        className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-[var(--border-subtle)] items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover/ticker:opacity-100 transition-opacity"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      <div
+        ref={scrollRef}
+        onMouseEnter={pause}
+        onMouseLeave={() => scheduleResume(400)}
+        onTouchStart={pause}
+        onTouchEnd={() => scheduleResume(2500)}
+        onWheel={() => {
+          pause();
+          scheduleResume(1500);
+        }}
+        className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide"
+      >
+        {topCategories.map((cat) => renderTile(cat, "a", false))}
+        {topCategories.map((cat) => renderTile(cat, "b", true))}
+      </div>
+    </div>
+  );
+}
+
 function formatPrice(price: number) {
   if (price >= 1000) return `$${(price / 1000).toFixed(price >= 10000 ? 0 : 1)}K`;
   return `$${price.toFixed(price < 10 ? 2 : 0)}`;
@@ -359,22 +503,48 @@ function FilterSidebar({
   open,
   onClose,
   activeCategorySlug,
+  topCategories,
+  brandFacets,
+  countryFacets,
+  activeCountry,
+  countryHrefFor,
 }: {
   open: boolean;
   onClose: () => void;
   activeCategorySlug: string | null;
+  topCategories: MarketplaceTopCategory[];
+  brandFacets: Record<string, number>;
+  countryFacets: Record<string, number>;
+  activeCountry: (typeof MARKETPLACE_COUNTRIES)[number] | null;
+  countryHrefFor: (code: string | null) => string;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("marketing.marketplace");
 
-  const moqRanges = [
-    { key: "any", label: t("moqAny") },
-    { key: "1-10", label: t("moqUnits", { range: "1-10" }) },
-    { key: "10-100", label: t("moqUnits", { range: "10-100" }) },
-    { key: "100-500", label: t("moqUnits", { range: "100-500" }) },
-    { key: "500+", label: t("moqUnits", { range: "500+" }) },
-  ];
+  const categoryCountBySlug = new Map(
+    topCategories.map((c) => [c.slug, c.productCount])
+  );
+  const totalCategoryCount = topCategories.reduce(
+    (sum, c) => sum + c.productCount,
+    0
+  );
+
+  const activeBrands = new Set(
+    (searchParams.get("brand") ?? "").split(",").filter(Boolean)
+  );
+  const sortedBrands = Object.entries(brandFacets).sort((a, b) => b[1] - a[1]);
+
+  const buildBrandHref = (brand: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const next = new Set(activeBrands);
+    if (next.has(brand)) next.delete(brand);
+    else next.add(brand);
+    if (next.size > 0) params.set("brand", Array.from(next).join(","));
+    else params.delete("brand");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
 
   const supplierFilters = [
     { label: t("filterVerified"), checked: false },
@@ -439,19 +609,70 @@ function FilterSidebar({
             <div className="space-y-1">
               {CATEGORIES.map((cat) => {
                 const isActive = (cat.slug ?? null) === activeCategorySlug;
+                const count = cat.slug
+                  ? categoryCountBySlug.get(cat.slug) ?? 0
+                  : totalCategoryCount;
                 return (
                   <Link
                     key={cat.key}
                     href={buildHref(cat.slug)}
                     onClick={onClose}
                     scroll={false}
-                    className={`block w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                    className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
                       isActive
                         ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
-                    {t(cat.key)}
+                    <span>{t(cat.key)}</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">{count}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Region */}
+          <div className="mb-8">
+            <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
+              {t("supplierRegionHeading")}
+            </h4>
+            <div className="space-y-1">
+              <Link
+                href={countryHrefFor(null)}
+                onClick={onClose}
+                scroll={false}
+                className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                  !activeCountry
+                    ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <span>{t("countryAll")}</span>
+                <span className="text-xs text-[var(--text-tertiary)]">
+                  {MARKETPLACE_COUNTRIES.reduce((sum, code) => sum + (countryFacets[code] ?? 0), 0)}
+                </span>
+              </Link>
+              {MARKETPLACE_COUNTRIES.map((code) => {
+                const meta = regionMeta(code);
+                const isActive = code === activeCountry;
+                return (
+                  <Link
+                    key={code}
+                    href={countryHrefFor(code)}
+                    onClick={onClose}
+                    scroll={false}
+                    className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                      isActive
+                        ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <span aria-hidden className="text-sm leading-none">{meta.flag}</span>
+                      {meta.label}
+                    </span>
+                    <span className="text-xs text-[var(--text-tertiary)]">{countryFacets[code] ?? 0}</span>
                   </Link>
                 );
               })}
@@ -478,27 +699,37 @@ function FilterSidebar({
             </div>
           </div>
 
-          {/* MOQ range */}
-          <div className="mb-8">
-            <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
-              {t("moqHeading")}
-            </h4>
-            <div className="space-y-2">
-              {moqRanges.map((range) => (
-                <label
-                  key={range.key}
-                  className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
-                >
-                  <div className="w-4 h-4 rounded border border-[var(--border-strong)] flex items-center justify-center">
-                    {range.key === "any" && (
-                      <div className="w-2.5 h-2.5 rounded-sm bg-[var(--amber)]" />
-                    )}
-                  </div>
-                  {range.label}
-                </label>
-              ))}
+          {/* Brand */}
+          {sortedBrands.length > 0 && (
+            <div className="mb-8">
+              <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
+                {t("brandHeading")}
+              </h4>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {sortedBrands.map(([brand, count]) => {
+                  const checked = activeBrands.has(brand);
+                  return (
+                    <Link
+                      key={brand}
+                      href={buildBrandHref(brand)}
+                      scroll={false}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] transition-colors"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                          checked ? "border-[var(--amber)]" : "border-[var(--border-strong)]"
+                        }`}
+                      >
+                        {checked && <div className="w-2.5 h-2.5 rounded-sm bg-[var(--amber)]" />}
+                      </div>
+                      <span className="flex-1 truncate">{brand}</span>
+                      <span className="text-xs text-[var(--text-tertiary)]">{count}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Supplier filters */}
           <div className="mb-8">
@@ -690,10 +921,14 @@ export function MarketplaceClient({
   initialProducts,
   subcategories = [],
   countryFacets = {},
+  brandFacets = {},
+  topCategories = [],
 }: {
   initialProducts?: MarketplaceProduct[];
   subcategories?: MarketplaceSubcategory[];
   countryFacets?: Record<string, number>;
+  brandFacets?: Record<string, number>;
+  topCategories?: MarketplaceTopCategory[];
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -847,6 +1082,11 @@ export function MarketplaceClient({
               open={filterOpen}
               onClose={() => setFilterOpen(false)}
               activeCategorySlug={categorySlug}
+              topCategories={topCategories}
+              brandFacets={brandFacets}
+              countryFacets={countryFacets}
+              activeCountry={activeCountry}
+              countryHrefFor={countryHrefFor}
             />
 
             {/* Main content */}
@@ -857,6 +1097,9 @@ export function MarketplaceClient({
                   activeCategorySlug={categorySlug}
                   activeSubSlug={subSlug}
                 />
+              )}
+              {!categorySlug && topCategories.length > 0 && (
+                <TopCategoryTicker topCategories={topCategories} />
               )}
               {/* Toolbar */}
               <div className="flex items-center justify-between mb-6">

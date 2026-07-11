@@ -107,9 +107,15 @@ while (true) {
 console.log(`Active products for ${SUPPLIER_SLUG}: ${all.length}\n`);
 
 // ── 2. Garbage filter ───────────────────────────────────────────────────
-const garbage = all.filter((p) => GARBAGE_NAME_RE.test(p.name.trim()) || p.name.trim().length < 3);
+// Blank/placeholder names, and broken $0.00 rows (incomplete import
+// artifacts — e.g. a row with price=0, jan_code=null, box_pack_qty=1 sitting
+// alongside real-priced siblings of the same product) never count as
+// variants or duplicate-keepers; they're flagged for manual deletion review.
+const garbage = all.filter(
+  (p) => GARBAGE_NAME_RE.test(p.name.trim()) || p.name.trim().length < 3 || p.base_price <= 0
+);
 const candidates = all.filter((p) => !garbage.includes(p));
-console.log(`Garbage-named rows (flagged, never touched): ${garbage.length}`);
+console.log(`Garbage/broken rows (flagged, never touched): ${garbage.length}`);
 
 // ── 3. Cluster by (brand, normalized name) ─────────────────────────────
 const groups = new Map();
@@ -154,20 +160,54 @@ for (const members of clusters) {
     continue;
   }
 
+  // Dedupe members sharing an identical non-null jan_code before treating
+  // the cluster as real variants — same barcode imported twice is a data
+  // bug, not two distinct sellable sizes; the discarded row gets no variant.
+  const byJan = new Map();
+  for (const m of members) {
+    if (!m.jan_code) continue;
+    if (!byJan.has(m.jan_code)) byJan.set(m.jan_code, []);
+    byJan.get(m.jan_code).push(m);
+  }
+  const dedupedAway = new Set();
+  for (const dupes of byJan.values()) {
+    if (dupes.length < 2) continue;
+    const sorted = [...dupes].sort((a, b) => {
+      const scoreDiff = completenessScore(b) - completenessScore(a);
+      if (scoreDiff !== 0) return scoreDiff;
+      return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+    });
+    const [keeper, ...rest] = sorted;
+    for (const r of rest) dedupedAway.add(r.id);
+    duplicatesDeduped += rest.length;
+    console.log(`  [dup within cluster] keep ${keeper.id}, deactivate ${rest.map((r) => r.id).join(", ")} (shared jan_code ${keeper.jan_code})`);
+    if (WRITE) {
+      await admin
+        .from("products")
+        .update({ is_active: false, merged_into_product_id: keeper.id })
+        .in("id", rest.map((r) => r.id));
+    }
+  }
+  const dedupedMembers = members.filter((m) => !dedupedAway.has(m.id));
+  if (new Set(dedupedMembers.map((m) => m.sizeToken)).size < 2) {
+    rejectedNoToken++; // dedup collapsed this cluster below 2 distinct sizes
+    continue;
+  }
+
   // Real variant cluster.
   realVariantClusters++;
-  const canonical = [...members].sort((a, b) => a.base_price - b.base_price || a.id.localeCompare(b.id))[0];
+  const canonical = [...dedupedMembers].sort((a, b) => a.base_price - b.base_price || a.id.localeCompare(b.id))[0];
   const cleanedName = stripToken(canonical.name, canonical.sizeToken) || canonical.name;
 
   console.log(
     `[variant] "${cleanedName}" — canonical=${canonical.id} (was "${canonical.name}"), ` +
-    `${members.length} sizes: ${members.map((m) => m.sizeToken).join(", ")}`
+    `${dedupedMembers.length} sizes: ${dedupedMembers.map((m) => m.sizeToken).join(", ")}`
   );
 
   if (!WRITE) {
-    variantsCreated += members.length;
-    imagesMigrated += members.filter((m) => m.id !== canonical.id).length; // estimate; real count computed on write
-    productsDeactivated += members.length - 1;
+    variantsCreated += dedupedMembers.length;
+    imagesMigrated += dedupedMembers.filter((m) => m.id !== canonical.id).length; // estimate; real count computed on write
+    productsDeactivated += dedupedMembers.length - 1;
     continue;
   }
 
@@ -178,7 +218,7 @@ for (const members of clusters) {
     .eq("id", canonical.id);
   if (renameErr) { console.error(`  ✗ rename ${canonical.id}: ${renameErr.message}`); continue; }
 
-  const variantInserts = members.map((m) => ({
+  const variantInserts = dedupedMembers.map((m) => ({
     product_id: canonical.id,
     name: m.sizeToken,
     price_override: m.base_price,
@@ -195,8 +235,8 @@ for (const members of clusters) {
   variantsCreated += newVariants.length;
 
   // Map each member to its new variant row (match by jan_code when present, else by name+order).
-  for (let i = 0; i < members.length; i++) {
-    const member = members[i];
+  for (let i = 0; i < dedupedMembers.length; i++) {
+    const member = dedupedMembers[i];
     const variant = newVariants[i]; // insert preserves array order
     if (member.id === canonical.id) continue; // canonical's own images stay parent-level
 
@@ -224,4 +264,4 @@ console.log(`Images migrated:           ${imagesMigrated}`);
 console.log(`Products deactivated:      ${productsDeactivated}`);
 console.log(`Duplicate rows deduped:    ${duplicatesDeduped}`);
 console.log(`Clusters rejected (no distinguishable size token): ${rejectedNoToken}`);
-console.log(`Garbage-named rows flagged for manual review: ${garbage.length}`);
+console.log(`Garbage/broken rows flagged for manual review: ${garbage.length}`);
