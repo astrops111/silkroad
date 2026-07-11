@@ -76,7 +76,7 @@ const CATEGORIES = [
   { slug: "hotels", key: "categoryHotels", matchLabel: "Hotels" },
   { slug: "consumer-electronics", key: "categoryConsumerElectronics", matchLabel: "Consumer Electronics" },
   { slug: "beauty", key: "categoryBeauty", matchLabel: "Beauty" },
-  { slug: "baby-products", key: "categoryBabyProducts", matchLabel: "Baby Products" },
+  { slug: "baby-products", key: "categoryBabyProducts", matchLabel: "Baby & Kids" },
   { slug: "groceries", key: "categoryGroceries", matchLabel: "Groceries" },
 ] as const;
 
@@ -198,7 +198,7 @@ const PRODUCTS: MarketplaceProduct[] = [
     reviews: 178,
     responseTime: "< 6h",
     image: "from-lime-50 to-green-100",
-    category: "Baby Products",
+    category: "Baby & Kids",
     tags: ["Hot Sale"],
   },
 ];
@@ -503,7 +503,9 @@ function FilterSidebar({
   open,
   onClose,
   activeCategorySlug,
+  activeSubSlug,
   topCategories,
+  subcategoriesByParent,
   brandFacets,
   countryFacets,
   activeCountry,
@@ -512,7 +514,9 @@ function FilterSidebar({
   open: boolean;
   onClose: () => void;
   activeCategorySlug: string | null;
+  activeSubSlug: string | null;
   topCategories: MarketplaceTopCategory[];
+  subcategoriesByParent: Record<string, MarketplaceSubcategory[]>;
   brandFacets: Record<string, number>;
   countryFacets: Record<string, number>;
   activeCountry: (typeof MARKETPLACE_COUNTRIES)[number] | null;
@@ -520,7 +524,29 @@ function FilterSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const locale = useLocale();
   const t = useTranslations("marketing.marketplace");
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    () => new Set(activeCategorySlug ? [activeCategorySlug] : [])
+  );
+
+  const toggleExpanded = (slug: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  };
+
+  const buildSubHref = (parentSlug: string, subSlug: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("category", parentSlug);
+    if (subSlug) params.set("sub", subSlug);
+    else params.delete("sub");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
 
   const categoryCountBySlug = new Map(
     topCategories.map((c) => [c.slug, c.productCount])
@@ -612,21 +638,67 @@ function FilterSidebar({
                 const count = cat.slug
                   ? categoryCountBySlug.get(cat.slug) ?? 0
                   : totalCategoryCount;
+                const subs = cat.slug ? subcategoriesByParent[cat.slug] ?? [] : [];
+                const isExpanded = !!cat.slug && expandedCategories.has(cat.slug);
                 return (
-                  <Link
-                    key={cat.key}
-                    href={buildHref(cat.slug)}
-                    onClick={onClose}
-                    scroll={false}
-                    className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <span>{t(cat.key)}</span>
-                    <span className="text-xs text-[var(--text-tertiary)]">{count}</span>
-                  </Link>
+                  <div key={cat.key}>
+                    <div
+                      className={`flex items-center rounded-lg transition-colors ${
+                        isActive
+                          ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      <Link
+                        href={buildHref(cat.slug)}
+                        onClick={onClose}
+                        scroll={false}
+                        className="flex-1 flex items-center justify-between px-3 py-2.5 text-sm min-w-0"
+                      >
+                        <span className="truncate">{t(cat.key)}</span>
+                        <span className="text-xs text-[var(--text-tertiary)] ml-2 shrink-0">{count}</span>
+                      </Link>
+                      {subs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(cat.slug as string)}
+                          aria-expanded={isExpanded}
+                          aria-label={isExpanded ? "Collapse subcategories" : "Expand subcategories"}
+                          className="shrink-0 p-2.5 mr-1 rounded-lg hover:bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"
+                        >
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      )}
+                    </div>
+
+                    {isExpanded && subs.length > 0 && (
+                      <div className="ml-3 pl-3 border-l border-[var(--border-subtle)] space-y-0.5 mt-0.5 mb-1">
+                        {subs.map((sub) => {
+                          const subLabel =
+                            locale === "zh" && sub.nameLocal ? sub.nameLocal : sub.name;
+                          const subActive =
+                            cat.slug === activeCategorySlug && sub.slug === activeSubSlug;
+                          return (
+                            <Link
+                              key={sub.id}
+                              href={buildSubHref(cat.slug as string, sub.slug)}
+                              onClick={onClose}
+                              scroll={false}
+                              className={`block px-3 py-1.5 text-[13px] rounded-lg transition-colors truncate ${
+                                subActive
+                                  ? "text-[var(--amber-dark)] font-semibold"
+                                  : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]"
+                              }`}
+                            >
+                              {subLabel}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -923,12 +995,14 @@ export function MarketplaceClient({
   countryFacets = {},
   brandFacets = {},
   topCategories = [],
+  subcategoriesByParent = {},
 }: {
   initialProducts?: MarketplaceProduct[];
   subcategories?: MarketplaceSubcategory[];
   countryFacets?: Record<string, number>;
   brandFacets?: Record<string, number>;
   topCategories?: MarketplaceTopCategory[];
+  subcategoriesByParent?: Record<string, MarketplaceSubcategory[]>;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -1082,7 +1156,9 @@ export function MarketplaceClient({
               open={filterOpen}
               onClose={() => setFilterOpen(false)}
               activeCategorySlug={categorySlug}
+              activeSubSlug={subSlug}
               topCategories={topCategories}
+              subcategoriesByParent={subcategoriesByParent}
               brandFacets={brandFacets}
               countryFacets={countryFacets}
               activeCountry={activeCountry}

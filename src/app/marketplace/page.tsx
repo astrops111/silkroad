@@ -3,6 +3,7 @@ import {
   getSubcategoriesByParentSlug,
   getCategoryBySlug,
   getTopLevelCategoriesWithCount,
+  getCategories,
 } from "@/lib/queries/categories";
 import { applyMarkup } from "@/lib/pricing";
 import { isMarketplaceCountry } from "@/lib/countries";
@@ -36,10 +37,11 @@ export default async function MarketplacePage({
   let products: MarketplaceProduct[] = [];
   let subcategories: MarketplaceSubcategory[] = [];
   let categoryIds: string[] | undefined;
-  const [countryFacets, brandFacets, allTopCategories] = await Promise.all([
+  const [countryFacets, brandFacets, allTopCategories, allCategories] = await Promise.all([
     getCountryFacets(),
     getBrandFacets(),
     getTopLevelCategoriesWithCount(),
+    getCategories(),
   ]);
   const topCategories = MARKETPLACE_CATEGORY_SLUGS.map((slug) =>
     allTopCategories.find((c) => c.slug === slug)
@@ -51,6 +53,25 @@ export default async function MarketplacePage({
       nameLocal: c.name_local,
       productCount: c.productCount,
     }));
+
+  // Level-1 subcategories grouped by their top-level parent's slug, so the
+  // sidebar can expand any category in place without an extra navigation.
+  const categoryIdToSlug = new Map(allCategories.map((c) => [c.id, c.slug]));
+  const subcategoriesByParent: Record<
+    string,
+    { id: string; slug: string; name: string; nameLocal: string | null }[]
+  > = {};
+  for (const c of allCategories) {
+    if (c.level !== 1 || !c.parent_id) continue;
+    const parentSlug = categoryIdToSlug.get(c.parent_id);
+    if (!parentSlug) continue;
+    (subcategoriesByParent[parentSlug] ??= []).push({
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      nameLocal: c.name_local,
+    });
+  }
 
   if (activeCategorySlug) {
     const [parentCat, subs] = await Promise.all([
@@ -121,6 +142,7 @@ export default async function MarketplacePage({
         countryFacets={countryFacets}
         brandFacets={brandFacets}
         topCategories={topCategories}
+        subcategoriesByParent={subcategoriesByParent}
       />
       <RecommendationRail title="Recommended for you" forMe />
       <ShoppingAssistantWidget />

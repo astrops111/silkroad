@@ -59,7 +59,7 @@
     "categoryConsumerElectronics": "Consumer Electronics",
     "categoryBeauty": "Beauty",
     "categoryGroceries": "Groceries",
-    "categoryBabyProducts": "Baby Products",
+    "categoryBabyProducts": "Baby & Kids",
     "featured": "Featured",
     "seeAll": "See all {label}",
     "bannerLead": "Can't find what you want?",
@@ -128,7 +128,7 @@
         "cosmetics": "Cosmetics",
         "consumerElectronics": "Consumer Electronics",
         "groceries": "Groceries",
-        "babyProducts": "Baby Products",
+        "babyProducts": "Baby & Kids",
         "hotelInteriors": "Hotel Interiors",
         "furniture": "Furniture",
         "products": "{count} products"
@@ -304,7 +304,7 @@
       "categoryConsumerElectronics": "Consumer Electronics",
       "categoryBeauty": "Beauty",
       "categoryGroceries": "Groceries",
-      "categoryBabyProducts": "Baby Products",
+      "categoryBabyProducts": "Baby & Kids",
       "filterVerified": "Verified Only",
       "filter4Star": "4+ Star Rating",
       "searchPlaceholder": "Search products, suppliers, or keywords...",
@@ -632,7 +632,7 @@
       "consumerElectronics": "Consumer Electronics",
       "beauty": "Beauty",
       "groceries": "Groceries",
-      "babyProducts": "Baby Products",
+      "babyProducts": "Baby & Kids",
       "other": "Something else"
     }
   },
