@@ -144,33 +144,36 @@ export default function SubmitQuotePage() {
   }
 
   async function handleSubmit(submit: boolean) {
-    const totalAmount =
+    const totalAmountDollars =
       parseFloat(form.total_amount) || (lineTotal > 0 ? lineTotal : 0);
-    if (!totalAmount && submit) return;
+    if (!totalAmountDollars && submit) return;
 
     setSubmitting(true);
     try {
+      // API + DB store money in cents (minor units) — this form collects
+      // plain dollar amounts, so convert right before sending.
       const body = {
-        rfq_id: rfqId,
-        total_amount: totalAmount,
+        rfqId,
+        totalAmount: Math.round(totalAmountDollars * 100),
         currency: form.currency,
-        payment_terms: form.payment_terms,
-        trade_term: form.trade_term,
-        lead_time_days: form.lead_time_days
+        paymentTerms: form.payment_terms,
+        tradeTerm: form.trade_term,
+        leadTimeDays: form.lead_time_days
           ? parseInt(form.lead_time_days)
           : undefined,
-        validity_days: parseInt(form.validity_days) || 30,
+        validityDays: parseInt(form.validity_days) || 30,
         moq: form.moq ? parseInt(form.moq) : undefined,
-        shipping_cost: form.shipping_cost
-          ? parseFloat(form.shipping_cost)
+        shippingCost: form.shipping_cost
+          ? Math.round(parseFloat(form.shipping_cost) * 100)
           : undefined,
         notes: form.notes || undefined,
-        line_items: lineItems
+        items: lineItems
           .filter((li) => li.product_name && li.quantity && li.unit_price)
           .map((li) => ({
-            product_name: li.product_name,
+            productName: li.product_name,
             quantity: parseFloat(li.quantity),
-            unit_price: parseFloat(li.unit_price),
+            unitPrice: Math.round(parseFloat(li.unit_price) * 100),
+            unit: rfq?.unit || "pieces",
           })),
         submit,
       };
@@ -510,7 +513,7 @@ export default function SubmitQuotePage() {
                 </div>
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-medium text-[var(--text-tertiary)]">
-                    Qty
+                    Qty {rfq?.unit ? `(${rfq.unit})` : ""}
                   </label>
                   <input
                     type="number"
@@ -525,7 +528,7 @@ export default function SubmitQuotePage() {
                 </div>
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-medium text-[var(--text-tertiary)]">
-                    Unit Price
+                    Unit Price {rfq?.unit ? `(per ${rfq.unit.replace(/s$/, "")})` : ""}
                   </label>
                   <input
                     type="number"

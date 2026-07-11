@@ -16,7 +16,8 @@ import { formatMoney } from "@/lib/payments/currency-config";
  * Order placed — notify internal ops inbox with full buyer + order detail.
  * Fires at order creation (pre-payment) so ops can begin sourcing.
  */
-const OPS_NOTIFICATION_EMAIL = "masterai.tw99@gmail.com";
+const OPS_NOTIFICATION_EMAIL =
+  process.env.OPS_NOTIFICATION_EMAIL ?? "logistic@silkroad.africa";
 
 function esc(v: string | null | undefined): string {
   if (!v) return "—";
@@ -322,6 +323,110 @@ export async function onOrderStatusChanged(
 }
 
 /**
+ * RFQ submitted (from cart) — notify each invited supplier (email + in-app),
+ * confirm to the buyer, and copy ops so sales can track the deal.
+ */
+export async function onRfqSubmitted(rfqId: string) {
+  const supabase = createServiceClient();
+
+  const { data: rfq } = await supabase
+    .from("rfqs")
+    .select(`
+      id, rfq_number, title, quantity, unit, deadline, buyer_company_name,
+      buyer_user_id, invited_supplier_ids,
+      user_profiles!rfqs_buyer_user_id_fkey ( email, full_name )
+    `)
+    .eq("id", rfqId)
+    .single();
+
+  if (!rfq) return;
+
+  const buyer = rfq.user_profiles as unknown as { email: string; full_name: string } | null;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const deadline = rfq.deadline
+    ? new Date(rfq.deadline).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })
+    : "—";
+
+  for (const supplierId of rfq.invited_supplier_ids ?? []) {
+    const { data: supplierMember } = await supabase
+      .from("company_members")
+      .select("user_id, user_profiles ( email, full_name )")
+      .eq("company_id", supplierId)
+      .eq("is_primary", true)
+      .single();
+
+    const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
+
+    if (supplierMember?.user_id) {
+      await supabase.rpc("create_notification", {
+        p_user_id:        supplierMember.user_id,
+        p_company_id:     supplierId,
+        p_title:          "New RFQ Received",
+        p_body:           `${rfq.buyer_company_name ?? "A buyer"} requests a quote — ${rfq.rfq_number}: ${rfq.title}`,
+        p_type:           "rfq",
+        p_icon:           "file-text",
+        p_action_url:     `/supplier/rfq/${rfq.id}/quote`,
+        p_reference_type: "rfq",
+        p_reference_id:   rfqId,
+      });
+    }
+
+    if (supplier?.email) {
+      await sendEmail({
+        to: supplier.email,
+        subject: `New RFQ ${rfq.rfq_number} — ${rfq.title}`,
+        html: `
+          <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #14110F;">New Request for Quotation</h1>
+            <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+            <p style="color: #4C463D;"><strong>${esc(rfq.buyer_company_name) ?? "A buyer"}</strong> has requested a quote from you.</p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:12px 0;">
+              <tr><td style="padding:6px 0;width:120px;color:#666;">RFQ</td><td>${esc(rfq.rfq_number)}</td></tr>
+              <tr><td style="padding:6px 0;color:#666;">Title</td><td>${esc(rfq.title)}</td></tr>
+              <tr><td style="padding:6px 0;color:#666;">Quantity</td><td>${rfq.quantity} ${esc(rfq.unit)}</td></tr>
+              <tr><td style="padding:6px 0;color:#666;">Quote deadline</td><td>${deadline}</td></tr>
+            </table>
+            <a href="${appUrl}/supplier/rfq/${rfq.id}/quote" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Submit Your Quote</a>
+          </div>
+        `,
+      }, "rfq_submitted_supplier");
+    }
+  }
+
+  if (buyer?.email) {
+    await sendEmail({
+      to: buyer.email,
+      subject: `RFQ Sent — ${rfq.rfq_number}`,
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #14110F;">Your RFQ Has Been Sent</h1>
+          <p style="color: #4C463D;">Hi ${esc(buyer.full_name)},</p>
+          <p style="color: #4C463D;">Your request for quotation <strong>${esc(rfq.rfq_number)}</strong> — "${esc(rfq.title)}" has been sent to the supplier. We'll notify you as soon as a quote comes in.</p>
+          <a href="${appUrl}/dashboard/rfq" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Track Your RFQs</a>
+        </div>
+      `,
+    }, "rfq_submitted_buyer");
+  }
+
+  await sendEmail({
+    to: OPS_NOTIFICATION_EMAIL,
+    subject: `[RFQ] ${rfq.rfq_number} — ${rfq.title.slice(0, 80)}`,
+    html: `
+      <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #14110F;">New RFQ Submitted</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr><td style="padding:6px 0;width:140px;color:#666;">RFQ</td><td>${esc(rfq.rfq_number)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Title</td><td>${esc(rfq.title)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Buyer</td><td>${esc(rfq.buyer_company_name)} (${esc(buyer?.email)})</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Quantity</td><td>${rfq.quantity} ${esc(rfq.unit)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Deadline</td><td>${deadline}</td></tr>
+        </table>
+      </div>
+    `,
+  }, "rfq_submitted_ops");
+}
+
+/**
  * RFQ receives a new quotation — notify buyer
  */
 export async function onQuotationReceived(rfqId: string, supplierName: string) {
@@ -329,13 +434,28 @@ export async function onQuotationReceived(rfqId: string, supplierName: string) {
 
   const { data: rfq } = await supabase
     .from("rfqs")
-    .select("rfq_number, title, buyer_user_id, user_profiles!rfqs_buyer_user_id_fkey ( email, full_name )")
+    .select("rfq_number, title, buyer_user_id, buyer_company_id, user_profiles!rfqs_buyer_user_id_fkey ( email, full_name )")
     .eq("id", rfqId)
     .single();
 
   if (!rfq) return;
 
   const buyer = rfq.user_profiles as unknown as { email: string; full_name: string } | null;
+
+  if (rfq.buyer_user_id) {
+    await supabase.rpc("create_notification", {
+      p_user_id:        rfq.buyer_user_id,
+      p_company_id:     rfq.buyer_company_id,
+      p_title:          "New Quotation Received",
+      p_body:           `${supplierName} quoted your RFQ ${rfq.rfq_number} — "${rfq.title}". Review and compare quotes.`,
+      p_type:           "rfq",
+      p_icon:           "file-text",
+      p_action_url:     "/dashboard/rfq",
+      p_reference_type: "rfq",
+      p_reference_id:   rfqId,
+    });
+  }
+
   if (!buyer?.email) return;
 
   await sendEmail({
@@ -372,15 +492,29 @@ export async function onQuotationAccepted(quotationId: string) {
 
   const { data: supplierMember } = await supabase
     .from("company_members")
-    .select("user_profiles ( email, full_name )")
+    .select("user_id, user_profiles ( email, full_name )")
     .eq("company_id", q.supplier_id)
     .eq("is_primary", true)
     .single();
 
   const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
-  if (!supplier?.email) return;
-
   const rfq = q.rfqs as unknown as { rfq_number: string; title: string; buyer_company_name: string } | null;
+
+  if (supplierMember?.user_id) {
+    await supabase.rpc("create_notification", {
+      p_user_id:        supplierMember.user_id,
+      p_company_id:     q.supplier_id,
+      p_title:          "Quotation Accepted",
+      p_body:           `${rfq?.buyer_company_name || "A buyer"} accepted your quote ${q.quotation_number} for "${rfq?.title || "RFQ"}" — ${formatMoney(q.total_amount, q.currency)}.`,
+      p_type:           "rfq",
+      p_icon:           "check-circle-2",
+      p_action_url:     "/supplier/orders",
+      p_reference_type: "quotation",
+      p_reference_id:   quotationId,
+    });
+  }
+
+  if (!supplier?.email) return;
 
   await sendEmail({
     to: supplier.email,
@@ -395,6 +529,145 @@ export async function onQuotationAccepted(quotationId: string) {
       </div>
     `,
   }, "quotation_accepted");
+}
+
+/**
+ * Losing quotations rejected at award — notify each supplier (email + in-app).
+ * Call after the award transaction has marked them 'rejected'.
+ */
+export async function onQuotationsRejected(rfqId: string, awardedQuotationId: string) {
+  const supabase = createServiceClient();
+
+  const { data: rejected } = await supabase
+    .from("quotations")
+    .select("id, quotation_number, supplier_id, rfqs ( rfq_number, title )")
+    .eq("rfq_id", rfqId)
+    .neq("id", awardedQuotationId)
+    .eq("status", "rejected");
+
+  for (const q of rejected || []) {
+    const rfq = q.rfqs as unknown as { rfq_number: string; title: string } | null;
+
+    const { data: supplierMember } = await supabase
+      .from("company_members")
+      .select("user_id, user_profiles ( email, full_name )")
+      .eq("company_id", q.supplier_id)
+      .eq("is_primary", true)
+      .single();
+
+    const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
+
+    if (supplierMember?.user_id) {
+      await supabase.rpc("create_notification", {
+        p_user_id:        supplierMember.user_id,
+        p_company_id:     q.supplier_id,
+        p_title:          "Quotation Not Selected",
+        p_body:           `Your quote ${q.quotation_number} for "${rfq?.title || "RFQ"}" was not selected this time.`,
+        p_type:           "rfq",
+        p_icon:           "file-text",
+        p_action_url:     "/supplier/rfq",
+        p_reference_type: "quotation",
+        p_reference_id:   q.id,
+      });
+    }
+
+    if (supplier?.email) {
+      await sendEmail({
+        to: supplier.email,
+        subject: `Quotation Update — ${q.quotation_number}`,
+        html: `
+          <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #14110F;">Quotation Not Selected</h1>
+            <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+            <p style="color: #4C463D;">Thank you for quoting on <strong>${esc(rfq?.rfq_number)}</strong> — "${esc(rfq?.title)}". The buyer has chosen another quotation this time.</p>
+            <p style="color: #4C463D;">Keep an eye on new RFQs — more opportunities are coming.</p>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/supplier/rfq" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Browse Open RFQs</a>
+          </div>
+        `,
+      }, "quotation_rejected");
+    }
+  }
+}
+
+/**
+ * Order created from an awarded RFQ (pre-payment in the place-order model) —
+ * notify buyer + supplier(s) on both channels and copy ops with full detail.
+ */
+export async function onOrderCreated(purchaseOrderId: string) {
+  const supabase = createServiceClient();
+
+  const { data: po } = await supabase
+    .from("purchase_orders")
+    .select(`
+      order_number, grand_total, currency, buyer_company_name, buyer_company_id,
+      buyer_user_id,
+      user_profiles!purchase_orders_buyer_user_id_fkey ( email, full_name )
+    `)
+    .eq("id", purchaseOrderId)
+    .single();
+
+  if (!po) return;
+
+  const buyer = po.user_profiles as unknown as { email: string; full_name: string } | null;
+  const total = formatMoney(po.grand_total, po.currency);
+
+  if (po.buyer_user_id) {
+    await supabase.rpc("create_notification", {
+      p_user_id:        po.buyer_user_id,
+      p_company_id:     po.buyer_company_id,
+      p_title:          "Order Placed",
+      p_body:           `Order ${po.order_number} (${total}) has been created from your accepted quote.`,
+      p_type:           "order",
+      p_icon:           "shopping-cart",
+      p_action_url:     "/dashboard/orders",
+      p_reference_type: "purchase_order",
+      p_reference_id:   purchaseOrderId,
+    });
+  }
+
+  if (buyer?.email) {
+    await sendOrderConfirmationEmail(buyer.email, po.order_number, total);
+  }
+
+  const { data: supplierOrders } = await supabase
+    .from("supplier_orders")
+    .select("id, supplier_id, order_number, total_amount, currency")
+    .eq("purchase_order_id", purchaseOrderId);
+
+  for (const so of supplierOrders || []) {
+    const { data: supplierMember } = await supabase
+      .from("company_members")
+      .select("user_id, user_profiles ( email )")
+      .eq("company_id", so.supplier_id)
+      .eq("is_primary", true)
+      .single();
+
+    if (supplierMember?.user_id) {
+      await supabase.rpc("create_notification", {
+        p_user_id:        supplierMember.user_id,
+        p_company_id:     so.supplier_id,
+        p_title:          "New Order Received",
+        p_body:           `Order ${so.order_number} from ${po.buyer_company_name || buyer?.full_name || "a buyer"} — ${formatMoney(so.total_amount, so.currency)}.`,
+        p_type:           "order",
+        p_icon:           "shopping-cart",
+        p_action_url:     "/supplier/orders",
+        p_reference_type: "supplier_order",
+        p_reference_id:   so.id,
+      });
+    }
+
+    const supplierEmail = (supplierMember?.user_profiles as unknown as { email: string } | null)?.email;
+    if (supplierEmail) {
+      await sendNewOrderToSupplierEmail(
+        supplierEmail,
+        so.order_number,
+        po.buyer_company_name || buyer?.full_name || "Buyer",
+        formatMoney(so.total_amount, so.currency)
+      );
+    }
+  }
+
+  await onOrderPlacedOpsNotify(purchaseOrderId);
 }
 
 /**

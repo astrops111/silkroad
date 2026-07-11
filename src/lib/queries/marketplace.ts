@@ -34,6 +34,7 @@ export async function searchProducts(filters: SearchFilters = {}) {
       *,
       categories (*),
       product_images (*),
+      product_variants (id),
       product_pricing_tiers (*),
       companies:supplier_id (id, name, slug, logo_url, verification_status, country_code)
     `,
@@ -138,6 +139,7 @@ async function searchProductsByOrigin(
       *,
       categories (*),
       product_images (*),
+      product_variants (id),
       product_pricing_tiers (*),
       companies:supplier_id (id, name, slug, logo_url, verification_status, country_code)
     `

@@ -187,16 +187,21 @@ export default function CartPage() {
                       {item.productName}
                     </p>
                     <p className="text-xs text-[var(--text-tertiary)]">
-                      {formatPrice(item.unitPrice, item.currency)} / unit · MOQ:{" "}
-                      {item.moq.toLocaleString()}
+                      {item.boxPackQty && item.boxPackQty > 1
+                        ? `${formatPrice(item.unitPrice * item.boxPackQty, item.currency)} / box · MOQ: ${Math.round(item.moq / item.boxPackQty).toLocaleString()} boxes`
+                        : `${formatPrice(item.unitPrice, item.currency)} / unit · MOQ: ${item.moq.toLocaleString()}`}
                     </p>
                   </div>
 
-                  {/* Quantity controls */}
+                  {/* Quantity controls — steps by whole boxes when boxPackQty is set */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() =>
-                        updateQuantity(item.productId, item.quantity - 1, item.variantId)
+                        updateQuantity(
+                          item.productId,
+                          item.quantity - (item.boxPackQty ?? 1),
+                          item.variantId
+                        )
                       }
                       className="w-8 h-8 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] disabled:opacity-40"
                       disabled={item.quantity <= item.moq}
@@ -204,11 +209,17 @@ export default function CartPage() {
                       <Minus className="w-3 h-3" />
                     </button>
                     <span className="w-12 text-center text-sm font-medium">
-                      {item.quantity}
+                      {item.boxPackQty && item.boxPackQty > 1
+                        ? Math.round(item.quantity / item.boxPackQty)
+                        : item.quantity}
                     </span>
                     <button
                       onClick={() =>
-                        updateQuantity(item.productId, item.quantity + 1, item.variantId)
+                        updateQuantity(
+                          item.productId,
+                          item.quantity + (item.boxPackQty ?? 1),
+                          item.variantId
+                        )
                       }
                       className="w-8 h-8 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)]"
                     >
@@ -275,7 +286,8 @@ export default function CartPage() {
             <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
             <p className="text-xs text-amber-800 leading-snug">
               One or more shipments haven&apos;t reached the minimum order value.
-              Add more items from those suppliers before checking out.
+              Add more items from those suppliers before checking out or
+              requesting quotes.
             </p>
           </div>
         )}
@@ -356,7 +368,7 @@ export default function CartPage() {
                 <Button
                   size="sm"
                   onClick={handleSendRfq}
-                  disabled={rfqStatus === "loading"}
+                  disabled={rfqStatus === "loading" || anyBelowMinimum}
                   className="flex-1"
                 >
                   {rfqStatus === "loading" ? (
@@ -373,7 +385,8 @@ export default function CartPage() {
           ) : (
             <button
               onClick={() => setRfqOpen(true)}
-              className="w-full text-sm text-[var(--text-secondary)] flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-[var(--border-default)] hover:border-[var(--amber)] hover:text-[var(--text-primary)] transition-colors"
+              disabled={anyBelowMinimum}
+              className="w-full text-sm text-[var(--text-secondary)] flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-[var(--border-default)] hover:border-[var(--amber)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border-default)] disabled:hover:text-[var(--text-secondary)]"
             >
               <MessageSquare className="w-4 h-4" />
               Request quotes from suppliers instead

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { onQuotationReceived } from "@/lib/email/events";
+import { ensureDealThread, attachToDealThread } from "@/lib/deals/threads";
+import { postDealMessage } from "@/lib/deals/messages";
+import { logActivity } from "@/lib/crm/activities";
+import { computeQuotationLandedCost } from "@/lib/logistics/landed-cost/from-quotation";
 
 /**
  * GET /api/quotations — List quotations
@@ -29,6 +34,7 @@ export async function GET(request: NextRequest) {
       lead_time_days, validity_days, valid_until, moq,
       shipping_cost, shipping_method, notes, version, status,
       submitted_at, buyer_feedback, buyer_rating, created_at,
+      landed_cost_snapshot, landed_cost_status, landed_cost_computed_at,
       quotation_items (
         id, product_name, quantity, unit, unit_price, total_price, lead_time_days, moq
       ),
@@ -220,6 +226,52 @@ export async function POST(request: NextRequest) {
     action: submit ? (version > 1 ? "revised" : "quoted") : "draft_saved",
     details: { quotationNumber, version },
   });
+
+  // Notify the buyer (email + in-app); failures never block the quote
+  if (submit) {
+    try {
+      await onQuotationReceived(
+        rfqId,
+        (membership.companies as unknown as { name: string } | null)?.name ?? "A supplier"
+      );
+    } catch (err) {
+      console.error("[quotations] Buyer notification failed for", quotation.id, err);
+    }
+
+    // CRM: attach the quote to the RFQ's deal thread and log the activity
+    const dealThreadId = await ensureDealThread({ rfqId });
+    if (dealThreadId) {
+      await attachToDealThread(dealThreadId, {
+        quotationId: quotation.id,
+        supplierCompanyId: membership.company_id,
+      });
+    }
+    await logActivity({
+      activityType: "quote_submitted",
+      actorType: "user",
+      actorUserId: profile.id,
+      companyId: membership.company_id,
+      dealThreadId,
+      referenceType: "quotation",
+      referenceId: quotation.id,
+      metadata: { quotationNumber, version, totalAmount, currency: currency || "USD" },
+    });
+    // Internal-channel leg: surface the quote in the deal conversation
+    if (dealThreadId) {
+      await postDealMessage(dealThreadId, {
+        body: `Supplier quote ${quotationNumber}${version > 1 ? ` (rev ${version})` : ""} received — ${currency || "USD"} ${(totalAmount / 100).toFixed(2)}. Landed cost estimate is being prepared.`,
+        actorUserId: profile.id,
+        references: [
+          { type: "quotation", id: quotation.id, label: quotationNumber },
+          { type: "rfq", id: rfqId },
+        ],
+      });
+    }
+
+    // Logistics at quotation time: estimate freight + duties so the buyer
+    // sees total landed cost before awarding. Best-effort, never blocks.
+    await computeQuotationLandedCost(quotation.id);
+  }
 
   return NextResponse.json({
     success: true,

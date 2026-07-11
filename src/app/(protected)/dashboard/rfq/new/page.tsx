@@ -23,7 +23,7 @@ interface LineItem {
   target_unit_price: string;
 }
 
-const UNITS = ["pieces", "kg", "tons", "meters", "cartons"];
+const UNITS = ["pieces", "boxes", "kg", "tons", "meters", "cartons"];
 const CURRENCIES = ["USD", "GHS", "KES", "NGN", "ZAR", "CNY"];
 
 /* ------------------------------------------------------------------ */

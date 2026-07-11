@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCartStore } from "@/stores/cart";
 import {
   Star,
@@ -83,12 +84,24 @@ interface Category {
   slug: string;
 }
 
+interface VariantData {
+  id: string;
+  name: string;
+  janCode: string | null;
+  moq: number;
+  boxPackQty: number | null;
+  priceOverride: number | null;
+  isDefault: boolean;
+  images: ImageData[];
+}
+
 interface Props {
   product: ProductData;
   category: Category | null;
   images: ImageData[];
   tiers: PricingTier[];
   certifications: Certification[];
+  variants?: VariantData[];
 }
 
 const CERT_LABELS: Record<string, string> = {
@@ -121,9 +134,33 @@ export default function ProductDetailClient({
   images,
   tiers,
   certifications,
+  variants = [],
 }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const urlVariantId = searchParams.get("variant");
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    () =>
+      (urlVariantId && variants.some((v) => v.id === urlVariantId) ? urlVariantId : null) ??
+      variants.find((v) => v.isDefault)?.id ??
+      variants[0]?.id ??
+      null
+  );
+  const currentVariant = variants.find((v) => v.id === selectedVariantId) ?? null;
+
+  // Buyers purchase Korean Beauty Trading Co SKUs by the box (carton), not
+  // the piece — box_pack_qty > 1 gates this; products without it (most
+  // other suppliers) behave exactly as before (1 "box" = 1 piece).
+  const boxPackQty = currentVariant?.boxPackQty ?? product.boxPackQty ?? 1;
+  const effectiveMoq = currentVariant?.moq ?? product.moq;
+  const effectiveJanCode = currentVariant?.janCode ?? product.janCode;
+  const effectiveImages = currentVariant?.images.length ? currentVariant.images : images;
+  const minBoxes = Math.max(1, Math.round(effectiveMoq / boxPackQty));
+
   const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(product.moq);
+  const [boxes, setBoxes] = useState(minBoxes);
   const [activeTab, setActiveTab] = useState<
     "description" | "specs" | "certifications"
   >("description");
@@ -131,7 +168,22 @@ export default function ProductDetailClient({
 
   const addItem = useCartStore((s) => s.addItem);
 
+  function selectVariant(variantId: string) {
+    setSelectedVariantId(variantId);
+    setSelectedImage(0);
+    const target = variants.find((v) => v.id === variantId);
+    if (target) {
+      const targetBoxPackQty = target.boxPackQty ?? product.boxPackQty ?? 1;
+      setBoxes(Math.max(1, Math.round(target.moq / targetBoxPackQty)));
+    }
+    const qs = new URLSearchParams(searchParams.toString());
+    qs.set("variant", variantId);
+    router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
+  }
+
   const region = regionMeta(product.originCountry);
+
+  const quantity = boxes * boxPackQty; // pieces — feeds tiers/cart/order math unchanged
 
   const activeTier =
     tiers.find(
@@ -140,20 +192,26 @@ export default function ProductDetailClient({
         (t.maxQuantity === null || quantity <= t.maxQuantity)
     ) ?? null;
 
-  const unitPrice = applyMarkup(activeTier?.unitPrice ?? product.basePrice);
+  const unitPrice = applyMarkup(
+    currentVariant?.priceOverride ?? activeTier?.unitPrice ?? product.basePrice
+  ); // per piece
+  const boxPrice = unitPrice * boxPackQty;
   const total = unitPrice * quantity;
 
   function handleAddToCart() {
     addItem({
       productId: product.id,
+      variantId: currentVariant?.id,
+      variantName: currentVariant?.name,
       supplierId: product.supplierId,
       supplierName: product.supplierName,
       productName: product.name,
       unitPrice: Math.round(unitPrice * 100), // minor units (cents), markup already applied
       quantity,
       currency: product.currency,
-      moq: product.moq,
-      imageUrl: images[0]?.url,
+      moq: effectiveMoq,
+      boxPackQty: boxPackQty > 1 ? boxPackQty : undefined,
+      imageUrl: effectiveImages[0]?.url,
       weightKg: product.weightKg ?? undefined,
       volumeCbm: product.volumeCbm ?? undefined,
       shippingMode: product.shippingMode ?? undefined,
@@ -162,7 +220,7 @@ export default function ProductDetailClient({
     setTimeout(() => setAddedToCart(false), 2000);
   }
 
-  const currentImage = images[selectedImage]?.url;
+  const currentImage = effectiveImages[selectedImage]?.url;
 
   // Parse description into key:value specs where possible.
   // Matches lines like "Label: value" and leaves the rest as free prose.
@@ -232,7 +290,7 @@ export default function ProductDetailClient({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={currentImage}
-                      alt={images[selectedImage]?.altText ?? product.name}
+                      alt={effectiveImages[selectedImage]?.altText ?? product.name}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -257,9 +315,9 @@ export default function ProductDetailClient({
                   </div>
                 </div>
 
-                {images.length > 1 && (
+                {effectiveImages.length > 1 && (
                   <div className="flex gap-3 flex-wrap">
-                    {images.map((img, i) => (
+                    {effectiveImages.map((img, i) => (
                       <button
                         key={img.id}
                         onClick={() => setSelectedImage(i)}
@@ -311,6 +369,29 @@ export default function ProductDetailClient({
                   </div>
                 )}
 
+                {variants.length > 1 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-[var(--text-tertiary)] mb-2">
+                      Size: <span className="text-[var(--text-primary)]">{currentVariant?.name}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {variants.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => selectVariant(v.id)}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                            v.id === selectedVariantId
+                              ? "border-[var(--amber)] bg-[var(--amber)]/10 text-[var(--obsidian)]"
+                              : "border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]"
+                          }`}
+                        >
+                          {v.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Price block */}
                 <div className="mt-6 p-5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)]">
                   {tiers.length > 0 ? (
@@ -327,7 +408,11 @@ export default function ProductDetailClient({
                         return (
                           <button
                             key={tier.minQuantity}
-                            onClick={() => setQuantity(tier.minQuantity)}
+                            onClick={() =>
+                              setBoxes(
+                                Math.max(minBoxes, Math.ceil(tier.minQuantity / boxPackQty))
+                              )
+                            }
                             className={`text-center p-3 rounded-lg border transition-colors ${
                               isActive
                                 ? "bg-[var(--amber)]/10 border-[var(--amber)]/30"
@@ -357,24 +442,29 @@ export default function ProductDetailClient({
                       className="text-3xl font-bold text-[var(--obsidian)]"
                       style={{ fontFamily: "var(--font-display)" }}
                     >
-                      {formatMoney(unitPrice, product.currency)}
+                      {formatMoney(boxPackQty > 1 ? boxPrice : unitPrice, product.currency)}
                     </span>
                     <span className="text-sm text-[var(--text-tertiary)]">
-                      / unit
+                      {boxPackQty > 1 ? "/ box" : "/ unit"}
                     </span>
                   </div>
+                  {boxPackQty > 1 && (
+                    <p className="text-xs text-[var(--text-tertiary)]">
+                      {formatMoney(unitPrice, product.currency)} / pc · {boxPackQty} pcs per box
+                    </p>
+                  )}
                 </div>
 
                 {/* Quantity + totals */}
                 <div className="mt-6 space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
-                      Quantity
+                      {boxPackQty > 1 ? "Boxes" : "Quantity"}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() =>
-                          setQuantity((q) => Math.max(product.moq, q - 1))
+                          setBoxes((b) => Math.max(minBoxes, b - 1))
                         }
                         className="w-9 h-9 rounded-lg border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)]"
                         aria-label="Decrease quantity"
@@ -383,20 +473,20 @@ export default function ProductDetailClient({
                       </button>
                       <input
                         type="number"
-                        value={quantity}
+                        value={boxes}
                         onChange={(e) =>
-                          setQuantity(
+                          setBoxes(
                             Math.max(
-                              product.moq,
-                              parseInt(e.target.value) || product.moq
+                              minBoxes,
+                              parseInt(e.target.value) || minBoxes
                             )
                           )
                         }
                         className="w-20 h-9 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)]"
-                        min={product.moq}
+                        min={minBoxes}
                       />
                       <button
-                        onClick={() => setQuantity((q) => q + 1)}
+                        onClick={() => setBoxes((b) => b + 1)}
                         className="w-9 h-9 rounded-lg border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)]"
                         aria-label="Increase quantity"
                       >
@@ -404,6 +494,11 @@ export default function ProductDetailClient({
                       </button>
                     </div>
                   </div>
+                  {boxPackQty > 1 && (
+                    <p className="text-xs text-[var(--text-tertiary)] -mt-2">
+                      = {quantity.toLocaleString()} pcs
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-[var(--text-tertiary)]">Estimated total</span>
@@ -416,7 +511,9 @@ export default function ProductDetailClient({
                     <div className="rounded-lg border border-[var(--border-subtle)] p-3">
                       <p className="text-[var(--text-tertiary)]">MOQ</p>
                       <p className="font-semibold text-[var(--text-primary)] mt-0.5">
-                        {product.moq.toLocaleString()}
+                        {boxPackQty > 1
+                          ? `${minBoxes.toLocaleString()} boxes`
+                          : effectiveMoq.toLocaleString()}
                       </p>
                     </div>
                     <div className="rounded-lg border border-[var(--border-subtle)] p-3">
@@ -558,10 +655,10 @@ export default function ProductDetailClient({
                             <dd className="text-xs font-medium text-[var(--text-primary)]">{product.hsCode}</dd>
                           </div>
                         )}
-                        {product.janCode && (
+                        {effectiveJanCode && (
                           <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-2">
                             <dt className="text-xs text-[var(--text-tertiary)]">Barcode</dt>
-                            <dd className="text-xs font-medium text-[var(--text-primary)]">{product.janCode}</dd>
+                            <dd className="text-xs font-medium text-[var(--text-primary)]">{effectiveJanCode}</dd>
                           </div>
                         )}
                         {product.weightKg != null && (
@@ -576,10 +673,10 @@ export default function ProductDetailClient({
                             <dd className="text-xs font-medium text-[var(--text-primary)]">{product.shelfLifeDays} days</dd>
                           </div>
                         )}
-                        {product.boxPackQty != null && (
+                        {boxPackQty > 1 && (
                           <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-2">
                             <dt className="text-xs text-[var(--text-tertiary)]">Units per box</dt>
-                            <dd className="text-xs font-medium text-[var(--text-primary)]">{product.boxPackQty}</dd>
+                            <dd className="text-xs font-medium text-[var(--text-primary)]">{boxPackQty}</dd>
                           </div>
                         )}
                         {product.shippingMode && (

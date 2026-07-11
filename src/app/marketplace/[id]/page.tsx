@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getProductWithSupplier } from "@/lib/queries/products";
 import { volumeCbmFromDimensions } from "@/lib/logistics/rates/config";
 import ProductDetailClient from "./product-detail-client";
+import { RecommendationRail } from "@/components/ai/recommendation-rail";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,35 @@ export default async function ProductDetailPage({
 
   const volumeCbm = volumeCbmFromDimensions(product.dimensions_cm) ?? null;
 
+  // Amazon-style size/pack variants — each falls back to the parent
+  // product's price/MOQ/box pack/barcode/images when it doesn't override them.
+  const variants = (product.product_variants ?? [])
+    .filter((v) => v.is_active)
+    .map((v) => {
+      const variantImages = (product.product_images ?? [])
+        .filter((img) => img.variant_id === v.id)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((img) => ({
+          id: img.id,
+          url: img.url,
+          altText: img.alt_text ?? product.name,
+          isPrimary: img.is_primary ?? false,
+        }));
+      return {
+        id: v.id,
+        name: v.name,
+        janCode: v.jan_code ?? product.jan_code ?? null,
+        moq: v.moq ?? product.moq ?? 1,
+        boxPackQty: v.box_pack_qty ?? product.box_pack_qty ?? null,
+        priceOverride: v.price_override != null ? v.price_override / 100 : null,
+        isDefault: v.is_default,
+        images: variantImages.length > 0 ? variantImages : images,
+      };
+    })
+    .sort((a, b) => (a.priceOverride ?? 0) - (b.priceOverride ?? 0));
+
   return (
+    <>
     <ProductDetailClient
       product={{
         id: product.id,
@@ -96,6 +125,9 @@ export default async function ProductDetailPage({
       images={images}
       tiers={tiers}
       certifications={certifications}
+      variants={variants}
     />
+    <RecommendationRail title="Related products" productId={product.id} />
+    </>
   );
 }

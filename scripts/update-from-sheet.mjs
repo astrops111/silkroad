@@ -3,7 +3,7 @@
 //
 // Fields updated (price fields are excluded):
 //   jan_code, name_local, moq, box_pack_qty, description,
-//   brand, origin_country, trade_term, legal_category, hs_code,
+//   brand, origin_country, trade_term (exw), legal_category, hs_code,
 //   shipping_mode, allow_mix_shipping, min_order_amount
 //
 // Run:
@@ -97,7 +97,7 @@ function buildDescription({ englishName, koreanName, volume, barcode, moqQty }) 
     moqQty  ? `Min. Order Qty: ${moqQty} pcs per carton` : null,
     barcode ? `Barcode / JAN: ${barcode}`                 : null,
     "",
-    "KFDA-registered cosmetic. Ships FOB Incheon.",
+    "KFDA-registered cosmetic. Ships EXW Incheon.",
   ].filter((l) => l !== null).join("\n");
 }
 
@@ -157,7 +157,7 @@ for (const row of dataRows) {
     description:        buildDescription({ englishName, koreanName, volume, barcode, moqQty }),
     brand,
     origin_country:     "KR",
-    trade_term:         "fob",
+    trade_term:         "exw",
     legal_category:     "cosmetic",
     hs_code:            "3304.99",
     shipping_mode:      "either",

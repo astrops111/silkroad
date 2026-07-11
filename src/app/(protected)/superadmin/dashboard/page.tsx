@@ -48,6 +48,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   support: "var(--indigo)",
   trust_safety: "var(--terracotta)",
   operations: "var(--success)",
+  buyer_tools: "var(--info)",
 };
 
 /* ------------------------------------------------------------------ */

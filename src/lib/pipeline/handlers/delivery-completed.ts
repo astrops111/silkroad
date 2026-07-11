@@ -1,7 +1,6 @@
 import type { EventHandler } from "../types";
-import { onShipmentDelivered } from "@/lib/email/events";
+import { notifyShipmentMilestone } from "../milestone-notify";
 import { calculateSettlement } from "@/lib/settlement/engine";
-import { logError } from "@/lib/logging";
 
 function isValidHttpsUrl(url: string): boolean {
   try {
@@ -101,9 +100,18 @@ export const handler: EventHandler = async (event, supabase) => {
       .eq("id", order.purchase_order_id);
   }
 
-  // ── 5. Buyer email ───────────────────────────────────────────────────────────
-  await onShipmentDelivered(shipment_id)
-    .catch((err) => logError({ errorCode: "EMAIL_BUYER_DELIVERY", message: err instanceof Error ? err.message : String(err), source: "pipeline:delivery.completed", severity: "warning", metadata: { shipmentId: shipment_id } }).catch(() => {}));
+  // ── 5. Buyer email from logistic@ + deal-thread CRM activity (idempotent) ───
+  await notifyShipmentMilestone(supabase, {
+    eventId: event.id,
+    shipmentId: shipment_id,
+    supplierOrderId: supplier_order_id,
+    milestone: "delivery_completed",
+    headline: "Order Delivered",
+    detail: [
+      "your order has been delivered",
+      p.podRecipientName && `signed for by ${p.podRecipientName}`,
+    ].filter(Boolean).join(", ") + ". Please confirm delivery and review your supplier.",
+  });
 
   // ── 6. Trigger settlement calculation (creates settlement record) ────────────
   //    The DB trigger on supplier_order → 'delivered' also enqueues settlement.triggered,

@@ -105,6 +105,7 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
     cogs: "",
     currency: "USD",
     moq: "1",
+    boxPackQty: "",
     leadTimeDays: "",
     tradeTerm: "fob",
     originCountry: "",
@@ -177,6 +178,7 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
         cogs: form.cogs ? parseFloat(form.cogs) : undefined,
         currency: form.currency,
         moq: parseInt(form.moq) || 1,
+        boxPackQty: form.boxPackQty ? parseInt(form.boxPackQty) : undefined,
         leadTimeDays: form.leadTimeDays
           ? parseInt(form.leadTimeDays)
           : undefined,
@@ -425,6 +427,16 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Units per box</Label>
+                <Input
+                  type="number"
+                  value={form.boxPackQty}
+                  onChange={(e) => updateForm("boxPackQty", e.target.value)}
+                  placeholder="e.g. 24"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label>Lead Time (days)</Label>
                 <Input

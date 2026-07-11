@@ -1,5 +1,6 @@
 import type { EventHandler } from "../types";
 import { logActivity } from "@/lib/logging";
+import { notifyShipmentMilestone } from "../milestone-notify";
 
 /**
  * customs.cleared
@@ -37,6 +38,16 @@ export const handler: EventHandler = async (event, supabase) => {
     targetLabel:  shipment.shipment_number ?? shipment_id,
     metadata:     { shipmentId: shipment_id, declarationNo: shipment.customs_declaration_no },
   }).catch(() => {});
+
+  // Buyer email from logistic@ + deal-thread CRM activity (idempotent on retry)
+  await notifyShipmentMilestone(supabase, {
+    eventId: event.id,
+    shipmentId: shipment_id,
+    supplierOrderId: supplier_order_id,
+    milestone: "customs_cleared",
+    headline: "Customs Cleared",
+    detail: "your shipment has cleared customs at the destination and is moving to last-mile delivery.",
+  });
 
   return {
     success: true,

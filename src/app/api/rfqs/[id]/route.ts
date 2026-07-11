@@ -3,7 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/rfqs/[id] — Full RFQ detail with line items and received quotations.
- * Only accessible by the buyer who created the RFQ.
+ *
+ * Accessible by: the buyer who created it, a supplier invited to it or
+ * viewing a public/open one, or an admin — enforced by the RLS policies on
+ * `rfqs`/`rfq_items` (see 00015_rfq_system.sql + 00093_rfq_invited_supplier_
+ * access.sql), not by an app-level filter here. A supplier only ever sees
+ * their own row in the embedded `quotations` (never a competitor's pricing)
+ * because the "Quotation access" RLS policy scopes that independently.
  */
 export async function GET(
   _request: NextRequest,
@@ -32,20 +38,20 @@ export async function GET(
        buyer_company_name, created_at, updated_at,
        rfq_items (
          id, product_name, description, quantity, unit,
-         target_unit_price, hs_code, sort_order
+         target_unit_price, specifications, hs_code, sort_order
        ),
        quotations (
          id, quotation_number, supplier_id, supplier_name,
          total_amount, currency, payment_terms, trade_term,
          lead_time_days, validity_days, valid_until, moq,
          shipping_cost, shipping_method, notes, version, status, submitted_at,
+         landed_cost_snapshot, landed_cost_status, landed_cost_computed_at,
          quotation_items (
            id, product_name, quantity, unit, unit_price, total_price, lead_time_days
          )
        )`
     )
     .eq("id", id)
-    .eq("buyer_user_id", profile.id)
     .single();
 
   if (error || !rfq) {

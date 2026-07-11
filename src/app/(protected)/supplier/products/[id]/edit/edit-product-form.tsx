@@ -47,6 +47,7 @@ import {
   addProductDocuments,
   removeProductDocument,
   replacePricingTiers,
+  replaceProductVariants,
   deleteProduct,
   toggleProductActive,
 } from "@/lib/actions/products";
@@ -128,6 +129,28 @@ interface TierRow {
   unitPrice: string;
 }
 
+interface ExistingVariant {
+  id: string;
+  name: string;
+  sku: string | null;
+  priceOverride: number | null;
+  stockQuantity: number;
+  janCode: string | null;
+  moq: number | null;
+  boxPackQty: number | null;
+  isDefault: boolean;
+}
+
+interface VariantRow {
+  name: string;
+  priceOverride: string;
+  moq: string;
+  boxPackQty: string;
+  janCode: string;
+  stockQuantity: string;
+  isDefault: boolean;
+}
+
 interface NewDoc {
   url: string;
   fileName: string;
@@ -143,6 +166,7 @@ interface Props {
   images: ExistingImage[];
   docs: ExistingDoc[];
   tiers: { minQuantity: number; maxQuantity: number | null; unitPrice: number }[];
+  variants: ExistingVariant[];
   categories: { id: string; name: string; level: number; parentId: string | null }[];
   supplierCompanyId: string;
 }
@@ -152,6 +176,7 @@ export default function EditProductForm({
   images: initialImages,
   docs: initialDocs,
   tiers: initialTiers,
+  variants: initialVariants,
   categories,
   supplierCompanyId,
 }: Props) {
@@ -208,6 +233,18 @@ export default function EditProductForm({
       : [{ minQuantity: "", maxQuantity: "", unitPrice: "" }]
   );
 
+  const [variantRows, setVariantRows] = useState<VariantRow[]>(() =>
+    initialVariants.map((v) => ({
+      name: v.name,
+      priceOverride: v.priceOverride != null ? (v.priceOverride / 100).toString() : "",
+      moq: v.moq?.toString() ?? "",
+      boxPackQty: v.boxPackQty?.toString() ?? "",
+      janCode: v.janCode ?? "",
+      stockQuantity: v.stockQuantity.toString(),
+      isDefault: v.isDefault,
+    }))
+  );
+
   function updateField(field: keyof typeof form, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -215,6 +252,17 @@ export default function EditProductForm({
   function updateTier(i: number, field: keyof TierRow, value: string) {
     setTiers((prev) =>
       prev.map((t, idx) => (idx === i ? { ...t, [field]: value } : t))
+    );
+  }
+
+  function updateVariantRow(i: number, field: keyof VariantRow, value: string | boolean) {
+    setVariantRows((prev) =>
+      prev.map((v, idx) => {
+        if (idx === i) return { ...v, [field]: value };
+        // Only one variant can be the default — selecting one clears the others.
+        if (field === "isDefault" && value) return { ...v, isDefault: false };
+        return v;
+      })
     );
   }
 
@@ -296,6 +344,27 @@ export default function EditProductForm({
       setSavingField(null);
       if (!res.success) toast.error(res.error ?? "Failed to save tiers");
       else toast.success("Pricing tiers updated");
+    });
+  }
+
+  function saveVariants() {
+    setSavingField("variants");
+    startTransition(async () => {
+      const valid = variantRows
+        .filter((v) => v.name.trim())
+        .map((v) => ({
+          name: v.name.trim(),
+          priceOverride: v.priceOverride ? parseFloat(v.priceOverride) : undefined,
+          moq: v.moq ? parseInt(v.moq) : undefined,
+          boxPackQty: v.boxPackQty ? parseInt(v.boxPackQty) : undefined,
+          janCode: v.janCode.trim() || undefined,
+          stockQuantity: v.stockQuantity ? parseInt(v.stockQuantity) : 0,
+          isDefault: v.isDefault,
+        }));
+      const res = await replaceProductVariants(product.id, valid);
+      setSavingField(null);
+      if (!res.success) toast.error(res.error ?? "Failed to save variants");
+      else toast.success("Variants updated");
     });
   }
 
@@ -912,6 +981,130 @@ export default function EditProductForm({
                 <Save className="w-4 h-4" />
               )}
               Save tiers
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* VARIANTS */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-[var(--amber)]" />
+            Variants
+          </CardTitle>
+          <CardDescription>
+            Sizes, packs, or shades of this product — buyers pick one on the product page
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {variantRows.map((variant, i) => (
+            <div
+              key={i}
+              className="flex flex-wrap items-end gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-secondary)]"
+            >
+              <div className="flex-1 min-w-[120px] space-y-1">
+                <Label className="text-xs">Label</Label>
+                <Input
+                  placeholder="e.g. 100ml"
+                  value={variant.name}
+                  onChange={(e) => updateVariantRow(i, "name", e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-[100px] space-y-1">
+                <Label className="text-xs">Price ({form.currency})</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Same as base"
+                  value={variant.priceOverride}
+                  onChange={(e) => updateVariantRow(i, "priceOverride", e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-[90px] space-y-1">
+                <Label className="text-xs">MOQ</Label>
+                <Input
+                  type="number"
+                  placeholder="Same as base"
+                  value={variant.moq}
+                  onChange={(e) => updateVariantRow(i, "moq", e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-[90px] space-y-1">
+                <Label className="text-xs">Units/box</Label>
+                <Input
+                  type="number"
+                  placeholder="Same as base"
+                  value={variant.boxPackQty}
+                  onChange={(e) => updateVariantRow(i, "boxPackQty", e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-[110px] space-y-1">
+                <Label className="text-xs">Barcode</Label>
+                <Input
+                  placeholder="Same as base"
+                  value={variant.janCode}
+                  onChange={(e) => updateVariantRow(i, "janCode", e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-[80px] space-y-1">
+                <Label className="text-xs">Stock</Label>
+                <Input
+                  type="number"
+                  value={variant.stockQuantity}
+                  onChange={(e) => updateVariantRow(i, "stockQuantity", e.target.value)}
+                />
+              </div>
+              <label className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] shrink-0 pb-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="defaultVariant"
+                  checked={variant.isDefault}
+                  onChange={() => updateVariantRow(i, "isDefault", true)}
+                />
+                Default
+              </label>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  setVariantRows((prev) => prev.filter((_, idx) => idx !== i))
+                }
+                className="text-[var(--danger)] shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between pt-1">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setVariantRows((prev) => [
+                  ...prev,
+                  {
+                    name: "",
+                    priceOverride: "",
+                    moq: "",
+                    boxPackQty: "",
+                    janCode: "",
+                    stockQuantity: "0",
+                    isDefault: prev.length === 0,
+                  },
+                ])
+              }
+            >
+              <Plus className="w-4 h-4" />
+              Add variant
+            </Button>
+            <Button onClick={saveVariants} disabled={pending}>
+              {savingField === "variants" ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Save variants
             </Button>
           </div>
         </CardContent>

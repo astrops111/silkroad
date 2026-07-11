@@ -95,7 +95,7 @@ function buildDescription(englishName, koreanName, barcode, volume, brand) {
     volume ? `Volume / size: ${volume}` : null,
     barcode ? `Barcode: ${barcode}` : null,
     "",
-    "KFDA-registered. Ships FOB Incheon.",
+    "KFDA-registered. Ships EXW Incheon.",
   ]
     .filter((l) => l !== null)
     .join("\n");
@@ -183,7 +183,7 @@ for (const row of mappingRows) {
     currency: "USD",
     moq: pcsPerBox,
     lead_time_days: 14,
-    trade_term: "fob",
+    trade_term: "exw",
     hs_code: "3304.99",
     origin_country: "KR",
     moderation_status: "approved",

@@ -30,6 +30,7 @@ import {
   FileText,
   UserCircle2,
   ClipboardCheck,
+  Mail,
 } from "lucide-react";
 
 const navSections = [
@@ -56,6 +57,28 @@ const navSections = [
       { name: "All Quotes", href: "/admin/quotes", icon: ClipboardList },
       { name: "Buyer Requests", href: "/admin/logistics/buyer-quotes", icon: ClipboardCheck },
       { name: "Ops Quotes", href: "/admin/logistics/quotes", icon: FileText },
+    ],
+  },
+  {
+    label: "Mail",
+    items: [
+      { name: "Inbox", href: "/admin/mail", icon: Mail },
+      { name: "AI & Templates", href: "/admin/mail/ai", icon: FileText },
+      { name: "Sequences", href: "/admin/mail/sequences", icon: ClipboardList },
+      { name: "Mailbox Settings", href: "/admin/mail/settings", icon: Settings },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { name: "Opportunities", href: "/admin/crm/opportunities", icon: ClipboardList },
+      { name: "Contacts", href: "/admin/crm/contacts", icon: UserCircle2 },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { name: "Tickets", href: "/admin/support/tickets", icon: ClipboardCheck },
     ],
   },
   {

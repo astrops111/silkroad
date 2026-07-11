@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
+import { PLATFORM_MIN_GROUP_ORDER_VALUE } from "@/lib/logistics/rates/config";
+import { onRfqSubmitted } from "@/lib/email/events";
+import { ensureDealThread } from "@/lib/deals/threads";
+import { postDealMessage } from "@/lib/deals/messages";
+import { logActivity } from "@/lib/crm/activities";
 
 const cartItemSchema = z.object({
   productId: z.string().min(1),
@@ -12,6 +17,7 @@ const cartItemSchema = z.object({
   quantity: z.number().int().positive(),
   currency: z.string().length(3),
   moq: z.number().int().positive(),
+  boxPackQty: z.number().int().positive().optional(),
 });
 
 const fromCartSchema = z.object({
@@ -84,6 +90,36 @@ export async function POST(request: NextRequest) {
     supplierGroups.get(item.supplierId)!.items.push(item);
   }
 
+  // Enforce the platform minimum order value before creating anything.
+  // The cart UI groups by shipping group; this route only sees supplier
+  // grouping, so the minimum is validated per supplier group here — the
+  // client remains the authority on shipping-group semantics.
+  // PLATFORM_MIN_GROUP_ORDER_VALUE is USD-cents; comparison assumes USD carts.
+  const belowMinimum: { supplierName: string; subtotalMinor: number; shortfallMinor: number }[] = [];
+  for (const [, group] of supplierGroups) {
+    const subtotalMinor = group.items.reduce(
+      (sum, i) => sum + Math.round(i.unitPrice * i.quantity),
+      0
+    );
+    if (subtotalMinor < PLATFORM_MIN_GROUP_ORDER_VALUE) {
+      belowMinimum.push({
+        supplierName: group.supplierName,
+        subtotalMinor,
+        shortfallMinor: PLATFORM_MIN_GROUP_ORDER_VALUE - subtotalMinor,
+      });
+    }
+  }
+  if (belowMinimum.length > 0) {
+    return NextResponse.json(
+      {
+        error: `Minimum order value of $${(PLATFORM_MIN_GROUP_ORDER_VALUE / 100).toFixed(0)} per supplier not met`,
+        belowMinimum,
+        minimumMinor: PLATFORM_MIN_GROUP_ORDER_VALUE,
+      },
+      { status: 422 }
+    );
+  }
+
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const created: { rfqId: string; rfqNumber: string; supplierName: string }[] = [];
   const failed: string[] = [];
@@ -91,8 +127,17 @@ export async function POST(request: NextRequest) {
   for (const [supplierId, group] of supplierGroups) {
     const rand = randomBytes(3).toString("hex").toUpperCase();
     const rfqNumber = `RFQ-${date}-${rand}`;
-    const totalQty = group.items.reduce((sum, i) => sum + i.quantity, 0);
     const currency = group.items[0].currency;
+
+    // When every item in this supplier's group is boxed (Korean Beauty
+    // Trading Co catalog), request/quote in boxes; mixed or unboxed carts
+    // fall back to pieces, unchanged from before.
+    const allBoxed = group.items.every((i) => (i.boxPackQty ?? 1) > 1);
+    const rfqUnit = allBoxed ? "boxes" : "pieces";
+    const totalQty = group.items.reduce(
+      (sum, i) => sum + (allBoxed ? Math.round(i.quantity / (i.boxPackQty ?? 1)) : i.quantity),
+      0
+    );
 
     const title =
       group.items.length === 1
@@ -110,7 +155,7 @@ export async function POST(request: NextRequest) {
         title,
         description: note ?? null,
         quantity: totalQty,
-        unit: "pieces",
+        unit: rfqUnit,
         target_currency: currency,
         delivery_country: profile.country_code,
         invited_supplier_ids: [supplierId],
@@ -131,13 +176,35 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const rfqItems = group.items.map((item, idx) => ({
-      rfq_id: rfq.id,
-      product_name: item.productName,
-      quantity: item.quantity,
-      unit: "pieces",
-      sort_order: idx,
-    }));
+    const rfqItems = group.items.map((item, idx) => {
+      const boxPackQty = item.boxPackQty ?? 1;
+      if (boxPackQty > 1) {
+        const boxes = Math.round(item.quantity / boxPackQty);
+        const boxPriceCents = Math.round(item.unitPrice * boxPackQty);
+        return {
+          rfq_id: rfq.id,
+          product_id: item.productId,
+          product_name: item.productName,
+          quantity: boxes,
+          unit: "boxes",
+          target_unit_price: boxPriceCents,
+          currency: item.currency,
+          description: `${boxPackQty} pcs/box — ${(item.unitPrice / 100).toFixed(2)} ${item.currency}/pc (${item.quantity} pcs total)`,
+          specifications: { perPieceUnitPrice: item.unitPrice, boxPackQty, totalPieces: item.quantity },
+          sort_order: idx,
+        };
+      }
+      return {
+        rfq_id: rfq.id,
+        product_id: item.productId,
+        product_name: item.productName,
+        quantity: item.quantity,
+        unit: "pieces",
+        target_unit_price: Math.round(item.unitPrice),
+        currency: item.currency,
+        sort_order: idx,
+      };
+    });
 
     const { error: rfqItemsError } = await supabase.from("rfq_items").insert(rfqItems);
     if (rfqItemsError) {
@@ -162,10 +229,51 @@ export async function POST(request: NextRequest) {
       rfqNumber: rfq.rfq_number,
       supplierName: group.supplierName,
     });
+
+    // CRM: open a deal thread + opportunity for this RFQ and log the activity
+    const dealThreadId = await ensureDealThread({
+      rfqId: rfq.id,
+      title,
+      buyerCompanyId: membership?.company_id ?? null,
+      buyerUserId: profile.id,
+      supplierCompanyId: supplierId,
+    });
+    await logActivity({
+      activityType: "rfq_submitted",
+      actorType: "user",
+      actorUserId: profile.id,
+      companyId: membership?.company_id ?? null,
+      dealThreadId,
+      referenceType: "rfq",
+      referenceId: rfq.id,
+      metadata: {
+        rfqNumber,
+        supplierId,
+        productIds: group.items.map((i) => i.productId),
+      },
+    });
+    // Internal-channel leg: post the milestone into the deal conversation
+    if (dealThreadId) {
+      await postDealMessage(dealThreadId, {
+        body: `RFQ ${rfqNumber} submitted — ${group.items.length} item${group.items.length === 1 ? "" : "s"}. Suppliers have been invited to quote.`,
+        actorUserId: profile.id,
+        references: [{ type: "rfq", id: rfq.id, label: rfqNumber }],
+      });
+    }
   }
 
   if (created.length === 0) {
     return NextResponse.json({ error: "Failed to create RFQs" }, { status: 500 });
+  }
+
+  // Notify supplier + buyer + ops (email and in-app). Awaited so the sends
+  // complete before the serverless response ends; failures never block the RFQ.
+  for (const rfq of created) {
+    try {
+      await onRfqSubmitted(rfq.rfqId);
+    } catch (err) {
+      console.error("[rfqs/from-cart] Notification failed for", rfq.rfqId, err);
+    }
   }
 
   return NextResponse.json({

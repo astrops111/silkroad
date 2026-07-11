@@ -36,6 +36,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   support: { label: "Customer Support", color: "var(--indigo)" },
   trust_safety: { label: "Trust & Safety", color: "var(--terracotta)" },
   operations: { label: "Operations", color: "var(--success)" },
+  buyer_tools: { label: "Buyer Tools", color: "var(--info)" },
 };
 
 const FEATURE_ICONS: Record<string, typeof Sparkles> = {

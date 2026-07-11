@@ -31,7 +31,10 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars'
+      # --update-env-vars merges with vars set directly on the service
+      # (CRON_SECRET, ANTHROPIC_API_KEY, MAIL_PW_*, RESEND_API_KEY, ...);
+      # --set-env-vars would wipe them on every deploy.
+      - '--update-env-vars'
       - 'NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY},SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY},SUPABASE_JWT_SECRET=${_SUPABASE_JWT_SECRET},NEXT_PUBLIC_APP_URL=https://silkroad-africa-798904783325.asia-east1.run.app,NEXT_PUBLIC_APP_NAME="SilkRoad Africa"'
 
 images:

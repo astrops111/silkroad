@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { calculateOrderTax } from "@/lib/tax";
+import { onOrderCreated } from "@/lib/email/events";
+import { findDealByRfq, attachToDealThread } from "@/lib/deals/threads";
+import { postDealMessage } from "@/lib/deals/messages";
+import { logActivity } from "@/lib/crm/activities";
 
 /**
  * POST /api/rfqs/convert — Convert an awarded RFQ into a purchase order
@@ -62,7 +66,7 @@ export async function POST(request: NextRequest) {
       shipping_method,
       quotation_items (
         id, product_name, quantity, unit, unit_price, total_price,
-        product_id, variant_id
+        product_id, variant_id, specifications
       )
     `)
     .eq("id", rfq.awarded_quotation_id)
@@ -150,8 +154,9 @@ export async function POST(request: NextRequest) {
   const items = (quotation.quotation_items || []);
   if (items.length > 0) {
     const orderItems = items.map((qi: {
-      product_name: string; quantity: number; unit_price: number;
+      product_name: string; quantity: number; unit_price: number; unit: string | null;
       total_price: number; product_id: string | null; variant_id: string | null;
+      specifications: Record<string, unknown> | null;
     }) => ({
       supplier_order_id: supplierOrder.id,
       product_id: qi.product_id || "00000000-0000-0000-0000-000000000000",
@@ -161,6 +166,12 @@ export async function POST(request: NextRequest) {
       quantity: qi.quantity,
       subtotal: qi.total_price,
       currency: quotation.currency,
+      // qi.quantity is in qi.unit (e.g. "boxes"), not always pieces — keep
+      // that context on the order line instead of a bare, ambiguous count.
+      metadata: {
+        unit: qi.unit || "pieces",
+        ...(qi.specifications ?? {}),
+      },
     }));
 
     await supabase.from("supplier_order_items").insert(orderItems);
@@ -175,6 +186,45 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", rfqId);
+
+  // Notify buyer + supplier + ops (email and in-app); never blocks the conversion
+  try {
+    await onOrderCreated(purchaseOrder.id);
+  } catch (err) {
+    console.error("[rfqs/convert] Order notifications failed for", purchaseOrder.id, err);
+  }
+
+  // CRM: mark the deal won with the order attached
+  const dealThreadId = await findDealByRfq(rfqId);
+  if (dealThreadId) {
+    await attachToDealThread(dealThreadId, {
+      purchaseOrderId: purchaseOrder.id,
+      supplierOrderId: supplierOrder.id,
+      status: "won",
+    });
+  }
+  await logActivity({
+    activityType: "order_created",
+    actorType: "user",
+    actorUserId: profile.id,
+    companyId: rfq.buyer_company_id,
+    dealThreadId,
+    referenceType: "purchase_order",
+    referenceId: purchaseOrder.id,
+    metadata: { orderNumber, grandTotal, currency: quotation.currency, rfqId },
+  });
+  // Internal-channel leg: record the order in the deal conversation
+  if (dealThreadId) {
+    await postDealMessage(dealThreadId, {
+      body: `Order ${orderNumber} created from the awarded quote — ${quotation.currency} ${(grandTotal / 100).toFixed(2)}. Payment and logistics are next.`,
+      actorUserId: profile.id,
+      references: [
+        { type: "order", id: purchaseOrder.id, label: orderNumber },
+        { type: "quotation", id: quotation.id },
+        { type: "rfq", id: rfqId },
+      ],
+    });
+  }
 
   // Log activity
   await supabase.from("rfq_activity_log").insert({

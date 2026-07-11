@@ -1,4 +1,5 @@
 import type { EventHandler } from "../types";
+import { notifyShipmentMilestone } from "../milestone-notify";
 
 /**
  * delivery.scheduled
@@ -27,6 +28,18 @@ export const handler: EventHandler = async (event, supabase) => {
       p.driverName    && `driver: ${p.driverName}`,
       p.vehicleRef    && `vehicle: ${p.vehicleRef}`,
     ].filter(Boolean).join(" — "),
+  });
+
+  // Buyer email from logistic@ + deal-thread CRM activity (idempotent on retry)
+  await notifyShipmentMilestone(supabase, {
+    eventId: event.id,
+    shipmentId: shipment_id,
+    supplierOrderId: event.supplier_order_id,
+    milestone: "delivery_scheduled",
+    headline: "Delivery Scheduled",
+    detail: p.scheduledDate
+      ? `your delivery is scheduled for ${new Date(p.scheduledDate).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })}.`
+      : "your delivery has been scheduled.",
   });
 
   return {

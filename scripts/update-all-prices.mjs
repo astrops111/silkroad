@@ -10,7 +10,7 @@
 //   name_local              ← Korean name column
 //   brand                   ← brand key
 //   origin_country          ← "KR"
-//   trade_term              ← "fob"
+//   trade_term              ← "exw"
 //   legal_category          ← "cosmetic"
 //   hs_code                 ← "3304.99"
 //   shipping_mode           ← "either"
@@ -174,7 +174,7 @@ function buildDescription({ englishName, koreanName, volume, barcode, brand, moq
     moqQty          ? `Min. Order Qty: ${moqQty} pcs per carton`   : null,
     barcode         ? `Barcode / JAN: ${barcode}`                   : null,
     "",
-    "KFDA-registered cosmetic. Ships FOB Incheon.",
+    "KFDA-registered cosmetic. Ships EXW Incheon.",
   ];
   return lines.filter((l) => l !== null).join("\n");
 }
@@ -262,7 +262,7 @@ for (const [brand, filename] of Object.entries(BRAND_FILES)) {
       cogs:               cogsCents,
       brand,
       origin_country:     "KR",
-      trade_term:         "fob",
+      trade_term:         "exw",
       legal_category:     "cosmetic",
       hs_code:            "3304.99",
       shipping_mode:      "either",

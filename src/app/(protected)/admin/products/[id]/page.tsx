@@ -14,6 +14,16 @@ const CONTAINER_SIZES = [20, 40] as const;
 interface Category { id: string; name: string; level: number; }
 interface ShippingGroup { id: string; name: string; code: string | null; }
 
+interface DemandStats {
+  rfq_count: number | null; quoted_count: number | null; ordered_count: number | null;
+  units_ordered: number | null; revenue_minor: number | null;
+  last_rfq_at: string | null; last_order_at: string | null;
+}
+interface DemandActivity {
+  id: string; activity_type: string; actor_type: string; occurred_at: string;
+  metadata: Record<string, unknown> | null;
+}
+
 interface ProductDetail {
   id: string; name: string; name_local: string | null; brand: string | null;
   description: string | null; base_price: number; compare_price: number | null;
@@ -39,6 +49,8 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [demand, setDemand] = useState<DemandStats | null>(null);
+  const [demandActivities, setDemandActivities] = useState<DemandActivity[]>([]);
 
   const [form, setForm] = useState({
     name: "", nameLocal: "", brand: "", description: "",
@@ -104,6 +116,18 @@ export default function ProductDetailPage() {
       toast.error("Failed to load product");
     } finally {
       setLoading(false);
+    }
+
+    // Demand stats are auxiliary — load separately, never block the form
+    try {
+      const dRes = await fetch(`/api/admin/products/${id}/demand`);
+      if (dRes.ok) {
+        const dData = await dRes.json();
+        setDemand(dData.stats ?? null);
+        setDemandActivities(dData.activities ?? []);
+      }
+    } catch {
+      // panel simply stays empty
     }
   }, [id, router]);
 
@@ -235,6 +259,52 @@ export default function ProductDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Demand — RFQ/quote/order rollup from product_deal_stats */}
+      {demand && (
+        <section className="rounded-2xl p-6 space-y-4" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>Demand</h2>
+            <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              {demand.last_rfq_at && `Last RFQ ${new Date(demand.last_rfq_at).toLocaleDateString()}`}
+              {demand.last_rfq_at && demand.last_order_at && " · "}
+              {demand.last_order_at && `Last order ${new Date(demand.last_order_at).toLocaleDateString()}`}
+            </span>
+          </div>
+          <div className="grid grid-cols-5 gap-3">
+            {[
+              { label: "RFQs", value: demand.rfq_count ?? 0 },
+              { label: "Quoted", value: demand.quoted_count ?? 0 },
+              { label: "Orders", value: demand.ordered_count ?? 0 },
+              { label: "Units ordered", value: demand.units_ordered ?? 0 },
+              { label: "Revenue", value: `$${(((demand.revenue_minor ?? 0) as number) / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}` },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl p-3" style={{ background: "var(--surface-secondary)" }}>
+                <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>{s.value}</p>
+                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+          {demandActivities.length > 0 && (
+            <div className="space-y-1.5 pt-2" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>Recent activity</p>
+              {demandActivities.map((a) => (
+                <div key={a.id} className="flex items-center justify-between text-xs">
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {a.activity_type.replace(/_/g, " ")}
+                    {typeof a.metadata?.rfqNumber === "string" && (
+                      <span style={{ color: "var(--text-tertiary)" }}> · {a.metadata.rfqNumber}</span>
+                    )}
+                  </span>
+                  <span className="font-mono" style={{ color: "var(--text-tertiary)" }}>
+                    {new Date(a.occurred_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <form id="product-form" onSubmit={handleSave} className="space-y-6">
         {/* Status */}

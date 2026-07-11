@@ -22,6 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import {
+  LandedCostBreakdown,
+  type LandedCostSnapshot,
+} from "@/components/rfq/landed-cost-breakdown";
 
 /* ─────────────────────────────────────────────────────────── types */
 
@@ -65,6 +69,9 @@ interface Quotation {
   version: number;
   status: string;
   submitted_at: string | null;
+  landed_cost_snapshot: LandedCostSnapshot | null;
+  landed_cost_status: string;
+  landed_cost_computed_at: string | null;
   quotation_items: QuotationItem[];
 }
 
@@ -235,6 +242,15 @@ function QuoteCard({
           <p className="text-[var(--obsidian)] font-medium">{fmtDate(quote.valid_until)}</p>
         </div>
       </div>
+
+      {/* Total landed cost — supplier price + freight + duties */}
+      <LandedCostBreakdown
+        snapshot={quote.landed_cost_snapshot}
+        status={quote.landed_cost_status}
+        computedAt={quote.landed_cost_computed_at}
+        supplierAmountMinor={quote.total_amount}
+        currency={quote.currency}
+      />
 
       {/* Expandable line items */}
       {quote.quotation_items.length > 0 && (

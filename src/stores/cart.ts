@@ -13,6 +13,7 @@ export interface CartItem {
   quantity: number;
   currency: string;
   moq: number;
+  boxPackQty?: number; // pieces per box, when this SKU is sold by the box
   imageUrl?: string;
   weightKg?: number;
   volumeCbm?: number;

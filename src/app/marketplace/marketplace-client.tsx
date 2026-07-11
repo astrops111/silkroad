@@ -49,8 +49,19 @@ export interface MarketplaceProduct {
   image: string;
   category: string;
   tags: string[];
+  leadTimeDays?: number | null;
+  minOrderAmount?: number | null;
+  minOrderGroupedBy?: string | null;
+  variantCount?: number;
 }
 
+
+const REGION_BAR_ORDER: readonly (typeof MARKETPLACE_COUNTRIES)[number][] = [
+  "CN",
+  "KR",
+  "JP",
+  "TW",
+];
 
 const CATEGORIES = [
   { slug: null, key: "categoryAll", matchLabel: null },
@@ -604,9 +615,27 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
           {product.name}
         </h3>
 
-        {/* MOQ */}
+        {(product.variantCount ?? 0) > 1 && (
+          <span className="inline-flex w-fit items-center rounded-full bg-[var(--surface-secondary)] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[var(--text-secondary)] mb-2 sm:mb-3">
+            {product.variantCount} sizes
+          </span>
+        )}
+
+        {/* MOQ / minimum order amount */}
         <div className="text-[11px] sm:text-xs text-[var(--text-tertiary)] mb-2 sm:mb-4">
-          MOQ: {product.moq} {product.unit}
+          {product.minOrderAmount ? (
+            product.minOrderGroupedBy === "shipping_group" ? (
+              <Tooltip content="This minimum is combined across every product you order from this region's suppliers — not per item.">
+                <span tabIndex={0} className="cursor-help">
+                  Min. order: USD {product.minOrderAmount.toLocaleString()} (region combined)
+                </span>
+              </Tooltip>
+            ) : (
+              <span>Min. order: USD {product.minOrderAmount.toLocaleString()}</span>
+            )
+          ) : (
+            <span>MOQ: {product.moq.toLocaleString()} {product.unit}</span>
+          )}
         </div>
 
         {/* Origin + shipping label */}
@@ -645,7 +674,7 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {product.responseTime}
+              {product.leadTimeDays ? `${product.leadTimeDays} days` : product.responseTime}
             </span>
           </div>
         </div>
@@ -737,7 +766,7 @@ export function MarketplaceClient({
               {t("countryAll")}
               <span className="text-xs opacity-70">({totalCountryCount})</span>
             </Link>
-            {MARKETPLACE_COUNTRIES.map((code) => {
+            {REGION_BAR_ORDER.map((code) => {
               const meta = regionMeta(code);
               const active = code === activeCountry;
               return (

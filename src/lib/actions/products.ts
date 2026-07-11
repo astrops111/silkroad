@@ -620,13 +620,33 @@ export async function addPricingTiers(
   return { success: true };
 }
 
-export async function addProductVariants(
+export async function replaceProductVariants(
   productId: string,
-  variants: { name: string; sku?: string; priceOverride?: number; stockQuantity?: number }[]
+  variants: {
+    name: string;
+    sku?: string;
+    priceOverride?: number;
+    stockQuantity?: number;
+    janCode?: string;
+    moq?: number;
+    boxPackQty?: number;
+    isDefault?: boolean;
+  }[]
 ): Promise<ActionResult> {
   const own = await assertOwnsProduct(productId);
   if (!own.ok) return { success: false, error: own.error };
   const supabase = await createClient();
+
+  const { error: delError } = await supabase
+    .from("product_variants")
+    .delete()
+    .eq("product_id", productId);
+  if (delError) return { success: false, error: delError.message };
+
+  if (variants.length === 0) {
+    revalidatePath(`/supplier/products/${productId}/edit`);
+    return { success: true };
+  }
 
   const inserts = variants.map((v) => ({
     product_id: productId,
@@ -634,13 +654,15 @@ export async function addProductVariants(
     sku: v.sku ?? null,
     price_override: v.priceOverride ? Math.round(v.priceOverride * 100) : null,
     stock_quantity: v.stockQuantity ?? 0,
+    jan_code: v.janCode ?? null,
+    moq: v.moq ?? null,
+    box_pack_qty: v.boxPackQty ?? null,
+    is_default: v.isDefault ?? false,
   }));
 
   const { error } = await supabase.from("product_variants").insert(inserts);
+  if (error) return { success: false, error: error.message };
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
+  revalidatePath(`/supplier/products/${productId}/edit`);
   return { success: true };
 }

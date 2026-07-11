@@ -48,6 +48,10 @@ export const productVariantSchema = z.object({
   priceOverride: z.number().positive().optional(),
   stockQuantity: z.number().int().min(0).default(0),
   weightKg: z.number().positive().optional(),
+  janCode: z.string().optional(),
+  moq: z.number().int().positive().optional(),
+  boxPackQty: z.number().int().positive().optional(),
+  isDefault: z.boolean().default(false),
 });
 
 export type ProductInput = z.infer<typeof productSchema>;

@@ -1,5 +1,5 @@
 import type { EventHandler } from "../types";
-import { onShipmentDispatched } from "@/lib/email/events";
+import { notifyShipmentMilestone } from "../milestone-notify";
 
 /**
  * shipment.origin_departed
@@ -42,8 +42,19 @@ export const handler: EventHandler = async (event, supabase) => {
     ].filter(Boolean).join(" — "),
   });
 
-  await onShipmentDispatched(shipment_id)
-    .catch((err) => console.error("[pipeline:shipment.origin_departed] Buyer email failed:", err));
+  // Buyer email from logistic@ + deal-thread CRM activity (idempotent on retry)
+  await notifyShipmentMilestone(supabase, {
+    eventId: event.id,
+    shipmentId: shipment_id,
+    supplierOrderId: event.supplier_order_id,
+    milestone: "origin_departed",
+    headline: "Your Order Is On Its Way",
+    detail: [
+      "your shipment has departed the origin port",
+      p.port && `from ${p.port}`,
+      p.vesselName && `aboard ${p.vesselName}`,
+    ].filter(Boolean).join(", ") + ".",
+  });
 
   return {
     success: true,

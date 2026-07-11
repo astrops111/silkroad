@@ -27,8 +27,8 @@ export const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
   "hotel-decor": PEXELS("1571453"),
 
   // Consumer Electronics
-  "home-appliance": PEXELS("4108715"),
-  computer: PEXELS("177707"),
+  "home-appliance": PEXELS("2343467"),
+  computer: PEXELS("356056"),
   "computer-peripherals": PEXELS("2115257"),
 
   // Beauty
@@ -39,7 +39,7 @@ export const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
 
   // Beauty › Facial
   "facial-cleaning": PEXELS("3785147"),
-  "facial-cream": PEXELS("3737605"),
+  "facial-cream": PEXELS("13794471"),
   "facial-sprays": PEXELS("4465124"),
   "facial-masks": PEXELS("3762879"),
 
@@ -50,7 +50,7 @@ export const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
   "body-fragrance": PEXELS("3059609"),
 
   // Beauty › Hair
-  "hair-shampoo": PEXELS("3738337"),
+  "hair-shampoo": PEXELS("3735627"),
   "hair-conditioner": PEXELS("3993454"),
   "hair-dye": PEXELS("3993443"),
   "hair-removal": PEXELS("3997379"),
@@ -58,14 +58,14 @@ export const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
 
   // Groceries
   "snacks-sweets": PEXELS("1055272"),
-  "snacks-savoury": PEXELS("1093818"),
-  drink: PEXELS("50593"),
+  "snacks-savoury": PEXELS("10527520"),
+  drink: PEXELS("5516061"),
   "canned-goods": PEXELS("264636"),
-  frozen: PEXELS("5945838"),
+  frozen: PEXELS("14062145"),
 
   // Baby
   diapers: PEXELS("3933250"),
-  "baby-formula": PEXELS("6849368"),
+  "baby-formula": PEXELS("11501481"),
 };
 
 export const CATEGORY_FALLBACK_IMAGE = PEXELS("4481259");

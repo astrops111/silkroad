@@ -4,6 +4,7 @@ import { Plus, Package, Filter, Search } from "lucide-react";
 import { getCurrentUser } from "@/lib/queries/user";
 import { getSupplierProducts } from "@/lib/queries/products";
 import { canSupply } from "@/lib/company-access";
+import { createServiceClient } from "@/lib/supabase/server";
 import ProductRowActions from "./product-row-actions";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,25 @@ export default async function SupplierProducts({
   });
 
   const active: StatusFilter = statusParam ?? "all";
+
+  // Demand rollup (RFQ/order counts) for the listed products — the view
+  // aggregates across buyers, so read it with the service client; ids are
+  // already scoped to this supplier's own catalog.
+  const demandByProduct = new Map<string, { rfqs: number; orders: number }>();
+  if (products.length > 0) {
+    const { data: demandRows } = await createServiceClient()
+      .from("product_deal_stats")
+      .select("product_id, rfq_count, ordered_count")
+      .in("product_id", products.map((p) => p.id));
+    for (const row of demandRows ?? []) {
+      if (row.product_id) {
+        demandByProduct.set(row.product_id, {
+          rfqs: Number(row.rfq_count ?? 0),
+          orders: Number(row.ordered_count ?? 0),
+        });
+      }
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -142,6 +162,7 @@ export default async function SupplierProducts({
                 <th className="text-left py-3 px-4 text-[var(--text-tertiary)] font-medium">Price</th>
                 <th className="text-left py-3 px-4 text-[var(--text-tertiary)] font-medium">MOQ</th>
                 <th className="text-left py-3 px-4 text-[var(--text-tertiary)] font-medium">Stock</th>
+                <th className="text-left py-3 px-4 text-[var(--text-tertiary)] font-medium">Demand</th>
                 <th className="text-left py-3 px-4 text-[var(--text-tertiary)] font-medium">Status</th>
                 <th className="text-right py-3 px-4 text-[var(--text-tertiary)] font-medium">Actions</th>
               </tr>
@@ -209,6 +230,15 @@ export default async function SupplierProducts({
                       >
                         {stock.toLocaleString()}
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-[var(--text-secondary)] whitespace-nowrap">
+                      {(() => {
+                        const d = demandByProduct.get(p.id);
+                        if (!d || (d.rfqs === 0 && d.orders === 0)) {
+                          return <span className="text-[var(--text-tertiary)]">—</span>;
+                        }
+                        return `${d.rfqs} RFQ${d.rfqs === 1 ? "" : "s"} · ${d.orders} order${d.orders === 1 ? "" : "s"}`;
+                      })()}
                     </td>
                     <td className="py-3 px-4">
                       <StatusBadge status={p.moderation_status} />

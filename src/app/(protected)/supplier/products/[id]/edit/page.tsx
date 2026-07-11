@@ -87,6 +87,17 @@ export default async function EditProductPage({
           maxQuantity: t.max_quantity,
           unitPrice: t.unit_price,
         }))}
+      variants={(product.product_variants ?? []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        sku: v.sku,
+        priceOverride: v.price_override,
+        stockQuantity: v.stock_quantity ?? 0,
+        janCode: v.jan_code,
+        moq: v.moq,
+        boxPackQty: v.box_pack_qty,
+        isDefault: v.is_default,
+      }))}
       categories={categories.map((c) => ({
         id: c.id,
         name: c.name,

@@ -1,4 +1,5 @@
 import type { EventHandler } from "../types";
+import { notifyShipmentMilestone } from "../milestone-notify";
 
 /**
  * shipment.freight_booked
@@ -37,6 +38,20 @@ export const handler: EventHandler = async (event, supabase) => {
       p.trackingNumber       && `tracking: ${p.trackingNumber}`,
       p.estimatedDepartureDate && `ETD: ${p.estimatedDepartureDate}`,
     ].filter(Boolean).join(" — "),
+  });
+
+  // Buyer email from logistic@ + deal-thread CRM activity (idempotent on retry)
+  await notifyShipmentMilestone(supabase, {
+    eventId: event.id,
+    shipmentId: shipment_id,
+    supplierOrderId: event.supplier_order_id,
+    milestone: "freight_booked",
+    headline: "Freight Booked",
+    detail: [
+      "your shipment's freight has been booked",
+      p.carrierRef && `carrier ref ${p.carrierRef}`,
+      p.estimatedDepartureDate && `estimated departure ${p.estimatedDepartureDate}`,
+    ].filter(Boolean).join(", ") + ".",
   });
 
   return {

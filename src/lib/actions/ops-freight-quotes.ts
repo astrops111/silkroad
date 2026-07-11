@@ -2,8 +2,11 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/queries/user";
+import { findDealByRfq } from "@/lib/deals/threads";
+import { postDealMessage } from "@/lib/deals/messages";
+import { logActivity } from "@/lib/crm/activities";
 import {
   LiveFreightLaneProvider,
   DBFxProvider,
@@ -260,6 +263,100 @@ export async function createOpsQuote(
 }
 
 // ============================================================
+// writeBackQuotationLandedCost — the return leg of the quotation
+// pending_data loop. When an ops freight quote that originated
+// from a supplier quotation (quotation_id set) carries a computed
+// breakdown, push it onto the quotation as 'ops_quoted', notify
+// the buyer, and record it on the deal thread with deep links so
+// admin/ops can trace it through the pipeline. Never throws.
+// ============================================================
+async function writeBackQuotationLandedCost(quoteId: string, actorUserId?: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: quote } = await supabase
+      .from("ops_freight_quotes")
+      .select("id, quote_number, quotation_id, rfq_id, cost_components, quoted_amount, quoted_currency")
+      .eq("id", quoteId)
+      .maybeSingle();
+    if (!quote?.quotation_id || !quote.cost_components) return;
+
+    await supabase
+      .from("quotations")
+      .update({
+        landed_cost_snapshot: quote.cost_components,
+        landed_cost_status: "ops_quoted",
+        landed_cost_computed_at: new Date().toISOString(),
+      })
+      .eq("id", quote.quotation_id);
+
+    let rfqId = quote.rfq_id;
+    if (!rfqId) {
+      const { data: quotation } = await supabase
+        .from("quotations")
+        .select("rfq_id")
+        .eq("id", quote.quotation_id)
+        .maybeSingle();
+      rfqId = quotation?.rfq_id ?? null;
+    }
+
+    let rfq: { id: string; rfq_number: string; buyer_user_id: string | null; buyer_company_id: string | null } | null = null;
+    if (rfqId) {
+      const { data } = await supabase
+        .from("rfqs")
+        .select("id, rfq_number, buyer_user_id, buyer_company_id")
+        .eq("id", rfqId)
+        .maybeSingle();
+      rfq = data;
+    }
+
+    if (rfq?.buyer_user_id) {
+      await supabase.rpc("create_notification", {
+        p_user_id: rfq.buyer_user_id,
+        p_company_id: rfq.buyer_company_id as unknown as string,
+        p_title: "Landed Cost Ready",
+        p_body: `Our logistics team completed the freight estimate for a quote on ${rfq.rfq_number} — the full landed cost is now on the quotation.`,
+        p_type: "quote",
+        p_icon: "ship",
+        p_action_url: `/dashboard/rfq/${rfq.id}`,
+        p_reference_type: "quotation",
+        p_reference_id: quote.quotation_id,
+      });
+    }
+
+    const dealThreadId = rfqId ? await findDealByRfq(rfqId) : null;
+    if (dealThreadId) {
+      await logActivity({
+        activityType: "note",
+        actorType: actorUserId ? "user" : "system",
+        actorUserId: actorUserId ?? null,
+        companyId: rfq?.buyer_company_id ?? null,
+        dealThreadId,
+        referenceType: "ops_freight_quote",
+        referenceId: quote.id,
+        metadata: {
+          kind: "ops_landed_cost",
+          quoteNumber: quote.quote_number,
+          quotedAmountMinor: quote.quoted_amount,
+          currency: quote.quoted_currency,
+        },
+      });
+      await postDealMessage(dealThreadId, {
+        body: `Logistics team completed the freight estimate (${quote.quote_number}) — landed cost is now available on the supplier quotation.`,
+        actorUserId: actorUserId ?? null,
+        references: [
+          { type: "ops_freight_quote", id: quote.id, label: quote.quote_number },
+          { type: "quotation", id: quote.quotation_id, label: "Supplier quotation" },
+          ...(rfq ? [{ type: "rfq" as const, id: rfq.id, label: rfq.rfq_number }] : []),
+        ],
+      });
+    }
+  } catch (err) {
+    console.error("[ops-freight-quotes] quotation write-back failed:", err);
+  }
+}
+
+// ============================================================
 // updateOpsQuote — re-runs the engine with the latest form input
 // and overwrites the persisted breakdown + quoted_amount.
 // ============================================================
@@ -334,6 +431,9 @@ export async function updateOpsQuote(
   const { error } = await supabase.from("ops_freight_quotes").update(update).eq("id", id);
   if (error) return { success: false, error: error.message };
 
+  // Quotation-originated tasks push the fresh breakdown back to the buyer
+  await writeBackQuotationLandedCost(id, gate.data!.userId);
+
   revalidatePath(QUOTES_PATH);
   revalidatePath(`${QUOTES_PATH}/${id}`);
   return { success: true };
@@ -358,6 +458,11 @@ export async function setOpsQuoteStatus(
 
   const { error } = await supabase.from("ops_freight_quotes").update(update).eq("id", id);
   if (error) return { success: false, error: error.message };
+
+  // Marking quoted/sent finalizes the number — sync it to the quotation
+  if (status === "quoted" || status === "sent") {
+    await writeBackQuotationLandedCost(id, gate.data!.userId);
+  }
 
   revalidatePath(QUOTES_PATH);
   revalidatePath(`${QUOTES_PATH}/${id}`);

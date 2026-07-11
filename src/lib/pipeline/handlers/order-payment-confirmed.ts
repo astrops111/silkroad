@@ -2,6 +2,9 @@ import type { EventHandler } from "../types";
 import { issueInvoice } from "@/lib/invoice";
 import { sendNewOrderToSupplierEmail } from "@/lib/email";
 import { logError } from "@/lib/logging";
+import { logActivity, activityExists } from "@/lib/crm/activities";
+import { findDealBySupplierOrder } from "@/lib/deals/threads";
+import { postDealMessage } from "@/lib/deals/messages";
 
 /**
  * order.payment_confirmed
@@ -33,7 +36,7 @@ export const handler: EventHandler = async (event, supabase) => {
   const { data: order, error: orderErr } = await supabase
     .from("supplier_orders")
     .select(`
-      id, order_number, supplier_id, total_amount, currency,
+      id, order_number, supplier_id, purchase_order_id, total_amount, currency,
       companies!supplier_orders_supplier_id_fkey (name, country_code, tax_id, address),
       supplier_order_items (
         id, product_name, quantity, unit_price, line_total, tax_amount, hs_code
@@ -191,6 +194,51 @@ export const handler: EventHandler = async (event, supabase) => {
     changed_by:  "pipeline",
     note:        "Platform PO issued to supplier",
   });
+
+  // ── 4. CRM: payment_confirmed on BOTH company records + deal message ──────
+  // activityExists doubles as the retry guard (handler re-runs on retry).
+  if (!(await activityExists("payment_confirmed", "supplier_order", supplier_order_id))) {
+    const { data: po } = await supabase
+      .from("purchase_orders")
+      .select("id, buyer_company_id")
+      .eq("id", order.purchase_order_id)
+      .maybeSingle();
+    const dealThreadId = await findDealBySupplierOrder(supplier_order_id);
+
+    const paymentMeta = {
+      orderNumber: order.order_number,
+      amountMinor: order.total_amount,
+      currency: order.currency,
+      invoiceNumber,
+    };
+    // Buyer record
+    await logActivity({
+      activityType: "payment_confirmed",
+      companyId: po?.buyer_company_id ?? null,
+      dealThreadId,
+      referenceType: "supplier_order",
+      referenceId: supplier_order_id,
+      metadata: paymentMeta,
+    });
+    // Supplier record — payment reaching the supplier side of the deal
+    await logActivity({
+      activityType: "payment_confirmed",
+      companyId: order.supplier_id,
+      dealThreadId,
+      referenceType: "supplier_order",
+      referenceId: supplier_order_id,
+      metadata: { ...paymentMeta, side: "supplier" },
+    });
+
+    if (dealThreadId) {
+      await postDealMessage(dealThreadId, {
+        body: `Payment confirmed for order ${order.order_number} — ${order.currency} ${(order.total_amount / 100).toFixed(2)}. Proforma invoice ${invoiceNumber} issued; the supplier is preparing the order.`,
+        references: [
+          { type: "order", id: order.purchase_order_id, label: order.order_number },
+        ],
+      });
+    }
+  }
 
   return {
     success: true,

@@ -3,6 +3,10 @@ import { randomBytes } from "crypto";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeSearchTerm } from "@/lib/security/sanitize";
+import { onQuotationAccepted, onQuotationsRejected } from "@/lib/email/events";
+import { findDealByRfq, attachToDealThread } from "@/lib/deals/threads";
+import { postDealMessage } from "@/lib/deals/messages";
+import { logActivity } from "@/lib/crm/activities";
 
 const rfqCreateSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(200),
@@ -85,8 +89,32 @@ export async function GET(request: NextRequest) {
       query = query.eq("buyer_user_id", profile.id);
     }
   } else if (supplierView) {
-    // Suppliers see open public RFQs
-    query = query.eq("is_public", true).in("status", ["open", "quoted"]);
+    // Suppliers see open public RFQs, plus private RFQs their company was
+    // specifically invited to (e.g. sent from a buyer's cart).
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    let supplierCompanyIds: string[] = [];
+    if (profile) {
+      const { data: memberships } = await supabase
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", profile.id);
+      supplierCompanyIds = (memberships ?? []).map((m) => m.company_id);
+    }
+
+    if (supplierCompanyIds.length > 0) {
+      const invitedFilters = supplierCompanyIds
+        .map((companyId) => `invited_supplier_ids.cs.{${companyId}}`)
+        .join(",");
+      query = query.or(`is_public.eq.true,${invitedFilters}`);
+    } else {
+      query = query.eq("is_public", true);
+    }
+    query = query.in("status", ["open", "quoted"]);
   }
 
   if (status) query = query.eq("status", status);
@@ -330,6 +358,40 @@ export async function PATCH(request: NextRequest) {
         action: "awarded",
         details: { quotationId },
       });
+
+      // Notify winner + losing suppliers (email + in-app); never blocks the award
+      try {
+        await onQuotationAccepted(quotationId);
+        await onQuotationsRejected(rfqId, quotationId);
+      } catch (err) {
+        console.error("[rfqs/PATCH] Award notifications failed for", rfqId, err);
+      }
+
+      // CRM: move the deal to negotiation with the winning quote attached
+      const dealThreadId = await findDealByRfq(rfqId);
+      if (dealThreadId) {
+        await attachToDealThread(dealThreadId, { quotationId });
+      }
+      await logActivity({
+        activityType: "quote_accepted",
+        actorType: "user",
+        actorUserId: profile.id,
+        dealThreadId,
+        referenceType: "quotation",
+        referenceId: quotationId,
+        metadata: { rfqId },
+      });
+      // Internal-channel leg: record the award in the deal conversation
+      if (dealThreadId) {
+        await postDealMessage(dealThreadId, {
+          body: "Quote awarded — the winning supplier quotation has been accepted. Next step: convert to order.",
+          actorUserId: profile.id,
+          references: [
+            { type: "quotation", id: quotationId, label: "Winning quotation" },
+            { type: "rfq", id: rfqId },
+          ],
+        });
+      }
 
       return NextResponse.json({ success: true, action: "award", quotationId });
     }
