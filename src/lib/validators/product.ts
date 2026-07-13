@@ -33,6 +33,9 @@ export const productSchema = z.object({
   usageInstructions: z.string().optional(),
   storageInstructions: z.string().optional(),
   warnings: z.string().optional(),
+  // Free-form labels / keywords (also seeded from brand + category). Deduped,
+  // trimmed, and capped server-side; each label is a shared tag in `labels`.
+  labels: z.array(z.string().trim().min(1).max(60)).max(40).optional(),
 });
 
 export const pricingTierSchema = z.object({

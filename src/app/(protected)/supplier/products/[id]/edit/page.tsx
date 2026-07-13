@@ -63,6 +63,9 @@ export default async function EditProductPage({
         usageInstructions: product.usage_instructions ?? null,
         storageInstructions: product.storage_instructions ?? null,
         warnings: product.warnings ?? null,
+        labels: (product.product_labels ?? [])
+          .map((pl) => pl.labels?.name)
+          .filter((n): n is string => Boolean(n)),
         isActive: product.is_active ?? true,
         moderationStatus: product.moderation_status,
       }}

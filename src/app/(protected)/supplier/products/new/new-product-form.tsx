@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LabelsInput } from "@/components/ui/labels-input";
 import {
   Card,
   CardContent,
@@ -124,6 +125,7 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
     hsCode: "",
   });
 
+  const [labels, setLabels] = useState<string[]>([]);
   const [images, setImages] = useState<UploadedFile[]>([]);
   const [docs, setDocs] = useState<StagedDoc[]>([]);
 
@@ -197,6 +199,7 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
           : undefined,
         weightKg: extras.weightKg ? parseFloat(extras.weightKg) : undefined,
         hsCode: extras.hsCode || undefined,
+        labels,
       });
 
       if (!result.success || !result.data) {
@@ -329,6 +332,23 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
                   placeholder="e.g. Acme"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="labels">Labels / keywords</Label>
+              <LabelsInput
+                id="labels"
+                value={labels}
+                onChange={setLabels}
+                suggestions={[
+                  form.brand,
+                  categories.find((c) => c.id === form.categoryId)?.name ?? "",
+                ].filter(Boolean)}
+                placeholder="Add keywords buyers might search — brand, ingredients, use…"
+              />
+              <p className="text-xs text-[var(--text-tertiary)]">
+                Searchable tags. Brand and category are added automatically.
+              </p>
             </div>
 
             <div className="space-y-2">

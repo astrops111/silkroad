@@ -62,6 +62,79 @@ function slugify(text: string): string {
     .concat("-", Math.random().toString(36).slice(2, 8));
 }
 
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
+// Deterministic slug for a label (no random suffix — labels dedupe by slug).
+function labelSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Resolve label display names to label ids, creating any that don't exist yet.
+// Insert-only against `labels` (updates are admin-gated by RLS): existing rows
+// are looked up by slug, missing ones inserted with the given kind.
+async function resolveLabelIds(
+  supabase: DbClient,
+  names: string[],
+  kind: "keyword" | "brand" | "category" = "keyword"
+): Promise<string[]> {
+  const bySlug = new Map<string, string>(); // slug -> display name (first wins)
+  for (const raw of names) {
+    const name = (raw ?? "").trim();
+    const slug = labelSlug(name);
+    if (slug && !bySlug.has(slug)) bySlug.set(slug, name);
+  }
+  if (bySlug.size === 0) return [];
+
+  const slugs = [...bySlug.keys()];
+  const idBySlug = new Map<string, string>();
+
+  const { data: existing } = await supabase
+    .from("labels")
+    .select("id, slug")
+    .in("slug", slugs);
+  for (const r of existing ?? []) idBySlug.set(r.slug, r.id);
+
+  const toInsert = slugs
+    .filter((s) => !idBySlug.has(s))
+    .map((s) => ({ name: bySlug.get(s)!, slug: s, kind }));
+  if (toInsert.length > 0) {
+    const { data: inserted } = await supabase
+      .from("labels")
+      .insert(toInsert)
+      .select("id, slug");
+    for (const r of inserted ?? []) idBySlug.set(r.slug, r.id);
+  }
+
+  return slugs.map((s) => idBySlug.get(s)).filter((v): v is string => Boolean(v));
+}
+
+// Attach labels to a product. When `replace` is true the product's existing
+// labels are cleared first (edit form); otherwise labels are merged (create).
+async function syncProductLabels(
+  supabase: DbClient,
+  productId: string,
+  names: string[],
+  { replace }: { replace: boolean }
+): Promise<void> {
+  const ids = await resolveLabelIds(supabase, names);
+  if (replace) {
+    await supabase.from("product_labels").delete().eq("product_id", productId);
+  }
+  if (ids.length > 0) {
+    await supabase
+      .from("product_labels")
+      .upsert(
+        ids.map((label_id) => ({ product_id: productId, label_id })),
+        { onConflict: "product_id,label_id", ignoreDuplicates: true }
+      );
+  }
+}
+
 export async function createProduct(
   input: ProductInput
 ): Promise<ActionResult<{ id: string }>> {
@@ -125,6 +198,10 @@ export async function createProduct(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (parsed.data.labels?.length) {
+    await syncProductLabels(supabase, data.id, parsed.data.labels, { replace: false });
   }
 
   revalidatePath("/supplier/products");
@@ -200,6 +277,10 @@ export async function updateProduct(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (input.labels !== undefined) {
+    await syncProductLabels(supabase, productId, input.labels ?? [], { replace: true });
   }
 
   revalidatePath("/supplier/products");
@@ -392,6 +473,10 @@ export async function bulkCreateProducts(
     }
 
     result.succeeded += 1;
+
+    if (parsed.data.labels?.length) {
+      await syncProductLabels(supabase, inserted.id, parsed.data.labels, { replace: false });
+    }
 
     // Download and attach any image URLs the sheet provided. A failed image
     // doesn't fail the row — we just report the count.

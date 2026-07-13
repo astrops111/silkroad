@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { LabelsInput } from "@/components/ui/labels-input";
 import {
   Card,
   CardContent,
@@ -103,6 +104,7 @@ interface ProductSnapshot {
   usageInstructions: string | null;
   storageInstructions: string | null;
   warnings: string | null;
+  labels: string[];
   isActive: boolean;
   moderationStatus: string | null;
 }
@@ -216,6 +218,8 @@ export default function EditProductForm({
     warnings: product.warnings ?? "",
   });
 
+  const [labels, setLabels] = useState<string[]>(product.labels ?? []);
+
   const [isActive, setIsActive] = useState(product.isActive);
   const [togglingActive, setTogglingActive] = useState(false);
 
@@ -307,6 +311,7 @@ export default function EditProductForm({
         usageInstructions: form.usageInstructions || undefined,
         storageInstructions: form.storageInstructions || undefined,
         warnings: form.warnings || undefined,
+        labels,
       });
       setSavingField(null);
       if (!res.success) toast.error(res.error ?? "Failed to save");
@@ -548,6 +553,23 @@ export default function EditProductForm({
                 placeholder="e.g. Acme"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="labels">Labels / keywords</Label>
+            <LabelsInput
+              id="labels"
+              value={labels}
+              onChange={setLabels}
+              suggestions={[
+                form.brand,
+                categories.find((c) => c.id === form.categoryId)?.name ?? "",
+              ].filter(Boolean)}
+              placeholder="Add keywords buyers might search — brand, ingredients, use…"
+            />
+            <p className="text-xs text-[var(--text-tertiary)]">
+              Searchable tags. Brand and category are added automatically.
+            </p>
           </div>
 
           <div className="space-y-2">

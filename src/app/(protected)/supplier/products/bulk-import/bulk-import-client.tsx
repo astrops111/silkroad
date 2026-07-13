@@ -41,6 +41,7 @@ type FieldKey =
   | "name"
   | "nameLocal"
   | "brand"
+  | "labels"
   | "description"
   | "cogs"
   | "moq"
@@ -73,6 +74,7 @@ const ALIASES: Record<FieldKey, string[]> = {
   name: ["商品名稱*", "name", "product_name", "product name"],
   nameLocal: ["商品名稱", "name_local", "local_name"],
   brand: ["品牌", "brand"],
+  labels: ["標籤", "标签", "labels", "tags", "keywords", "關鍵字"],
   description: ["產品敘述", "description", "desc"],
   cogs: ["COGS*", "COGS", "cogs", "cost"],
   moq: ["MOQ（單位：箱）", "MOQ(單位:箱)", "MOQ", "moq", "min_order_qty"],
@@ -319,6 +321,17 @@ export default function BulkImportClient({ categories }: Props) {
       })(),
       cogs,
       brand: maybeStr(cell("brand")),
+      // Labels are multi-valued in one cell — comma is the CSV delimiter, so
+      // suppliers separate them with ; or | (newlines also tolerated).
+      labels: (() => {
+        const raw = cell("labels");
+        if (!raw) return undefined;
+        const parts = raw
+          .split(/[;|\n]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        return parts.length ? parts : undefined;
+      })(),
       janCode: maybeStr(cell("janCode")),
       shelfLifeDays: maybeInt(cell("shelfLifeDays")),
       boxPackQty: maybeInt(cell("boxPackQty")),
@@ -408,6 +421,7 @@ export default function BulkImportClient({ categories }: Props) {
     const headers = [
       "商品名稱*",
       "品牌",
+      "標籤",
       "產品敘述",
       "COGS*",
       "MOQ",
@@ -436,6 +450,7 @@ export default function BulkImportClient({ categories }: Props) {
     const example = [
       "Sweet Red Bean Soup",
       "Guanrui",
+      "red bean; dessert; traditional; ready-to-eat",
       "Traditional Japanese sweet red bean soup, 140g pouch.",
       "1.40",
       "10",

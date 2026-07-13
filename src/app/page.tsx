@@ -28,8 +28,9 @@ import {
   type TopCategoryWithCount,
 } from "@/lib/queries/categories";
 import { imageForSlug } from "@/lib/category-images";
-import { getCountryFacets } from "@/lib/queries/marketplace";
+import { getCountryFacets, searchProducts } from "@/lib/queries/marketplace";
 import { regionMeta } from "@/lib/product-labels";
+import { applyMarkup } from "@/lib/pricing";
 
 /* ============================================================
    HERO — Products portal (China → Africa, rotating carousel)
@@ -93,7 +94,7 @@ function HeroSection() {
         {/* Trust strip */}
         <div className="mt-10 lg:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6 lg:gap-10 py-6 lg:py-8 border-y border-[var(--border-subtle)]">
           {[
-            { value: "12,000+", label: tTrust("verifiedSuppliers") },
+            { value: "15,000+", label: tTrust("products") },
             { value: "$2.4B", label: tTrust("annualGmv") },
             { value: "54", label: tTrust("africanCountries") },
             { value: "98.2%", label: tTrust("satisfactionRate") },
@@ -314,110 +315,32 @@ function FeaturedCategories({
 }
 
 /* ============================================================
-   MOCK PRODUCT DATA + RAIL
+   PRODUCT RAIL — mapped from live marketplace listings
    ============================================================ */
-const NEW_PRODUCTS: RailProduct[] = [
-  {
-    id: "p-cnc-lathe",
-    name: "Industrial CNC Lathe 1000mm — Variable Speed",
-    image:
-      "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 8_500_00,
-    currency: "USD",
-    unit: "set",
-    supplier: "Guangzhou Huahe Precision",
-    country: "CN",
-    moq: "1 set",
-    badge: "New",
-  },
-  {
-    id: "p-smartphone-5g",
-    name: "5G Android Smartphone 6.7\" AMOLED — 256GB OEM",
-    image:
-      "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 85_00,
-    currency: "USD",
-    unit: "unit",
-    supplier: "Shenzhen DigiTech Electronics",
-    country: "CN",
-    moq: "100 units",
-  },
-  {
-    id: "p-cotton-tee",
-    name: "Premium Cotton T-Shirt — Custom Bulk Logo Printing",
-    image:
-      "https://images.pexels.com/photos/34191411/pexels-photo-34191411.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 2_80,
-    currency: "USD",
-    unit: "piece",
-    supplier: "Zhejiang Silk Valley Textiles",
-    country: "CN",
-    moq: "500 pieces",
-    badge: "Hot",
-  },
-  {
-    id: "p-excavator-21t",
-    name: "Hydraulic Excavator 21-ton — Heavy Construction",
-    image:
-      "https://images.pexels.com/photos/15378707/pexels-photo-15378707.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 42_000_00,
-    currency: "USD",
-    unit: "unit",
-    supplier: "Henan HeavyBuild Machinery",
-    country: "CN",
-    moq: "1 unit",
-  },
-  {
-    id: "p-solar-550w",
-    name: "Solar Panel 550W Monocrystalline PV Module Tier 1",
-    image:
-      "https://images.pexels.com/photos/4993793/pexels-photo-4993793.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 110_00,
-    currency: "USD",
-    unit: "panel",
-    supplier: "Jiangsu Sunburst Energy",
-    country: "CN",
-    moq: "10 panels",
-    badge: "New",
-  },
-  {
-    id: "p-cement-425r",
-    name: "Portland Cement 42.5R Grade — Bulk Supply 25kg Bags",
-    image:
-      "https://images.pexels.com/photos/33626641/pexels-photo-33626641.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 3_20,
-    currency: "USD",
-    unit: "bag",
-    supplier: "Fujian RockMight Materials",
-    country: "CN",
-    moq: "1,000 bags",
-  },
-  {
-    id: "p-led-streetlamp",
-    name: "LED Street Light 200W IP66 Waterproof Solar Powered",
-    image:
-      "https://images.pexels.com/photos/7864622/pexels-photo-7864622.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 45_00,
-    currency: "USD",
-    unit: "unit",
-    supplier: "Jiangsu BrightPath Lighting",
-    country: "CN",
-    moq: "50 units",
-  },
-  {
-    id: "p-air-compressor",
-    name: "Industrial Air Compressor 7.5kW Screw — Energy Efficient",
-    image:
-      "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600",
-    amount: 1_850_00,
-    currency: "USD",
-    unit: "unit",
-    supplier: "Shanghai AirPro Equipment",
-    country: "CN",
-    moq: "1 unit",
-    badge: "Hot",
-  },
-];
+const FALLBACK_PRODUCT_IMAGE =
+  "https://images.pexels.com/photos/33748032/pexels-photo-33748032.jpeg?auto=compress&cs=tinysrgb&w=600";
+
+function toRailProducts(
+  products: Awaited<ReturnType<typeof searchProducts>>["products"]
+): RailProduct[] {
+  return products.map((p) => {
+    const boxPackQty = p.box_pack_qty ?? 1;
+    const unitAmount = applyMarkup(p.base_price);
+    const company = p.companies as { name: string; country_code: string } | null;
+    return {
+      id: p.id,
+      name: p.name,
+      image: p.product_images?.[0]?.url ?? FALLBACK_PRODUCT_IMAGE,
+      amount: Math.round(boxPackQty > 1 ? unitAmount * boxPackQty : unitAmount),
+      currency: p.currency ?? "USD",
+      unit: boxPackQty > 1 ? "box" : "unit",
+      supplier: company?.name ?? "Verified Supplier",
+      country: p.origin_country ?? company?.country_code ?? "CN",
+      moq: `${boxPackQty > 1 ? Math.max(1, Math.round((p.moq ?? 1) / boxPackQty)) : (p.moq ?? 1)} ${boxPackQty > 1 ? "boxes" : "units"}`,
+      badge: p.is_featured ? "Hot" : "New",
+    };
+  });
+}
 
 const EDITORIAL_IMAGES = {
   guide1:
@@ -483,10 +406,11 @@ function CTASection() {
 }
 
 export default async function ProductsPortalHome() {
-  const [categories, countryFacets, locale] = await Promise.all([
+  const [categories, countryFacets, locale, newestResult] = await Promise.all([
     getTopLevelCategoriesWithCount(),
     getCountryFacets(),
     getLocale(),
+    searchProducts({ sort: "newest", limit: 12 }),
   ]);
 
   return (
@@ -494,6 +418,7 @@ export default async function ProductsPortalHome() {
       categories={categories}
       countryFacets={countryFacets}
       locale={locale}
+      newProducts={toRailProducts(newestResult.products)}
     />
   );
 }
@@ -502,10 +427,12 @@ function ProductsPortalHomeInner({
   categories,
   countryFacets,
   locale,
+  newProducts,
 }: {
   categories: TopCategoryWithCount[];
   countryFacets: Record<string, number>;
   locale: string;
+  newProducts: RailProduct[];
 }) {
   const tRail = useTranslations("marketing.products.rail");
   const tEditorial = useTranslations("marketing.products.editorial");
@@ -546,7 +473,7 @@ function ProductsPortalHomeInner({
           title={tRail("title")}
           subtitle={tRail("subtitle")}
           viewAllHref="/marketplace?sort=newest"
-          products={NEW_PRODUCTS}
+          products={newProducts}
         />
         <EditorialBand
           eyebrow={tEditorial("eyebrow")}

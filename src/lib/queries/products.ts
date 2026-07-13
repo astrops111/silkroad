@@ -9,6 +9,7 @@ export type ProductWithDetails = Tables<"products"> & {
   product_variants: Tables<"product_variants">[];
   product_pricing_tiers: Tables<"product_pricing_tiers">[];
   product_certifications: Tables<"product_certifications">[];
+  product_labels?: { labels: Pick<Tables<"labels">, "name" | "slug" | "kind"> | null }[];
   companies: Pick<Tables<"companies">, "id" | "name" | "slug" | "logo_url" | "verification_status" | "country_code"> | null;
 };
 
@@ -70,7 +71,8 @@ export async function getProductById(productId: string) {
       product_images (*),
       product_variants (*),
       product_pricing_tiers (*),
-      product_certifications (*)
+      product_certifications (*),
+      product_labels ( labels (name, slug, kind) )
     `
     )
     .eq("id", productId)
@@ -91,6 +93,7 @@ export async function getProductWithSupplier(productId: string) {
       product_variants (*),
       product_pricing_tiers (*),
       product_certifications (*),
+      product_labels ( labels (name, slug, kind) ),
       companies:supplier_id (id, name, slug, logo_url, verification_status, country_code)
     `
     )

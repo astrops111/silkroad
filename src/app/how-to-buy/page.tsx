@@ -85,7 +85,7 @@ function HowToBuySteps() {
       title: "Browse or search the marketplace",
       desc: "Find products across Home, Hotels, Consumer Electronics, Beauty, Groceries, and Baby categories. Filter by MOQ, destination country, and delivery window.",
       bullets: [
-        "12,000+ SKUs curated from verified manufacturers worldwide",
+        "12,000+ SKUs from premium global brands, verified suppliers worldwide",
         "Every listing shows a landed price for your country",
         "Save items to your shortlist without an account",
       ],

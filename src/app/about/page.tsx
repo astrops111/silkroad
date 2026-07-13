@@ -244,7 +244,7 @@ function SocialProof() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16 pb-16 border-b border-white/[0.06]">
           {[
             { value: "$2.4B+", label: t("stat1Label"), icon: TrendingUp },
-            { value: "12,000+", label: t("stat2Label"), icon: Users },
+            { value: "15,000+", label: t("stat2Label"), icon: Package },
             { value: "54", label: t("stat3Label"), icon: Globe },
             { value: "98.2%", label: t("stat4Label"), icon: Star },
           ].map((stat) => (
