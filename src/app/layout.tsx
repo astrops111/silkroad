@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { Providers } from "./providers";
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register";
+import { ShoppingAssistantWidget } from "@/components/ai/shopping-assistant-widget";
 import { rtlLocales, type Locale } from "@/i18n/routing";
 import "./globals.css";
 
@@ -38,7 +39,12 @@ export default async function RootLayout({
     <html lang={locale} dir={dir} className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            {/* Buyer chatbot on all public pages; mounted in the root layout so
+                it survives client-side navigation. Hides itself on admin/auth. */}
+            <ShoppingAssistantWidget />
+          </Providers>
         </NextIntlClientProvider>
         <ServiceWorkerRegistration />
       </body>

@@ -6652,6 +6652,51 @@ export type Database = {
           },
         ]
       }
+      shopping_assistant_logs: {
+        Row: {
+          id: string
+          session_id: string
+          role: string
+          content: string
+          page_path: string | null
+          locale: string | null
+          products_mentioned: Json | null
+          model: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          cost_usd: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          role: string
+          content: string
+          page_path?: string | null
+          locale?: string | null
+          products_mentioned?: Json | null
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          role?: string
+          content?: string
+          page_path?: string | null
+          locale?: string | null
+          products_mentioned?: Json | null
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       labels: {
         Row: {
           created_at: string | null

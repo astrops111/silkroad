@@ -21,6 +21,10 @@ const publicRoutes = [
   "/auth/forgot-password",
   "/auth/reset-password",
   "/auth/callback",
+  // Public shopping/help chatbot — deliberately anonymous (rate-limited and
+  // feature-flag gated inside the route). Without this, logged-out visitors'
+  // POSTs are redirected to the login page HTML and the widget errors out.
+  "/api/ai/assistant",
 ];
 
 const publicPrefixes = [

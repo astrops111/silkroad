@@ -11,7 +11,6 @@ import {
   type MarketplaceProduct,
   type MarketplaceSubcategory,
 } from "./marketplace-client";
-import { ShoppingAssistantWidget } from "@/components/ai/shopping-assistant-widget";
 import { RecommendationRail } from "@/components/ai/recommendation-rail";
 
 // Collects a category id plus every descendant at any depth (the tree here
@@ -190,7 +189,6 @@ export default async function MarketplacePage({
         groupFacets={groupFacets}
       />
       <RecommendationRail title="Recommended for you" forMe />
-      <ShoppingAssistantWidget />
     </>
   );
 }

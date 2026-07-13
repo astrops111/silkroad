@@ -13,9 +13,12 @@ export interface AIFeatureFlag {
 /**
  * Check if an AI feature is enabled.
  * Returns false if the feature doesn't exist or is disabled.
+ * Uses the service client: this is a server-side gate, and RLS only grants
+ * SELECT to authenticated users — with the cookie-scoped client, anonymous
+ * requests (e.g. the public shopping assistant) would always read "disabled".
  */
 export async function isAIFeatureEnabled(featureId: string): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data } = await supabase
     .from("ai_feature_flags")
     .select("is_enabled")
