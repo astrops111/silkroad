@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 
 // ============================================================
 // AI RFQ Supplier Matching — Match RFQs to best-fit suppliers
@@ -61,8 +61,6 @@ export async function matchSuppliersToRFQ(
   rfq: RFQData,
   candidates: SupplierCandidate[]
 ): Promise<RFQMatchResult> {
-  const client = new Anthropic();
-
   if (candidates.length === 0) {
     return {
       matches: [],
@@ -122,10 +120,9 @@ RULES:
     certs: c.certifications,
   }));
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
+  const text = await aiText({
     system: systemPrompt,
+    maxTokens: 4000,
     messages: [
       {
         role: "user",
@@ -151,12 +148,11 @@ Rank and score the best matches.`,
     ],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
+  if (!text) {
     throw new Error("No response from RFQ matcher");
   }
 
-  let jsonStr = textBlock.text.trim();
+  let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }

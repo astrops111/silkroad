@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 import { normalizeHsCode } from "@/lib/logistics/tariffs/hs";
 
 // ============================================================
@@ -35,8 +35,6 @@ const MIN_CONFIDENCE_FOR_RECOMMENDATION = 60;
 export async function classifyHsCode(
   input: HsClassificationInput
 ): Promise<HsClassificationResult> {
-  const client = new Anthropic();
-
   const systemPrompt = `You are a customs classification specialist trained on the World Customs
 Organization Harmonized System (HS) nomenclature. Given a product name and
 description, classify it under the correct 6-digit HS heading — the level
@@ -62,10 +60,9 @@ RULES:
 - confidencePct reflects certainty about the HS-6 heading, not a guess at duty rates.
 - Never invent a heading number — if unsure, prefer a chapter+heading you are confident of over a more specific but speculative one.`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1500,
+  const text = await aiText({
     system: systemPrompt,
+    maxTokens: 1500,
     messages: [
       {
         role: "user",
@@ -78,13 +75,11 @@ Origin: ${input.originCountry || "Not specified"}`,
       },
     ],
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
+  if (!text) {
     throw new Error("No response from HS classifier");
   }
 
-  let jsonStr = textBlock.text.trim();
+  let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }

@@ -1,4 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
+import { nvidiaClient, withModelFallback } from "@/lib/ai/nvidia";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isAIFeatureEnabled } from "@/lib/ai/feature-flags";
 import { logActivity } from "@/lib/crm/activities";
@@ -13,7 +14,6 @@ import type { Json } from "@/lib/supabase/database.types";
 // draft replies are queued for HUMAN review, never auto-sent.
 // ============================================================
 
-const MODEL = "claude-sonnet-4-20250514";
 const BATCH_SIZE = 20;
 
 interface TriggerConditions {
@@ -46,64 +46,79 @@ interface MessageRow {
   sent_at: string | null;
 }
 
-const TOOL_DEFS: Record<string, Anthropic.Tool> = {
+const TOOL_DEFS: Record<string, OpenAI.Chat.Completions.ChatCompletionTool> = {
   draft_reply: {
-    name: "draft_reply",
-    description:
-      "Draft a reply email. It will be queued for human review — an admin edits/approves before anything is sent.",
-    input_schema: {
-      type: "object",
-      properties: {
-        subject: { type: "string", description: "Reply subject line" },
-        body_text: { type: "string", description: "Plain-text reply body" },
+    type: "function",
+    function: {
+      name: "draft_reply",
+      description:
+        "Draft a reply email. It will be queued for human review — an admin edits/approves before anything is sent.",
+      parameters: {
+        type: "object",
+        properties: {
+          subject: { type: "string", description: "Reply subject line" },
+          body_text: { type: "string", description: "Plain-text reply body" },
+        },
+        required: ["subject", "body_text"],
       },
-      required: ["subject", "body_text"],
     },
   },
   link_to_rfq: {
-    name: "link_to_rfq",
-    description:
-      "Link this email thread to a platform RFQ deal when the sender references an RFQ number like RFQ-20260711-AB12CD.",
-    input_schema: {
-      type: "object",
-      properties: {
-        rfq_number: { type: "string", description: "The referenced RFQ number" },
+    type: "function",
+    function: {
+      name: "link_to_rfq",
+      description:
+        "Link this email thread to a platform RFQ deal when the sender references an RFQ number like RFQ-20260711-AB12CD.",
+      parameters: {
+        type: "object",
+        properties: {
+          rfq_number: { type: "string", description: "The referenced RFQ number" },
+        },
+        required: ["rfq_number"],
       },
-      required: ["rfq_number"],
     },
   },
   create_crm_activity: {
-    name: "create_crm_activity",
-    description: "Record a CRM note about what this email means for the relationship or deal.",
-    input_schema: {
-      type: "object",
-      properties: {
-        summary: { type: "string", description: "One-paragraph summary for the CRM timeline" },
+    type: "function",
+    function: {
+      name: "create_crm_activity",
+      description: "Record a CRM note about what this email means for the relationship or deal.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string", description: "One-paragraph summary for the CRM timeline" },
+        },
+        required: ["summary"],
       },
-      required: ["summary"],
     },
   },
   escalate: {
-    name: "escalate",
-    description: "Flag this email for urgent human attention (complaints, legal, high-value).",
-    input_schema: {
-      type: "object",
-      properties: {
-        reason: { type: "string", description: "Why this needs human attention now" },
+    type: "function",
+    function: {
+      name: "escalate",
+      description: "Flag this email for urgent human attention (complaints, legal, high-value).",
+      parameters: {
+        type: "object",
+        properties: {
+          reason: { type: "string", description: "Why this needs human attention now" },
+        },
+        required: ["reason"],
       },
-      required: ["reason"],
     },
   },
   create_ticket: {
-    name: "create_ticket",
-    description: "Open a support ticket for this email.",
-    input_schema: {
-      type: "object",
-      properties: {
-        subject: { type: "string" },
-        priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
+    type: "function",
+    function: {
+      name: "create_ticket",
+      description: "Open a support ticket for this email.",
+      parameters: {
+        type: "object",
+        properties: {
+          subject: { type: "string" },
+          priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
+        },
+        required: ["subject"],
       },
-      required: ["subject"],
     },
   },
 };
@@ -227,12 +242,12 @@ interface ExecuteResult {
 }
 
 async function executeSkill(skill: SkillRow, message: MessageRow): Promise<ExecuteResult> {
-  const client = new Anthropic();
+  const client = nvidiaClient();
   const supabase = createServiceClient();
 
   const tools = skill.allowed_actions
     .map((a) => TOOL_DEFS[a])
-    .filter((t): t is Anthropic.Tool => Boolean(t));
+    .filter((t): t is OpenAI.Chat.Completions.ChatCompletionTool => Boolean(t));
 
   const system = `You process inbound email for SilkRoad Africa, a B2B Asia→Africa marketplace.
 Follow the operator's skill instructions below. Use ONLY the provided tools; if none
@@ -249,31 +264,41 @@ Date: ${message.sent_at ?? "unknown"}
 
 ${(message.text_body ?? message.snippet ?? "").slice(0, 6000)}`;
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    system,
-    messages: [{ role: "user", content: emailContext }],
-    ...(tools.length > 0 && { tools }),
-  });
+  const completion = await withModelFallback((model) =>
+    client.chat.completions.create({
+      model,
+      max_tokens: 2048,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: emailContext },
+      ],
+      ...(tools.length > 0 && { tools }),
+    })
+  );
+
+  const assistantMsg = completion.choices[0]?.message;
 
   const result: ExecuteResult = {
     actionsTaken: [],
     draftsCreated: 0,
-    aiText: null,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
+    aiText: assistantMsg?.content || null,
+    inputTokens: completion.usage?.prompt_tokens ?? 0,
+    outputTokens: completion.usage?.completion_tokens ?? 0,
   };
 
-  for (const block of response.content) {
-    if (block.type === "text") {
-      result.aiText = (result.aiText ? result.aiText + "\n" : "") + block.text;
-      continue;
-    }
-    if (block.type !== "tool_use") continue;
+  const toolCalls = (assistantMsg?.tool_calls ?? []).filter(
+    (tc): tc is OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall =>
+      tc.type === "function"
+  );
 
-    const input = block.input as Record<string, string>;
-    switch (block.name) {
+  for (const toolCall of toolCalls) {
+    let input: Record<string, string> = {};
+    try {
+      input = JSON.parse(toolCall.function.arguments || "{}");
+    } catch {
+      continue; // malformed arguments — skip this action
+    }
+    switch (toolCall.function.name) {
       case "draft_reply": {
         const escaped = (input.body_text ?? "")
           .replace(/&/g, "&amp;")

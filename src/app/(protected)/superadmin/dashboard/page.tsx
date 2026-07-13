@@ -271,7 +271,7 @@ export default function SuperAdminDashboard() {
             </li>
             <li className="flex items-start gap-2">
               <span style={{ color: "var(--amber)" }}>3.</span>
-              AI features consume API credits per request. Monitor usage in your Anthropic dashboard.
+              AI features consume API credits per request. Monitor usage in your NVIDIA Build dashboard.
             </li>
             <li className="flex items-start gap-2">
               <span style={{ color: "var(--amber)" }}>4.</span>

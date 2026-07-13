@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 
 // ============================================================
 // AI Pricing Recommendation Engine
@@ -126,8 +126,6 @@ const EXCHANGE_RATES: Record<string, number> = {
 export async function generatePricingRecommendation(
   input: PricingInput
 ): Promise<PricingRecommendation> {
-  const client = new Anthropic();
-
   const margins = CATEGORY_MARGINS[input.category] || CATEGORY_MARGINS.consumer_goods;
 
   const competitorInfo = input.competitorPrices?.length
@@ -164,10 +162,9 @@ RESPONSE FORMAT: Respond with ONLY valid JSON, no markdown.
   "insights": ["insight 1", "insight 2", "insight 3", "insight 4"]
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 3000,
+  const text = await aiText({
     system: systemPrompt,
+    maxTokens: 3000,
     messages: [
       {
         role: "user",
@@ -190,12 +187,11 @@ Respond with ONLY JSON.`,
     ],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
+  if (!text) {
     throw new Error("No text response from AI");
   }
 
-  let jsonStr = textBlock.text.trim();
+  let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }

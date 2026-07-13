@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 
 // ============================================================
 // AI Customer Support Agent — Multilingual B2B Support
@@ -52,8 +52,6 @@ export async function handleSupportQuery(
   context: SupportContext,
   orderData?: OrderLookup | null
 ): Promise<SupportResponse> {
-  const client = new Anthropic();
-
   const langName = LANGUAGE_NAMES[context.userLanguage] || "English";
 
   const systemPrompt = `You are the AI customer support agent for Silk Road Africa, an Africa-first B2B wholesale marketplace.
@@ -100,24 +98,23 @@ RESPONSE FORMAT: Respond with ONLY valid JSON:
   "language": "${context.userLanguage}"
 }`;
 
-  const apiMessages: Anthropic.Messages.MessageParam[] = messages.map((m) => ({
+  const apiMessages = messages.map((m) => ({
     role: m.role,
     content: m.content,
   }));
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1500,
+  const text = await aiText({
     system: systemPrompt,
+    maxTokens: 1500,
     messages: apiMessages,
+    // Interactive chat — skip DeepSeek thinking mode to keep replies fast.
+    thinking: false,
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
+  if (!text) {
     throw new Error("No response from AI support agent");
   }
 
-  let jsonStr = textBlock.text.trim();
+  let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }

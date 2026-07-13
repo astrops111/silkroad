@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isAIFeatureEnabled } from "@/lib/ai/feature-flags";
 import { sendMailboxEmail } from "@/lib/mail/smtp";
@@ -221,10 +221,8 @@ async function triageTicket(
   try {
     if (!(await isAIFeatureEnabled("ai_support_agent"))) return null;
 
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 300,
+    const text = await aiText({
+      maxTokens: 1024,
       system:
         'Triage a B2B marketplace support email. Respond with ONLY a JSON object: {"intent": string, "priority": "low"|"normal"|"high"|"urgent", "summary": string}. Escalate priority for payment failures, legal threats, or shipment emergencies.',
       messages: [
@@ -234,8 +232,6 @@ async function triageTicket(
         },
       ],
     });
-
-    const text = response.content.find((b) => b.type === "text")?.text ?? "";
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]) as TriageResult;

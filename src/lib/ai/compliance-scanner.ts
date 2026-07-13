@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 
 // ============================================================
 // Regulatory Compliance Scanner — Import/Export Violation Detection
@@ -60,8 +60,6 @@ export interface ComplianceResult {
 export async function scanCompliance(
   input: ComplianceScanInput
 ): Promise<ComplianceResult> {
-  const client = new Anthropic();
-
   // Check trade blocs
   const tradeAgreements: string[] = [];
   const isEcowas = ECOWAS_MEMBERS.includes(input.originCountry) && ECOWAS_MEMBERS.includes(input.destinationCountry);
@@ -118,10 +116,9 @@ RULES:
 - Include HS-code-specific duties when possible
 - For world-Africa routes, flag common issues: undervaluation, mis-classification, counterfeit risk`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 3000,
+  const text = await aiText({
     system: systemPrompt,
+    maxTokens: 3000,
     messages: [
       {
         role: "user",
@@ -149,12 +146,11 @@ Check for:
     ],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
+  if (!text) {
     throw new Error("No response from compliance scanner");
   }
 
-  let jsonStr = textBlock.text.trim();
+  let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }

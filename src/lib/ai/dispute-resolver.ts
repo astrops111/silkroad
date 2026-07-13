@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiText } from "@/lib/ai/nvidia";
 
 // ============================================================
 // AI Dispute Resolution — Analyze evidence & recommend outcomes
@@ -60,8 +60,6 @@ export async function analyzeDispute(
   shipment: ShipmentData | null,
   chatHistory: ChatHistory | null
 ): Promise<DisputeAnalysis> {
-  const client = new Anthropic();
-
   const systemPrompt = `You are a fair and impartial dispute resolution specialist for Silk Road Africa, an Africa-first B2B marketplace.
 
 CONTEXT:
@@ -132,19 +130,16 @@ ${chatHistory.messages.slice(-10).map((m) => `[${m.timestamp}] ${m.sender}: ${m.
 
 Analyze ALL evidence and recommend a fair resolution.`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 3000,
+  const text = await aiText({
     system: systemPrompt,
+    maxTokens: 3000,
     messages: [{ role: "user", content: userContent }],
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
+  if (!text) {
     throw new Error("No response from dispute analyzer");
   }
 
-  let jsonStr = textBlock.text.trim();
+  let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }
