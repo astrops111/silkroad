@@ -6652,6 +6652,63 @@ export type Database = {
           },
         ]
       }
+      labels: {
+        Row: {
+          created_at: string | null
+          id: string
+          kind: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          kind?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      product_labels: {
+        Row: {
+          created_at: string | null
+          label_id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          label_id: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string | null
+          label_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_labels_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_labels_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_pricing_tiers: {
         Row: {
           created_at: string | null
@@ -10347,6 +10404,18 @@ export type Database = {
         Row: {
           id: string | null
           resolved_country: string | null
+        }
+        Relationships: []
+      }
+      products_pooling_info: {
+        Row: {
+          id: string | null
+          pooling_group_type: string | null
+          group_moq: number | null
+          group_min_order_amount: number | null
+          group_country_code: string | null
+          group_id: string | null
+          group_name: string | null
         }
         Relationships: []
       }

@@ -55,6 +55,14 @@ interface ProductData {
   warnings: string | null;
   sampleAvailable: boolean;
   samplePrice: number | null;
+  labels: string[];
+  minOrderAmount?: number | null;
+  minOrderGroupedBy?: string | null;
+  /** 'supplier'|'supplier_group' = one MOA across the supplier's listing;
+   *  'country'|'custom' = groupage combined across suppliers. */
+  poolingType?: string | null;
+  /** Group-level combined minimum (USD dollars), when the group defines one. */
+  groupMinOrderAmount?: number | null;
 }
 
 interface ImageData {
@@ -369,6 +377,19 @@ export default function ProductDetailClient({
                   </div>
                 )}
 
+                {product.labels.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap mt-3">
+                    {product.labels.map((label) => (
+                      <span
+                        key={label}
+                        className="inline-flex items-center rounded-full bg-[var(--surface-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-tertiary)]"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 {variants.length > 1 && (
                   <div className="mt-4">
                     <p className="text-xs font-medium text-[var(--text-tertiary)] mb-2">
@@ -506,6 +527,35 @@ export default function ProductDetailClient({
                       {formatMoney(total, product.currency)}
                     </span>
                   </div>
+
+                  {(() => {
+                    const isSupplierPool =
+                      product.poolingType === "supplier" || product.poolingType === "supplier_group";
+                    const isGroupage =
+                      product.poolingType === "country" || product.poolingType === "custom";
+                    if (!isSupplierPool && !isGroupage && product.minOrderGroupedBy !== "shipping_group") return null;
+                    const minAmount = product.minOrderAmount ?? product.groupMinOrderAmount;
+                    return (
+                      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-secondary)] p-3 text-xs text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">
+                          {isSupplierPool ? "Combined supplier minimum" : "Groupage delivery"}
+                        </span>{" "}
+                        —{" "}
+                        {isSupplierPool ? (
+                          <>
+                            any products from this supplier count toward one minimum
+                            {minAmount ? <> of USD {minAmount.toLocaleString()}</> : null}. Mix items freely to reach it.
+                          </>
+                        ) : (
+                          <>
+                            ships consolidated; the minimum
+                            {minAmount ? <> of USD {minAmount.toLocaleString()}</> : null} is combined with other
+                            products you order from this region — not per item.
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-3 gap-3 text-xs">
                     <div className="rounded-lg border border-[var(--border-subtle)] p-3">

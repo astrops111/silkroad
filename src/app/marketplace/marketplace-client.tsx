@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { imageForSlug } from "@/lib/category-images";
 import { regionMeta, tradeMeta } from "@/lib/product-labels";
 import { MARKETPLACE_COUNTRIES } from "@/lib/countries";
+import type { RegionPoolingRule, ShippingGroupFacet } from "@/lib/queries/marketplace";
 import {
   SlidersHorizontal,
   Grid3X3,
@@ -26,6 +27,7 @@ import {
   X,
   Package,
   Truck,
+  Info,
 } from "lucide-react";
 
 export interface MarketplaceSubcategory {
@@ -50,6 +52,10 @@ export interface MarketplaceProduct {
   price: number;
   moq: number;
   unit: string;
+  /** Pieces per box/carton — only set when the supplier sells by the box. */
+  boxPackQty?: number;
+  /** Marked-up price per individual piece, regardless of box packaging. */
+  unitPrice?: number;
   rating: number;
   reviews: number;
   responseTime: string;
@@ -59,6 +65,11 @@ export interface MarketplaceProduct {
   leadTimeDays?: number | null;
   minOrderAmount?: number | null;
   minOrderGroupedBy?: string | null;
+  /** 'supplier'|'supplier_group' = one MOA across the supplier's listing;
+   *  'country'|'custom' = groupage combined across suppliers. */
+  poolingType?: string | null;
+  /** Group-level combined minimum (USD dollars), when the group defines one. */
+  groupMinOrderAmount?: number | null;
   variantCount?: number;
 }
 
@@ -513,6 +524,9 @@ function FilterSidebar({
   countryFacets,
   activeCountry,
   countryHrefFor,
+  groupFacets = {},
+  activeGroupId = null,
+  groupHrefFor,
 }: {
   open: boolean;
   onClose: () => void;
@@ -524,6 +538,9 @@ function FilterSidebar({
   countryFacets: Record<string, number>;
   activeCountry: (typeof MARKETPLACE_COUNTRIES)[number] | null;
   countryHrefFor: (code: string | null) => string;
+  groupFacets?: Record<string, ShippingGroupFacet[]>;
+  activeGroupId?: string | null;
+  groupHrefFor?: (country: string, groupId: string | null) => string;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -562,7 +579,9 @@ function FilterSidebar({
   const activeBrands = new Set(
     (searchParams.get("brand") ?? "").split(",").filter(Boolean)
   );
-  const sortedBrands = Object.entries(brandFacets).sort((a, b) => b[1] - a[1]);
+  const sortedBrands = Object.entries(brandFacets).sort((a, b) =>
+    a[0].localeCompare(b[0])
+  );
 
   const buildBrandHref = (brand: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -731,24 +750,62 @@ function FilterSidebar({
               {MARKETPLACE_COUNTRIES.map((code) => {
                 const meta = regionMeta(code);
                 const isActive = code === activeCountry;
+                const regionGroups = groupFacets[code] ?? [];
                 return (
-                  <Link
-                    key={code}
-                    href={countryHrefFor(code)}
-                    onClick={onClose}
-                    scroll={false}
-                    className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      <span aria-hidden className="text-sm leading-none">{meta.flag}</span>
-                      {meta.label}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)]">{countryFacets[code] ?? 0}</span>
-                  </Link>
+                  <div key={code}>
+                    <Link
+                      href={countryHrefFor(code)}
+                      onClick={onClose}
+                      scroll={false}
+                      className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                        isActive
+                          ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <span aria-hidden className="text-sm leading-none">{meta.flag}</span>
+                        {meta.label}
+                      </span>
+                      <span className="text-xs text-[var(--text-tertiary)]">{countryFacets[code] ?? 0}</span>
+                    </Link>
+                    {/* Shipping groups (MOA pools / groupage batches) available in this region */}
+                    {regionGroups.length > 0 && groupHrefFor && (
+                      <div className="ml-5 mt-0.5 space-y-0.5 border-l border-[var(--border-subtle)] pl-2">
+                        {regionGroups.map((g) => {
+                          const gActive = g.id === activeGroupId;
+                          const isSupplierPool = g.poolingType === "supplier" || g.poolingType === "supplier_group";
+                          return (
+                            <Link
+                              key={g.id}
+                              href={groupHrefFor(code, gActive ? null : g.id)}
+                              onClick={onClose}
+                              scroll={false}
+                              title={
+                                g.minAmount != null
+                                  ? `${isSupplierPool ? t("moaChipSupplier") : t("moaChipGroupage")} · USD ${g.minAmount.toLocaleString()}`
+                                  : isSupplierPool ? t("moaChipSupplier") : t("moaChipGroupage")
+                              }
+                              className={`flex items-center justify-between w-full text-left px-2.5 py-1.5 text-[13px] rounded-lg transition-colors ${
+                                gActive
+                                  ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
+                                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+                              }`}
+                            >
+                              <span className="inline-flex items-center gap-1.5 min-w-0">
+                                <Package className="w-3 h-3 shrink-0" aria-hidden />
+                                <span className="truncate">{g.name}</span>
+                                <span className="shrink-0 rounded-full bg-[var(--amber)]/10 px-1.5 py-px text-[10px] font-medium text-[var(--amber-dark)]">
+                                  {isSupplierPool ? t("moaChipSupplier") : t("moaChipGroupage")}
+                                </span>
+                              </span>
+                              <span className="text-xs text-[var(--text-tertiary)]">{g.products}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -916,6 +973,13 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
           </span>
         </div>
 
+        {/* Box pack breakdown — pieces per box + per-piece price, mirrors product page */}
+        {product.boxPackQty && product.boxPackQty > 1 && product.unitPrice != null && (
+          <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] mb-1 sm:mb-2">
+            {formatPrice(product.unitPrice)} / pc · {product.boxPackQty} pcs per box
+          </p>
+        )}
+
         {/* Title */}
         <h3 className="text-[13px] sm:text-sm font-medium text-[var(--text-primary)] leading-snug line-clamp-2 mb-2 sm:mb-3 group-hover:text-[var(--amber-dark)] transition-colors">
           {product.name}
@@ -929,19 +993,32 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
 
         {/* MOQ / minimum order amount */}
         <div className="text-[11px] sm:text-xs text-[var(--text-tertiary)] mb-2 sm:mb-4">
-          {product.minOrderAmount ? (
-            product.minOrderGroupedBy === "shipping_group" ? (
-              <Tooltip content="This minimum is combined across every product you order from this region's suppliers — not per item.">
-                <span tabIndex={0} className="cursor-help">
-                  Min. order: USD {product.minOrderAmount.toLocaleString()} (region combined)
-                </span>
-              </Tooltip>
-            ) : (
-              <span>Min. order: USD {product.minOrderAmount.toLocaleString()}</span>
-            )
-          ) : (
-            <span>MOQ: {product.moq.toLocaleString()} {product.unit}</span>
-          )}
+          {(() => {
+            const isSupplierPool =
+              product.poolingType === "supplier" || product.poolingType === "supplier_group";
+            const isGroupage =
+              product.poolingType === "country" || product.poolingType === "custom";
+            // The minimum shown: the product's own, else the group's combined one.
+            const minAmount = product.minOrderAmount ?? product.groupMinOrderAmount;
+
+            if (minAmount && (product.minOrderGroupedBy === "shipping_group" || isSupplierPool || isGroupage)) {
+              const label = isSupplierPool ? "supplier combined" : "group combined";
+              const tooltip = isSupplierPool
+                ? "One combined minimum across this supplier's products — mix any of their items to reach it."
+                : "This minimum is combined across every product you order from this region's suppliers — not per item.";
+              return (
+                <Tooltip content={tooltip}>
+                  <span tabIndex={0} className="cursor-help">
+                    Min. order: USD {minAmount.toLocaleString()} ({label})
+                  </span>
+                </Tooltip>
+              );
+            }
+            if (product.minOrderAmount) {
+              return <span>Min. order: USD {product.minOrderAmount.toLocaleString()}</span>;
+            }
+            return <span>MOQ: {product.moq.toLocaleString()} {product.unit}</span>;
+          })()}
         </div>
 
         {/* Origin + shipping label */}
@@ -990,6 +1067,78 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
 }
 
 /* ============================================================
+   MOA RULES BANNER — always visible; copy adapts to the active region.
+   Data-driven from products_pooling_info so it never contradicts the DB.
+   ============================================================ */
+function MoaBanner({
+  rules,
+  activeCountry,
+}: {
+  rules: Record<string, RegionPoolingRule[]>;
+  activeCountry: string | null;
+}) {
+  const t = useTranslations("marketing.marketplace");
+  const fmtAmount = (n: number | null) =>
+    n != null ? `USD ${n.toLocaleString()}` : t("moaAmountFallback");
+  const isSupplierPool = (type: string) => type === "supplier" || type === "supplier_group";
+  const regionRules = activeCountry ? rules[activeCountry] ?? [] : [];
+
+  return (
+    <div
+      role="note"
+      className="mb-6 flex items-start gap-3 rounded-xl border border-[var(--amber)]/30 bg-[var(--amber)]/8 px-4 py-3"
+    >
+      <Info className="w-4 h-4 mt-0.5 shrink-0 text-[var(--amber-dark)]" aria-hidden />
+      <div className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-secondary)]">
+        <span className="font-semibold text-[var(--text-primary)]">{t("moaBannerTitle")}</span>{" "}
+        {activeCountry ? (
+          regionRules.length > 0 ? (
+            regionRules.map((r) => (
+              <span key={r.poolingType}>
+                {isSupplierPool(r.poolingType)
+                  ? t("moaBannerSupplier", {
+                      region: regionMeta(activeCountry).label,
+                      amount: fmtAmount(r.minAmount),
+                    })
+                  : t("moaBannerGroupage", {
+                      region: regionMeta(activeCountry).label,
+                      amount: fmtAmount(r.minAmount),
+                    })}{" "}
+              </span>
+            ))
+          ) : (
+            t("moaBannerPerItem", { region: regionMeta(activeCountry).label })
+          )
+        ) : (
+          <>
+            {t("moaBannerAll")}
+            {Object.keys(rules).length > 0 && (
+              <span className="mt-1.5 flex flex-wrap gap-1.5">
+                {Object.entries(rules).map(([code, rs]) =>
+                  rs.map((r) => {
+                    const meta = regionMeta(code);
+                    return (
+                      <span
+                        key={`${code}-${r.poolingType}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-[var(--amber)]/25 bg-[var(--surface-primary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]"
+                      >
+                        <span aria-hidden>{meta.flag}</span>
+                        {meta.label} · {fmtAmount(r.minAmount)}{" "}
+                        {isSupplierPool(r.poolingType) ? t("moaChipSupplier") : t("moaChipGroupage")}
+                      </span>
+                    );
+                  })
+                )}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    PAGE
    ============================================================ */
 export function MarketplaceClient({
@@ -1000,6 +1149,8 @@ export function MarketplaceClient({
   topCategories = [],
   subcategoriesByParent = {},
   totalProductCount,
+  poolingRules = {},
+  groupFacets = {},
 }: {
   initialProducts?: MarketplaceProduct[];
   subcategories?: MarketplaceSubcategory[];
@@ -1008,6 +1159,8 @@ export function MarketplaceClient({
   topCategories?: MarketplaceTopCategory[];
   subcategoriesByParent?: Record<string, MarketplaceSubcategory[]>;
   totalProductCount?: number;
+  poolingRules?: Record<string, RegionPoolingRule[]>;
+  groupFacets?: Record<string, ShippingGroupFacet[]>;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -1021,6 +1174,7 @@ export function MarketplaceClient({
   const subSlug = searchParams.get("sub");
   const countryParam = searchParams.get("country");
   const activeCountry = MARKETPLACE_COUNTRIES.find((c) => c === countryParam) ?? null;
+  const activeGroupId = searchParams.get("group");
   const activeCategory = CATEGORIES.find((c) => c.slug === categorySlug) ?? null;
   const activeCategoryLabel = activeCategory ? t(activeCategory.key) : "";
   const totalCountryCount = MARKETPLACE_COUNTRIES.reduce(
@@ -1032,6 +1186,17 @@ export function MarketplaceClient({
     const params = new URLSearchParams(searchParams.toString());
     if (code) params.set("country", code);
     else params.delete("country");
+    // A shipping group belongs to one region — switching region clears it.
+    params.delete("group");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
+
+  const groupHrefFor = (country: string, groupId: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("country", country);
+    if (groupId) params.set("group", groupId);
+    else params.delete("group");
     const qs = params.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
@@ -1173,6 +1338,7 @@ export function MarketplaceClient({
 
         {/* Content */}
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
+          <MoaBanner rules={poolingRules} activeCountry={activeCountry} />
           <div className="flex gap-8">
             {/* Sidebar */}
             <FilterSidebar
@@ -1186,6 +1352,9 @@ export function MarketplaceClient({
               countryFacets={countryFacets}
               activeCountry={activeCountry}
               countryHrefFor={countryHrefFor}
+              groupFacets={groupFacets}
+              activeGroupId={activeGroupId}
+              groupHrefFor={groupHrefFor}
             />
 
             {/* Main content */}

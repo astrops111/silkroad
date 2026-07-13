@@ -1,4 +1,4 @@
-import { searchProducts, getCountryFacets, getBrandFacets } from "@/lib/queries/marketplace";
+import { searchProducts, getCountryFacets, getBrandFacets, getPoolingInfoByProductIds, getPoolingRulesByCountry, getShippingGroupFacets } from "@/lib/queries/marketplace";
 import {
   getTopLevelCategoriesWithCount,
   getCategories,
@@ -53,12 +53,16 @@ export const MARKETPLACE_DEFAULT_PAGE_SIZE = 50;
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; country?: string; brand?: string; limit?: string }>;
+  searchParams: Promise<{ category?: string; country?: string; brand?: string; limit?: string; group?: string }>;
 }) {
   const sp = await searchParams;
   const activeCategorySlug = sp.category ?? null;
   const activeCountry = isMarketplaceCountry(sp.country) ? sp.country.toUpperCase() : null;
   const activeBrands = sp.brand ? sp.brand.split(",").filter(Boolean) : undefined;
+  const activeGroupId =
+    sp.group && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sp.group)
+      ? sp.group
+      : null;
   const requestedLimit = Number(sp.limit);
   const pageSize = MARKETPLACE_PAGE_SIZES.includes(requestedLimit as (typeof MARKETPLACE_PAGE_SIZES)[number])
     ? requestedLimit
@@ -68,11 +72,13 @@ export default async function MarketplacePage({
   let subcategories: MarketplaceSubcategory[] = [];
   let categoryIds: string[] | undefined;
   let totalProductCount: number | undefined;
-  const [countryFacets, brandFacets, allTopCategories, allCategories] = await Promise.all([
+  const [countryFacets, brandFacets, allTopCategories, allCategories, poolingRules, groupFacets] = await Promise.all([
     getCountryFacets(),
     getBrandFacets(),
     getTopLevelCategoriesWithCount(),
     getCategories(),
+    getPoolingRulesByCountry(),
+    getShippingGroupFacets(),
   ]);
   const topCategories = MARKETPLACE_CATEGORY_SLUGS.map((slug) =>
     allTopCategories.find((c) => c.slug === slug)
@@ -123,11 +129,14 @@ export default async function MarketplacePage({
       categoryIds,
       originCountries: activeCountry ? [activeCountry] : undefined,
       brands: activeBrands,
-      sort: "newest",
+      shippingGroupId: activeGroupId ?? undefined,
+      sort: "name",
       limit: pageSize,
     });
     totalProductCount = result.total;
+    const poolingById = await getPoolingInfoByProductIds(result.products.map((p) => p.id));
     products = result.products.map((p) => {
+      const pooling = poolingById[p.id];
       // Suppliers selling by the box (carton) — box_pack_qty > 1 — quote and
       // sell per box, not per piece; mirrors the product detail page's logic.
       const boxPackQty = p.box_pack_qty ?? 1;
@@ -143,12 +152,16 @@ export default async function MarketplacePage({
         price: boxPackQty > 1 ? unitPrice * boxPackQty : unitPrice,
         moq: boxPackQty > 1 ? Math.max(1, Math.round((p.moq ?? 1) / boxPackQty)) : p.moq ?? 1,
         unit: boxPackQty > 1 ? "Box" : "Piece",
+        boxPackQty: boxPackQty > 1 ? boxPackQty : undefined,
+        unitPrice,
         rating: 4.5,
         reviews: 0,
         responseTime: "< 24h",
         leadTimeDays: p.lead_time_days ?? null,
         minOrderAmount: p.min_order_amount != null ? p.min_order_amount / 100 : null,
         minOrderGroupedBy: p.min_order_grouped_by ?? null,
+        poolingType: pooling?.pooling_group_type ?? null,
+        groupMinOrderAmount: pooling?.group_min_order_amount ?? null,
         variantCount: p.product_variants?.length ?? 0,
         image:
           p.product_images?.[0]?.url ??
@@ -173,6 +186,8 @@ export default async function MarketplacePage({
         topCategories={topCategories}
         subcategoriesByParent={subcategoriesByParent}
         totalProductCount={totalProductCount}
+        poolingRules={poolingRules}
+        groupFacets={groupFacets}
       />
       <RecommendationRail title="Recommended for you" forMe />
       <ShoppingAssistantWidget />

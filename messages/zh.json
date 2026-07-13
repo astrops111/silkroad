@@ -71,7 +71,7 @@
       "africaToChina": "非洲 → 世界"
     },
     "trust": {
-      "verifiedSuppliers": "认证供应商",
+      "products": "产品",
       "annualGmv": "年度交易额",
       "africanCountries": "非洲国家",
       "satisfactionRate": "满意度",
@@ -83,8 +83,8 @@
     "products": {
       "hero": {
         "badge": "产品门户 · 世界 → 非洲",
-        "headline": "对接全球 12,000 家认证工厂",
-        "tagline": "电子、机械、纺织、建筑——直接对接工厂，最低起订量低至 10 件，覆盖 27 个非洲国家的门到门物流。",
+        "headline": "甄选您熟悉信赖的全球优质品牌",
+        "tagline": "电子、机械、纺织、建筑——甄选全球认证供应商，最低起订量低至 10 件，覆盖 27 个非洲国家的门到门物流。",
         "browseCta": "浏览产品",
         "switchCta": "或从非洲出口",
         "slide2": {
@@ -111,7 +111,7 @@
       },
       "rfqBox": {
         "eyebrow": "买家专享",
-        "headline": "提交一份询价单，24 小时内获得 5+ 供应商报价。",
+        "headline": "提交一份询价单，获取到岸终价及专家采购建议。",
         "cta": "发起询价"
       },
       "importRegion": {
@@ -298,6 +298,14 @@
       "clear": "清除",
       "countryHeading": "地区",
       "countryAll": "全部地区",
+      "moaBannerTitle": "最低起订说明：",
+      "moaBannerAll": "大多数商品按单品 MOQ 起订。部分商品可合并计入同一最低订购额（MOA）——同一供应商的商品合并计算，或同一地区多供应商拼柜（groupage）配送。请留意商品卡上的\"supplier combined\"或\"group combined\"标签。",
+      "moaBannerSupplier": "{region}标有\"supplier combined\"的商品合并计入同一最低订购额 {amount}——可任意混搭该供应商的商品凑单，其余商品按单品 MOQ 起订。",
+      "moaBannerGroupage": "{region}标有\"group combined\"的商品拼柜发运（groupage）——最低 {amount} 由该地区多个供应商的商品合并达成，其余商品按单品 MOQ 起订。",
+      "moaBannerPerItem": "{region}商品按单品最低起订量（MOQ）——详见各商品卡。",
+      "moaAmountFallback": "合并最低额",
+      "moaChipSupplier": "供应商 MOA",
+      "moaChipGroupage": "拼柜",
       "categoryAll": "全部分类",
       "categoryHome": "家居",
       "categoryHotels": "酒店",
@@ -323,7 +331,7 @@
       "subtitle": "从发现到交付，丝路为你处理世界与非洲之间贸易的所有复杂流程，让你专注于业务增长。",
       "directionsEyebrow": "双向贸易",
       "directionsTitle": "丝路上流动的贸易",
-      "flowChinaTitle": "对接全球 12,000+ 家认证工厂",
+      "flowChinaTitle": "甄选全球优质品牌，认证供应商遍布全球",
       "flowChinaTag": "工业制成品",
       "flowChinaDesc": "电子、机械、纺织、建材、汽车零部件——直接对接厂家，最低起订量低至 10 件。",
       "flowChinaCta": "浏览产品",
@@ -389,7 +397,7 @@
       "pillar4Body": "对平台上每位供应商和进口商进行 KYC 认证、工厂检查、营业执照核验。",
       "socialProofEyebrow": "受到两片大陆企业的信赖",
       "stat1Label": "贸易额",
-      "stat2Label": "认证供应商",
+      "stat2Label": "产品",
       "stat3Label": "非洲国家",
       "stat4Label": "满意度",
       "ctaTitle": "开始跨洲贸易",

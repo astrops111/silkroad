@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Loader2, Layers, Plus, Pencil, Trash2, RefreshCw, Package } from "lucide-react";
+import { Loader2, Layers, Plus, Pencil, Trash2, RefreshCw, Package, Boxes } from "lucide-react";
 import { toast } from "sonner";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
@@ -85,6 +85,9 @@ export default function ShippingGroupsPage() {
           <button onClick={fetchGroups} className="btn-outline !py-2 !px-4 !text-sm flex items-center gap-2">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
+          <Link href="/admin/shipping-groups/clusters" className="btn-outline !py-2 !px-4 !text-sm flex items-center gap-2">
+            <Boxes className="w-4 h-4" /> Discover Clusters
+          </Link>
           <Link href="/admin/shipping-groups/new" className="btn-primary !py-2 !px-4 !text-sm flex items-center gap-2">
             <Plus className="w-4 h-4" /> New Group
           </Link>

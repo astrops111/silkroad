@@ -13,9 +13,147 @@ interface SearchFilters {
   priceMax?: number;
   moqMax?: number;
   brands?: string[];
-  sort?: "newest" | "price_asc" | "price_desc" | "popular";
+  /** Restrict to one shipping group (MOA pool / groupage batch). Bypasses the
+   *  origin RPC path — the group already pins the origin. */
+  shippingGroupId?: string;
+  sort?: "newest" | "price_asc" | "price_desc" | "popular" | "name";
   page?: number;
   limit?: number;
+}
+
+export type ProductPoolingInfo = {
+  pooling_group_type: string | null;
+  group_moq: number | null;
+  group_min_order_amount: number | null; // USD dollars (psg.min_order_amount)
+  group_country_code: string | null;
+};
+
+/**
+ * How each product's minimum order pools, keyed by product id.
+ * Backed by the buyer-safe products_pooling_info view (00109) — group type
+ * 'supplier'/'supplier_group' means one MOA across the supplier's listing;
+ * 'country'/'custom' means groupage combined across suppliers.
+ */
+export async function getPoolingInfoByProductIds(
+  productIds: string[]
+): Promise<Record<string, ProductPoolingInfo>> {
+  if (productIds.length === 0) return {};
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products_pooling_info")
+    .select("id, pooling_group_type, group_moq, group_min_order_amount, group_country_code")
+    .in("id", productIds);
+  if (error) {
+    console.error("[marketplace] pooling info failed:", error);
+    return {};
+  }
+  const map: Record<string, ProductPoolingInfo> = {};
+  for (const r of data ?? []) {
+    if (r.id) map[r.id] = r;
+  }
+  return map;
+}
+
+export type RegionPoolingRule = {
+  poolingType: string; // 'supplier'|'supplier_group'|'country'|'custom'
+  minAmount: number | null; // USD dollars
+  products: number;
+};
+
+/**
+ * Region-level MOA/groupage rules for the marketplace banner: for each origin
+ * country that anchors an active shipping group, the pooling models in play
+ * and their combined minimums. Aggregated from products_pooling_info.
+ */
+export async function getPoolingRulesByCountry(): Promise<Record<string, RegionPoolingRule[]>> {
+  const supabase = await createClient();
+  const rows = await fetchAllRows<{
+    pooling_group_type: string | null;
+    group_min_order_amount: number | null;
+    group_country_code: string | null;
+  }>((from, to) =>
+    supabase
+      .from("products_pooling_info")
+      .select("pooling_group_type, group_min_order_amount, group_country_code")
+      .range(from, to)
+  );
+
+  const byKey = new Map<string, { country: string } & RegionPoolingRule>();
+  for (const r of rows) {
+    if (!r.group_country_code || !r.pooling_group_type) continue;
+    const key = `${r.group_country_code}::${r.pooling_group_type}`;
+    let agg = byKey.get(key);
+    if (!agg) {
+      agg = { country: r.group_country_code, poolingType: r.pooling_group_type, minAmount: null, products: 0 };
+      byKey.set(key, agg);
+    }
+    agg.products++;
+    if (r.group_min_order_amount != null) {
+      agg.minAmount = Math.max(agg.minAmount ?? 0, r.group_min_order_amount);
+    }
+  }
+
+  const out: Record<string, RegionPoolingRule[]> = {};
+  for (const a of byKey.values()) {
+    (out[a.country] ??= []).push({ poolingType: a.poolingType, minAmount: a.minAmount, products: a.products });
+  }
+  return out;
+}
+
+export type ShippingGroupFacet = {
+  id: string;
+  name: string;
+  poolingType: string;
+  minAmount: number | null; // USD dollars
+  products: number;
+};
+
+/**
+ * Active shipping groups (MOA pools / groupage batches) per origin country,
+ * for the marketplace sidebar's region sub-filters. Group names are
+ * admin-chosen labels exposed via products_pooling_info (00110).
+ */
+export async function getShippingGroupFacets(): Promise<Record<string, ShippingGroupFacet[]>> {
+  const supabase = await createClient();
+  const rows = await fetchAllRows<{
+    pooling_group_type: string | null;
+    group_min_order_amount: number | null;
+    group_country_code: string | null;
+    group_id: string | null;
+    group_name: string | null;
+  }>((from, to) =>
+    supabase
+      .from("products_pooling_info")
+      .select("pooling_group_type, group_min_order_amount, group_country_code, group_id, group_name")
+      .range(from, to)
+  );
+
+  const byId = new Map<string, { country: string } & ShippingGroupFacet>();
+  for (const r of rows) {
+    if (!r.group_id || !r.group_country_code) continue;
+    let agg = byId.get(r.group_id);
+    if (!agg) {
+      agg = {
+        country: r.group_country_code,
+        id: r.group_id,
+        name: r.group_name ?? "Group",
+        poolingType: r.pooling_group_type ?? "custom",
+        minAmount: r.group_min_order_amount,
+        products: 0,
+      };
+      byId.set(r.group_id, agg);
+    }
+    agg.products++;
+  }
+
+  const out: Record<string, ShippingGroupFacet[]> = {};
+  for (const g of byId.values()) {
+    (out[g.country] ??= []).push({
+      id: g.id, name: g.name, poolingType: g.poolingType, minAmount: g.minAmount, products: g.products,
+    });
+  }
+  for (const list of Object.values(out)) list.sort((a, b) => b.products - a.products);
+  return out;
 }
 
 export async function searchProducts(filters: SearchFilters = {}) {
@@ -24,7 +162,7 @@ export async function searchProducts(filters: SearchFilters = {}) {
   const limit = filters.limit ?? 20;
   const offset = (page - 1) * limit;
 
-  if (filters.originCountries && filters.originCountries.length > 0) {
+  if (!filters.shippingGroupId && filters.originCountries && filters.originCountries.length > 0) {
     return searchProductsByOrigin(filters, page, limit, offset);
   }
 
@@ -70,6 +208,10 @@ export async function searchProducts(filters: SearchFilters = {}) {
     query = query.in("brand", filters.brands);
   }
 
+  if (filters.shippingGroupId) {
+    query = query.eq("shipping_group_id", filters.shippingGroupId);
+  }
+
   // Sorting
   switch (filters.sort) {
     case "price_asc":
@@ -82,8 +224,11 @@ export async function searchProducts(filters: SearchFilters = {}) {
       query = query.order("is_featured", { ascending: false });
       break;
     case "newest":
-    default:
       query = query.order("created_at", { ascending: false });
+      break;
+    case "name":
+    default:
+      query = query.order("name", { ascending: true });
       break;
   }
 

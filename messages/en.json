@@ -71,7 +71,7 @@
       "africaToChina": "Africa → World"
     },
     "trust": {
-      "verifiedSuppliers": "Verified suppliers",
+      "products": "Products",
       "annualGmv": "Annual GMV",
       "africanCountries": "African countries",
       "satisfactionRate": "Satisfaction rate",
@@ -83,8 +83,8 @@
     "products": {
       "hero": {
         "badge": "Products Portal · World → Africa",
-        "headline": "Source from 12,000 verified factories worldwide.",
-        "tagline": "Electronics, machinery, textiles, construction — direct from the factory floor with MOQ as low as 10 units, and door-to-door logistics across 27 African countries.",
+        "headline": "Sourced from premium global brands you know and trust.",
+        "tagline": "Electronics, machinery, textiles, construction — from verified suppliers worldwide, with MOQ as low as 10 units and door-to-door logistics across 27 African countries.",
         "browseCta": "Browse products",
         "switchCta": "Or export from Africa",
         "slide2": {
@@ -111,7 +111,7 @@
       },
       "rfqBox": {
         "eyebrow": "For Buyers",
-        "headline": "Submit one RFQ. Get 5+ supplier quotes in 24 hours.",
+        "headline": "Submit one RFQ. Get final pricing on delivery and expert advice.",
         "cta": "Start an RFQ"
       },
       "importRegion": {
@@ -298,6 +298,14 @@
       "clear": "Clear",
       "countryHeading": "Region",
       "countryAll": "All Regions",
+      "moaBannerTitle": "How minimums work:",
+      "moaBannerAll": "Most products have a per-item MOQ. Some pool toward one combined minimum order amount (MOA) instead — across a single supplier's listing, or via shared groupage delivery across a region. Look for the \"supplier combined\" or \"group combined\" label on product cards.",
+      "moaBannerSupplier": "{region} products marked \"supplier combined\" count toward one minimum order of {amount} — mix any of that supplier's items to reach it. Everything else uses its per-item MOQ.",
+      "moaBannerGroupage": "{region} products marked \"group combined\" ship consolidated (groupage) — the {amount} minimum is combined across suppliers from this region. Everything else uses its per-item MOQ.",
+      "moaBannerPerItem": "{region} products use per-item minimums — see the MOQ on each product card.",
+      "moaAmountFallback": "a combined minimum",
+      "moaChipSupplier": "supplier MOA",
+      "moaChipGroupage": "groupage",
       "categoryAll": "All Categories",
       "categoryHome": "Home",
       "categoryHotels": "Hotels",
@@ -323,7 +331,7 @@
       "subtitle": "From discovery to delivery, Silk Road Africa handles the complexity of world–Africa trade so you can focus on growing your business.",
       "directionsEyebrow": "Bidirectional Commerce",
       "directionsTitle": "What flows through Silk Road Africa",
-      "flowChinaTitle": "Source from 12,000+ verified factories worldwide",
+      "flowChinaTitle": "Sourced from premium global brands, verified suppliers worldwide",
       "flowChinaTag": "Manufactured Goods",
       "flowChinaDesc": "Electronics, machinery, textiles, construction materials, auto parts — direct from manufacturers with MOQ as low as 10 units.",
       "flowChinaCta": "Browse Products",
@@ -389,7 +397,7 @@
       "pillar4Body": "KYC verification, factory inspections, and business license validation for every supplier and importer on the platform.",
       "socialProofEyebrow": "Trusted by Businesses Across Two Continents",
       "stat1Label": "Trade Volume",
-      "stat2Label": "Verified Suppliers",
+      "stat2Label": "Products",
       "stat3Label": "African Countries",
       "stat4Label": "Satisfaction Rate",
       "ctaTitle": "Start trading across continents",

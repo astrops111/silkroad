@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getProductWithSupplier } from "@/lib/queries/products";
+import { getPoolingInfoByProductIds } from "@/lib/queries/marketplace";
 import { volumeCbmFromDimensions } from "@/lib/logistics/rates/config";
 import ProductDetailClient from "./product-detail-client";
 import { RecommendationRail } from "@/components/ai/recommendation-rail";
@@ -52,6 +53,8 @@ export default async function ProductDetailPage({
   }));
 
   const volumeCbm = volumeCbmFromDimensions(product.dimensions_cm) ?? null;
+
+  const pooling = (await getPoolingInfoByProductIds([product.id]))[product.id] ?? null;
 
   // Amazon-style size/pack variants — each falls back to the parent
   // product's price/MOQ/box pack/barcode/images when it doesn't override them.
@@ -113,6 +116,13 @@ export default async function ProductDetailPage({
         warnings: product.warnings ?? null,
         sampleAvailable: product.sample_available ?? false,
         samplePrice: product.sample_price != null ? product.sample_price / 100 : null,
+        minOrderAmount: product.min_order_amount != null ? product.min_order_amount / 100 : null,
+        minOrderGroupedBy: product.min_order_grouped_by ?? null,
+        poolingType: pooling?.pooling_group_type ?? null,
+        groupMinOrderAmount: pooling?.group_min_order_amount ?? null,
+        labels: (product.product_labels ?? [])
+          .map((pl) => pl.labels?.name)
+          .filter((n): n is string => Boolean(n)),
       }}
       category={
         product.categories
