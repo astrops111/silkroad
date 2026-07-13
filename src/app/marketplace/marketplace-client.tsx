@@ -792,9 +792,12 @@ function FilterSidebar({
                                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                               }`}
                             >
-                              <span className="inline-flex items-center gap-1.5 min-w-0">
+                              <span className="inline-flex flex-wrap items-center gap-1.5 min-w-0">
                                 <Package className="w-3 h-3 shrink-0" aria-hidden />
-                                <span className="truncate">{g.name}</span>
+                                {/* Anonymous region ID, not g.name — long text wraps to a second line */}
+                                <span className="line-clamp-2 break-words font-mono text-[12px]">
+                                  {groupDisplayLabel(code, g.id)}
+                                </span>
                                 <span className="shrink-0 rounded-full bg-[var(--amber)]/10 px-1.5 py-px text-[10px] font-medium text-[var(--amber-dark)]">
                                   {isSupplierPool ? t("moaChipSupplier") : t("moaChipGroupage")}
                                 </span>
@@ -1064,6 +1067,24 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
       </div>
     </Link>
   );
+}
+
+/* ============================================================
+   SHIPPING GROUP DISPLAY LABEL — buyers see an anonymous region-based
+   ID (e.g. "SK-FB96"), never the admin-chosen group name, which could
+   hint at the supplier. Prefix is the colloquial region abbreviation;
+   suffix is a stable fragment of the group uuid.
+   ============================================================ */
+const REGION_GROUP_PREFIX: Record<string, string> = {
+  KR: "SK", // South Korea
+  CN: "CN",
+  JP: "JP",
+  TW: "TW",
+};
+
+function groupDisplayLabel(country: string, groupId: string): string {
+  const prefix = REGION_GROUP_PREFIX[country] ?? country;
+  return `${prefix}-${groupId.slice(0, 4).toUpperCase()}`;
 }
 
 /* ============================================================

@@ -102,7 +102,6 @@ export async function getPoolingRulesByCountry(): Promise<Record<string, RegionP
 
 export type ShippingGroupFacet = {
   id: string;
-  name: string;
   poolingType: string;
   minAmount: number | null; // USD dollars
   products: number;
@@ -110,8 +109,9 @@ export type ShippingGroupFacet = {
 
 /**
  * Active shipping groups (MOA pools / groupage batches) per origin country,
- * for the marketplace sidebar's region sub-filters. Group names are
- * admin-chosen labels exposed via products_pooling_info (00110).
+ * for the marketplace sidebar's region sub-filters. Deliberately excludes the
+ * admin-chosen group name — buyers see an anonymous region-based ID computed
+ * client-side from the group uuid.
  */
 export async function getShippingGroupFacets(): Promise<Record<string, ShippingGroupFacet[]>> {
   const supabase = await createClient();
@@ -120,11 +120,10 @@ export async function getShippingGroupFacets(): Promise<Record<string, ShippingG
     group_min_order_amount: number | null;
     group_country_code: string | null;
     group_id: string | null;
-    group_name: string | null;
   }>((from, to) =>
     supabase
       .from("products_pooling_info")
-      .select("pooling_group_type, group_min_order_amount, group_country_code, group_id, group_name")
+      .select("pooling_group_type, group_min_order_amount, group_country_code, group_id")
       .range(from, to)
   );
 
@@ -136,7 +135,6 @@ export async function getShippingGroupFacets(): Promise<Record<string, ShippingG
       agg = {
         country: r.group_country_code,
         id: r.group_id,
-        name: r.group_name ?? "Group",
         poolingType: r.pooling_group_type ?? "custom",
         minAmount: r.group_min_order_amount,
         products: 0,
@@ -149,7 +147,7 @@ export async function getShippingGroupFacets(): Promise<Record<string, ShippingG
   const out: Record<string, ShippingGroupFacet[]> = {};
   for (const g of byId.values()) {
     (out[g.country] ??= []).push({
-      id: g.id, name: g.name, poolingType: g.poolingType, minAmount: g.minAmount, products: g.products,
+      id: g.id, poolingType: g.poolingType, minAmount: g.minAmount, products: g.products,
     });
   }
   for (const list of Object.values(out)) list.sort((a, b) => b.products - a.products);
