@@ -297,7 +297,7 @@ function SubcategoryGrid({
       <Link
         key={`${sub.id}-${keySuffix}`}
         href={hrefFor(active ? null : sub.slug)}
-        scroll={false}
+        scroll={false} prefetch={false}
         draggable={false}
         aria-pressed={active}
         aria-hidden={duplicate || undefined}
@@ -436,7 +436,7 @@ function TopCategoryTicker({
       <Link
         key={`${cat.slug}-${keySuffix}`}
         href={`/marketplace?category=${cat.slug}`}
-        scroll={false}
+        scroll={false} prefetch={false}
         draggable={false}
         aria-hidden={duplicate || undefined}
         tabIndex={duplicate ? -1 : undefined}
@@ -674,7 +674,7 @@ function FilterSidebar({
                       <Link
                         href={buildHref(cat.slug)}
                         onClick={onClose}
-                        scroll={false}
+                        scroll={false} prefetch={false}
                         className="flex-1 flex items-center justify-between px-3 py-2.5 text-sm min-w-0"
                       >
                         <span className="truncate">{t(cat.key)}</span>
@@ -707,7 +707,7 @@ function FilterSidebar({
                               key={sub.id}
                               href={buildSubHref(cat.slug as string, sub.slug)}
                               onClick={onClose}
-                              scroll={false}
+                              scroll={false} prefetch={false}
                               className={`block px-3 py-1.5 text-[13px] rounded-lg transition-colors truncate ${
                                 subActive
                                   ? "text-[var(--amber-dark)] font-semibold"
@@ -735,7 +735,7 @@ function FilterSidebar({
               <Link
                 href={countryHrefFor(null)}
                 onClick={onClose}
-                scroll={false}
+                scroll={false} prefetch={false}
                 className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
                   !activeCountry
                     ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
@@ -756,7 +756,7 @@ function FilterSidebar({
                     <Link
                       href={countryHrefFor(code)}
                       onClick={onClose}
-                      scroll={false}
+                      scroll={false} prefetch={false}
                       className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
                         isActive
                           ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
@@ -780,7 +780,7 @@ function FilterSidebar({
                               key={g.id}
                               href={groupHrefFor(code, gActive ? null : g.id)}
                               onClick={onClose}
-                              scroll={false}
+                              scroll={false} prefetch={false}
                               title={
                                 g.minAmount != null
                                   ? `${isSupplierPool ? t("moaChipSupplier") : t("moaChipGroupage")} · USD ${g.minAmount.toLocaleString()}`
@@ -847,7 +847,7 @@ function FilterSidebar({
                     <Link
                       key={brand}
                       href={buildBrandHref(brand)}
-                      scroll={false}
+                      scroll={false} prefetch={false}
                       className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] transition-colors"
                     >
                       <div
@@ -1274,7 +1274,7 @@ export function MarketplaceClient({
             </span>
             <Link
               href={countryHrefFor(null)}
-              scroll={false}
+              scroll={false} prefetch={false}
               className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 !activeCountry
                   ? "bg-[var(--amber)] text-[var(--obsidian)]"
@@ -1291,7 +1291,7 @@ export function MarketplaceClient({
                 <Link
                   key={code}
                   href={countryHrefFor(code)}
-                  scroll={false}
+                  scroll={false} prefetch={false}
                   className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                     active
                       ? "bg-[var(--amber)] text-[var(--obsidian)]"

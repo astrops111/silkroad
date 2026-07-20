@@ -32,6 +32,12 @@ import { getCountryFacets, searchProducts } from "@/lib/queries/marketplace";
 import { regionMeta } from "@/lib/product-labels";
 import { applyMarkup } from "@/lib/pricing";
 
+// Renders live catalog data (categories, facets, featured products) through the
+// cookieless cached queries. Force dynamic so this page is never prerendered at
+// build time — the Docker build image has no SUPABASE_SERVICE_ROLE_KEY, and the
+// page was already request-time only before those queries were cached.
+export const dynamic = "force-dynamic";
+
 /* ============================================================
    HERO — Products portal (China → Africa, rotating carousel)
    ============================================================ */

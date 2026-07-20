@@ -1,8 +1,21 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
 import type { ProductWithDetails } from "./products";
 import { MARKETPLACE_COUNTRIES, isMarketplaceCountry } from "@/lib/countries";
+
+// ─── Caching ────────────────────────────────────────────────────────────────
+// The marketplace page renders the same global facet/category queries on every
+// request, and its faceted filter URLs (?brand=, ?group=, ?country=) are heavily
+// crawled — each render otherwise re-runs full-table scans against Supabase.
+// These read only the public approved+active catalog, so they are wrapped in
+// unstable_cache and use the cookieless service client (unstable_cache callbacks
+// cannot touch request cookies). Revalidate windows are short; a future admin
+// mutation can revalidateTag("catalog") to flush immediately.
+const CATALOG_TAG = "catalog";
+const FACET_TTL = 300; // seconds — global facets/categories
+const LISTING_TTL = 120; // seconds — parameterized product listings
 
 interface SearchFilters {
   category?: string;
@@ -28,6 +41,27 @@ export type ProductPoolingInfo = {
   group_country_code: string | null;
 };
 
+const getPoolingInfoByProductIdsCached = unstable_cache(
+  async (productIds: string[]): Promise<Record<string, ProductPoolingInfo>> => {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("products_pooling_info")
+      .select("id, pooling_group_type, group_moq, group_min_order_amount, group_country_code")
+      .in("id", productIds);
+    if (error) {
+      console.error("[marketplace] pooling info failed:", error);
+      return {};
+    }
+    const map: Record<string, ProductPoolingInfo> = {};
+    for (const r of data ?? []) {
+      if (r.id) map[r.id] = r;
+    }
+    return map;
+  },
+  ["marketplace-pooling-by-ids"],
+  { revalidate: LISTING_TTL, tags: [CATALOG_TAG] }
+);
+
 /**
  * How each product's minimum order pools, keyed by product id.
  * Backed by the buyer-safe products_pooling_info view (00109) — group type
@@ -38,20 +72,7 @@ export async function getPoolingInfoByProductIds(
   productIds: string[]
 ): Promise<Record<string, ProductPoolingInfo>> {
   if (productIds.length === 0) return {};
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products_pooling_info")
-    .select("id, pooling_group_type, group_moq, group_min_order_amount, group_country_code")
-    .in("id", productIds);
-  if (error) {
-    console.error("[marketplace] pooling info failed:", error);
-    return {};
-  }
-  const map: Record<string, ProductPoolingInfo> = {};
-  for (const r of data ?? []) {
-    if (r.id) map[r.id] = r;
-  }
-  return map;
+  return getPoolingInfoByProductIdsCached(productIds);
 }
 
 export type RegionPoolingRule = {
@@ -60,44 +81,52 @@ export type RegionPoolingRule = {
   products: number;
 };
 
+const getPoolingRulesByCountryCached = unstable_cache(
+  async (): Promise<Record<string, RegionPoolingRule[]>> => {
+    const supabase = createServiceClient();
+    const rows = await fetchAllRows<{
+      pooling_group_type: string | null;
+      group_min_order_amount: number | null;
+      group_country_code: string | null;
+    }>((from, to) =>
+      supabase
+        .from("products_pooling_info")
+        .select("pooling_group_type, group_min_order_amount, group_country_code")
+        .range(from, to)
+    );
+
+    const byKey = new Map<string, { country: string } & RegionPoolingRule>();
+    for (const r of rows) {
+      if (!r.group_country_code || !r.pooling_group_type) continue;
+      const key = `${r.group_country_code}::${r.pooling_group_type}`;
+      let agg = byKey.get(key);
+      if (!agg) {
+        agg = { country: r.group_country_code, poolingType: r.pooling_group_type, minAmount: null, products: 0 };
+        byKey.set(key, agg);
+      }
+      agg.products++;
+      if (r.group_min_order_amount != null) {
+        agg.minAmount = Math.max(agg.minAmount ?? 0, r.group_min_order_amount);
+      }
+    }
+
+    const out: Record<string, RegionPoolingRule[]> = {};
+    for (const a of byKey.values()) {
+      (out[a.country] ??= []).push({ poolingType: a.poolingType, minAmount: a.minAmount, products: a.products });
+    }
+    return out;
+  },
+  ["marketplace-pooling-rules"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
 /**
  * Region-level MOA/groupage rules for the marketplace banner: for each origin
  * country that anchors an active shipping group, the pooling models in play
  * and their combined minimums. Aggregated from products_pooling_info.
  */
 export async function getPoolingRulesByCountry(): Promise<Record<string, RegionPoolingRule[]>> {
-  const supabase = await createClient();
-  const rows = await fetchAllRows<{
-    pooling_group_type: string | null;
-    group_min_order_amount: number | null;
-    group_country_code: string | null;
-  }>((from, to) =>
-    supabase
-      .from("products_pooling_info")
-      .select("pooling_group_type, group_min_order_amount, group_country_code")
-      .range(from, to)
-  );
-
-  const byKey = new Map<string, { country: string } & RegionPoolingRule>();
-  for (const r of rows) {
-    if (!r.group_country_code || !r.pooling_group_type) continue;
-    const key = `${r.group_country_code}::${r.pooling_group_type}`;
-    let agg = byKey.get(key);
-    if (!agg) {
-      agg = { country: r.group_country_code, poolingType: r.pooling_group_type, minAmount: null, products: 0 };
-      byKey.set(key, agg);
-    }
-    agg.products++;
-    if (r.group_min_order_amount != null) {
-      agg.minAmount = Math.max(agg.minAmount ?? 0, r.group_min_order_amount);
-    }
-  }
-
-  const out: Record<string, RegionPoolingRule[]> = {};
-  for (const a of byKey.values()) {
-    (out[a.country] ??= []).push({ poolingType: a.poolingType, minAmount: a.minAmount, products: a.products });
-  }
-  return out;
+  return getPoolingRulesByCountryCached();
 }
 
 export type ShippingGroupFacet = {
@@ -107,6 +136,51 @@ export type ShippingGroupFacet = {
   products: number;
 };
 
+const getShippingGroupFacetsCached = unstable_cache(
+  async (): Promise<Record<string, ShippingGroupFacet[]>> => {
+    const supabase = createServiceClient();
+    const rows = await fetchAllRows<{
+      pooling_group_type: string | null;
+      group_min_order_amount: number | null;
+      group_country_code: string | null;
+      group_id: string | null;
+    }>((from, to) =>
+      supabase
+        .from("products_pooling_info")
+        .select("pooling_group_type, group_min_order_amount, group_country_code, group_id")
+        .range(from, to)
+    );
+
+    const byId = new Map<string, { country: string } & ShippingGroupFacet>();
+    for (const r of rows) {
+      if (!r.group_id || !r.group_country_code) continue;
+      let agg = byId.get(r.group_id);
+      if (!agg) {
+        agg = {
+          country: r.group_country_code,
+          id: r.group_id,
+          poolingType: r.pooling_group_type ?? "custom",
+          minAmount: r.group_min_order_amount,
+          products: 0,
+        };
+        byId.set(r.group_id, agg);
+      }
+      agg.products++;
+    }
+
+    const out: Record<string, ShippingGroupFacet[]> = {};
+    for (const g of byId.values()) {
+      (out[g.country] ??= []).push({
+        id: g.id, poolingType: g.poolingType, minAmount: g.minAmount, products: g.products,
+      });
+    }
+    for (const list of Object.values(out)) list.sort((a, b) => b.products - a.products);
+    return out;
+  },
+  ["marketplace-shipping-group-facets"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
 /**
  * Active shipping groups (MOA pools / groupage batches) per origin country,
  * for the marketplace sidebar's region sub-filters. Deliberately excludes the
@@ -114,60 +188,24 @@ export type ShippingGroupFacet = {
  * client-side from the group uuid.
  */
 export async function getShippingGroupFacets(): Promise<Record<string, ShippingGroupFacet[]>> {
-  const supabase = await createClient();
-  const rows = await fetchAllRows<{
-    pooling_group_type: string | null;
-    group_min_order_amount: number | null;
-    group_country_code: string | null;
-    group_id: string | null;
-  }>((from, to) =>
-    supabase
-      .from("products_pooling_info")
-      .select("pooling_group_type, group_min_order_amount, group_country_code, group_id")
-      .range(from, to)
-  );
-
-  const byId = new Map<string, { country: string } & ShippingGroupFacet>();
-  for (const r of rows) {
-    if (!r.group_id || !r.group_country_code) continue;
-    let agg = byId.get(r.group_id);
-    if (!agg) {
-      agg = {
-        country: r.group_country_code,
-        id: r.group_id,
-        poolingType: r.pooling_group_type ?? "custom",
-        minAmount: r.group_min_order_amount,
-        products: 0,
-      };
-      byId.set(r.group_id, agg);
-    }
-    agg.products++;
-  }
-
-  const out: Record<string, ShippingGroupFacet[]> = {};
-  for (const g of byId.values()) {
-    (out[g.country] ??= []).push({
-      id: g.id, poolingType: g.poolingType, minAmount: g.minAmount, products: g.products,
-    });
-  }
-  for (const list of Object.values(out)) list.sort((a, b) => b.products - a.products);
-  return out;
+  return getShippingGroupFacetsCached();
 }
 
-export async function searchProducts(filters: SearchFilters = {}) {
-  const supabase = await createClient();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
-  const offset = (page - 1) * limit;
+const searchProductsCached = unstable_cache(
+  async (filters: SearchFilters) => {
+    const supabase = createServiceClient();
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const offset = (page - 1) * limit;
 
-  if (!filters.shippingGroupId && filters.originCountries && filters.originCountries.length > 0) {
-    return searchProductsByOrigin(filters, page, limit, offset);
-  }
+    if (!filters.shippingGroupId && filters.originCountries && filters.originCountries.length > 0) {
+      return searchProductsByOrigin(supabase, filters, page, limit, offset);
+    }
 
-  let query = supabase
-    .from("products")
-    .select(
-      `
+    let query = supabase
+      .from("products")
+      .select(
+        `
       *,
       categories (*),
       product_images (*),
@@ -175,82 +213,88 @@ export async function searchProducts(filters: SearchFilters = {}) {
       product_pricing_tiers (*),
       companies:supplier_id (id, name, slug, logo_url, verification_status, country_code)
     `,
-      { count: "exact" }
-    )
-    .eq("moderation_status", "approved")
-    .eq("is_active", true);
+        { count: "exact" }
+      )
+      .eq("moderation_status", "approved")
+      .eq("is_active", true);
 
-  if (filters.categoryIds && filters.categoryIds.length > 0) {
-    query = query.in("category_id", filters.categoryIds);
-  } else if (filters.category) {
-    query = query.eq("category_id", filters.category);
-  }
+    if (filters.categoryIds && filters.categoryIds.length > 0) {
+      query = query.in("category_id", filters.categoryIds);
+    } else if (filters.category) {
+      query = query.eq("category_id", filters.category);
+    }
 
-  if (filters.search) {
-    query = query.ilike("name", `%${filters.search}%`);
-  }
+    if (filters.search) {
+      query = query.ilike("name", `%${filters.search}%`);
+    }
 
-  if (filters.priceMin !== undefined) {
-    query = query.gte("base_price", filters.priceMin * 100);
-  }
+    if (filters.priceMin !== undefined) {
+      query = query.gte("base_price", filters.priceMin * 100);
+    }
 
-  if (filters.priceMax !== undefined) {
-    query = query.lte("base_price", filters.priceMax * 100);
-  }
+    if (filters.priceMax !== undefined) {
+      query = query.lte("base_price", filters.priceMax * 100);
+    }
 
-  if (filters.moqMax !== undefined) {
-    query = query.lte("moq", filters.moqMax);
-  }
+    if (filters.moqMax !== undefined) {
+      query = query.lte("moq", filters.moqMax);
+    }
 
-  if (filters.brands && filters.brands.length > 0) {
-    query = query.in("brand", filters.brands);
-  }
+    if (filters.brands && filters.brands.length > 0) {
+      query = query.in("brand", filters.brands);
+    }
 
-  if (filters.shippingGroupId) {
-    query = query.eq("shipping_group_id", filters.shippingGroupId);
-  }
+    if (filters.shippingGroupId) {
+      query = query.eq("shipping_group_id", filters.shippingGroupId);
+    }
 
-  // Sorting
-  switch (filters.sort) {
-    case "price_asc":
-      query = query.order("base_price", { ascending: true });
-      break;
-    case "price_desc":
-      query = query.order("base_price", { ascending: false });
-      break;
-    case "popular":
-      query = query.order("is_featured", { ascending: false });
-      break;
-    case "newest":
-      query = query.order("created_at", { ascending: false });
-      break;
-    case "name":
-    default:
-      query = query.order("name", { ascending: true });
-      break;
-  }
+    // Sorting
+    switch (filters.sort) {
+      case "price_asc":
+        query = query.order("base_price", { ascending: true });
+        break;
+      case "price_desc":
+        query = query.order("base_price", { ascending: false });
+        break;
+      case "popular":
+        query = query.order("is_featured", { ascending: false });
+        break;
+      case "newest":
+        query = query.order("created_at", { ascending: false });
+        break;
+      case "name":
+      default:
+        query = query.order("name", { ascending: true });
+        break;
+    }
 
-  query = query.range(offset, offset + limit - 1);
+    query = query.range(offset, offset + limit - 1);
 
-  const { data, count, error } = await query;
+    const { data, count, error } = await query;
 
-  return {
-    products: (data ?? []) as ProductWithDetails[],
-    total: count ?? 0,
-    totalPages: Math.ceil((count ?? 0) / limit),
-    page,
-    error: error?.message,
-  };
+    return {
+      products: (data ?? []) as ProductWithDetails[],
+      total: count ?? 0,
+      totalPages: Math.ceil((count ?? 0) / limit),
+      page,
+      error: error?.message,
+    };
+  },
+  ["marketplace-search-products"],
+  { revalidate: LISTING_TTL, tags: [CATALOG_TAG] }
+);
+
+export async function searchProducts(filters: SearchFilters = {}) {
+  return searchProductsCached(filters);
 }
 
 async function searchProductsByOrigin(
+  supabase: ReturnType<typeof createServiceClient>,
   filters: SearchFilters,
   page: number,
   limit: number,
   offset: number
 ) {
-  const supabase = await createClient();
-
   const { data: rpcData, error: rpcError } = await supabase.rpc("search_product_ids", {
     p_category_ids:
       filters.categoryIds && filters.categoryIds.length > 0
@@ -349,58 +393,74 @@ async function fetchAllRows<T>(
   return all;
 }
 
+const getCountryFacetsCached = unstable_cache(
+  async (): Promise<Record<string, number>> => {
+    const supabase = createServiceClient();
+    // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
+    // products, so both queries must be paginated or counts are silently
+    // truncated to whatever happened to be in the first page.
+    const [origins, activeProducts] = await Promise.all([
+      fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
+        supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
+      ),
+      fetchAllRows<{ id: string }>((from, to) =>
+        supabase
+          .from("products")
+          .select("id")
+          .eq("moderation_status", "approved")
+          .eq("is_active", true)
+          .range(from, to)
+      ),
+    ]);
+
+    const activeIds = new Set(activeProducts.map((p) => p.id));
+    const counts: Record<string, number> = Object.fromEntries(
+      MARKETPLACE_COUNTRIES.map((code) => [code, 0])
+    );
+
+    for (const row of origins) {
+      if (!row.id || !activeIds.has(row.id)) continue;
+      if (!isMarketplaceCountry(row.resolved_country)) continue;
+      counts[row.resolved_country] = (counts[row.resolved_country] ?? 0) + 1;
+    }
+
+    return counts;
+  },
+  ["marketplace-country-facets"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
 export async function getCountryFacets(): Promise<Record<string, number>> {
-  const supabase = await createClient();
-  // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
-  // products, so both queries must be paginated or counts are silently
-  // truncated to whatever happened to be in the first page.
-  const [origins, activeProducts] = await Promise.all([
-    fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
-      supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
-    ),
-    fetchAllRows<{ id: string }>((from, to) =>
-      supabase
-        .from("products")
-        .select("id")
-        .eq("moderation_status", "approved")
-        .eq("is_active", true)
-        .range(from, to)
-    ),
-  ]);
-
-  const activeIds = new Set(activeProducts.map((p) => p.id));
-  const counts: Record<string, number> = Object.fromEntries(
-    MARKETPLACE_COUNTRIES.map((code) => [code, 0])
-  );
-
-  for (const row of origins) {
-    if (!row.id || !activeIds.has(row.id)) continue;
-    if (!isMarketplaceCountry(row.resolved_country)) continue;
-    counts[row.resolved_country] = (counts[row.resolved_country] ?? 0) + 1;
-  }
-
-  return counts;
+  return getCountryFacetsCached();
 }
 
-export async function getBrandFacets(): Promise<Record<string, number>> {
-  const supabase = await createClient();
-  const rows = await fetchAllRows<{ brand: string | null }>((from, to) =>
-    supabase
-      .from("products")
-      .select("brand")
-      .eq("moderation_status", "approved")
-      .eq("is_active", true)
-      .not("brand", "is", null)
-      .range(from, to)
-  );
+const getBrandFacetsCached = unstable_cache(
+  async (): Promise<Record<string, number>> => {
+    const supabase = createServiceClient();
+    const rows = await fetchAllRows<{ brand: string | null }>((from, to) =>
+      supabase
+        .from("products")
+        .select("brand")
+        .eq("moderation_status", "approved")
+        .eq("is_active", true)
+        .not("brand", "is", null)
+        .range(from, to)
+    );
 
-  const counts: Record<string, number> = {};
-  for (const row of rows) {
-    const brand = row.brand;
-    if (!brand) continue;
-    counts[brand] = (counts[brand] ?? 0) + 1;
-  }
-  return counts;
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      const brand = row.brand;
+      if (!brand) continue;
+      counts[brand] = (counts[brand] ?? 0) + 1;
+    }
+    return counts;
+  },
+  ["marketplace-brand-facets"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
+export async function getBrandFacets(): Promise<Record<string, number>> {
+  return getBrandFacetsCached();
 }
 
 export async function getFeaturedProducts(limit = 8) {

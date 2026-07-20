@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
 import type { Tables } from "@/lib/supabase/database.types";
 
 export type Category = Tables<"categories">;
@@ -8,14 +9,25 @@ export type CategoryWithChildren = Category & {
   children?: CategoryWithChildren[];
 };
 
+const getCategoriesCached = unstable_cache(
+  async (): Promise<Category[]> => {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order");
+    return data ?? [];
+  },
+  ["categories-active"],
+  { revalidate: 300, tags: ["catalog"] }
+);
+
+// Public catalog category list — read on nearly every page. Cached (300s) via
+// the cookieless service client; admin management uses the uncached
+// getAllCategoriesForAdmin / getAdminCategoryTree below.
 export async function getCategories(): Promise<Category[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order");
-  return data ?? [];
+  return getCategoriesCached();
 }
 
 export async function getCategoryTree(): Promise<CategoryWithChildren[]> {
@@ -100,28 +112,39 @@ export async function getAdminCategoryTree(): Promise<CategoryWithChildren[]> {
 }
 
 export async function getCategoryProductCounts(): Promise<Record<string, number>> {
-  const supabase = await createClient();
-  // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
-  // products, so this must be paginated or counts are silently truncated.
-  const counts: Record<string, number> = {};
-  let from = 0;
-  const PAGE = 1000;
-  for (;;) {
-    const { data } = await supabase
-      .from("products")
-      .select("category_id")
-      .not("category_id", "is", null)
-      .range(from, from + PAGE - 1);
-    if (!data || data.length === 0) break;
-    for (const row of data) {
-      const id = (row as { category_id: string | null }).category_id;
-      if (id) counts[id] = (counts[id] ?? 0) + 1;
-    }
-    if (data.length < PAGE) break;
-    from += PAGE;
-  }
-  return counts;
+  return getCategoryProductCountsCached();
 }
+
+// Full-catalog scan (category_id over 15k+ products) that previously ran on
+// every marketplace/home render — cached (300s) via the cookieless service
+// client to stop the repeated full-table egress.
+const getCategoryProductCountsCached = unstable_cache(
+  async (): Promise<Record<string, number>> => {
+    const supabase = createServiceClient();
+    // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
+    // products, so this must be paginated or counts are silently truncated.
+    const counts: Record<string, number> = {};
+    let from = 0;
+    const PAGE = 1000;
+    for (;;) {
+      const { data } = await supabase
+        .from("products")
+        .select("category_id")
+        .not("category_id", "is", null)
+        .range(from, from + PAGE - 1);
+      if (!data || data.length === 0) break;
+      for (const row of data) {
+        const id = (row as { category_id: string | null }).category_id;
+        if (id) counts[id] = (counts[id] ?? 0) + 1;
+      }
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+    return counts;
+  },
+  ["category-product-counts"],
+  { revalidate: 300, tags: ["catalog"] }
+);
 
 export type TopCategoryWithCount = Category & { productCount: number };
 

@@ -9,6 +9,8 @@ node_modules
 *.tsbuildinfo
 README.md
 _docs
+# Catalog import data artifacts — not application assets
+JCOR_*.json
 supabase/.temp
 .DS_Store
 Thumbs.db
