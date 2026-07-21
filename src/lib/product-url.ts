@@ -40,6 +40,20 @@ export function productIdPrefix(id: string): string {
   return id.slice(0, 13);
 }
 
+/** URL slug for a free-text brand name, e.g. "THE FACE SHOP" → "the-face-shop". */
+export function brandSlug(brand: string): string {
+  return (
+    brand
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "brand"
+  );
+}
+
 export interface ProductUrlInput {
   id: string;
   slug?: string | null;

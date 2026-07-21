@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { buildProductPath } from "@/lib/product-url";
+import { listBrands } from "@/lib/queries/brands";
 
 // Rendered at request time (not prerendered at build): the Docker build image
 // has no SUPABASE_SERVICE_ROLE_KEY. The internal unstable_cache (6h) keeps the
@@ -100,6 +101,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     [
       { url: `${base}/`, changeFrequency: "daily", priority: 1.0 },
       { url: `${base}/marketplace`, changeFrequency: "daily", priority: 0.9 },
+      { url: `${base}/brands`, changeFrequency: "weekly", priority: 0.7 },
       { url: `${base}/suppliers`, changeFrequency: "weekly", priority: 0.7 },
       { url: `${base}/commodities`, changeFrequency: "weekly", priority: 0.6 },
       { url: `${base}/how-it-works`, changeFrequency: "monthly", priority: 0.5 },
@@ -149,5 +151,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  return [...staticRoutes, ...productRoutes, ...supplierRoutes];
+  let brandRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const brands = await listBrands();
+    brandRoutes = brands.map((b) => ({
+      url: `${base}/brands/${b.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.5,
+    }));
+  } catch (err) {
+    console.error("[sitemap] brand list failed, skipping brand routes:", err);
+  }
+
+  return [...staticRoutes, ...productRoutes, ...supplierRoutes, ...brandRoutes];
 }
