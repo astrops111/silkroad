@@ -189,7 +189,7 @@ export default async function SupplierProducts({
                             <img
                               src={primary.url}
                               alt={primary.alt_text ?? p.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain p-0.5"
                             />
                           ) : (
                             <Package

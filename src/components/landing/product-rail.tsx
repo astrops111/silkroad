@@ -120,7 +120,7 @@ export function ProductRail({
                   alt={p.name}
                   fill
                   sizes="280px"
-                  className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  className="object-contain p-3 transition-transform duration-500 group-hover:scale-[1.04]"
                 />
                 {p.badge && (
                   <span className="absolute top-3 left-3 px-2 py-1 rounded-md text-[10px] font-bold bg-[var(--amber)] text-[var(--obsidian)] tracking-wide uppercase">

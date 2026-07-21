@@ -150,7 +150,7 @@ export default function PromotePage() {
                 <div key={promo.id} className="rounded-2xl border p-5 flex items-center gap-4" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
                   <div className="w-14 h-14 rounded-xl overflow-hidden bg-[var(--surface-secondary)] shrink-0">
                     {promo.products?.product_images?.[0]?.url ? (
-                      <img src={promo.products.product_images[0].url} alt="" className="w-full h-full object-cover" />
+                      <img src={promo.products.product_images[0].url} alt="" className="w-full h-full object-contain p-1" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Megaphone className="w-5 h-5" style={{ color: "var(--text-tertiary)" }} />

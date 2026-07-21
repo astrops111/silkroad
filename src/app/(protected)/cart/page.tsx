@@ -175,7 +175,7 @@ export default function CartPage() {
                       <img
                         src={item.imageUrl}
                         alt={item.productName}
-                        className="w-full h-full object-cover rounded-lg"
+                        className="w-full h-full object-contain p-1 rounded-lg"
                       />
                     ) : (
                       <Package className="w-6 h-6 text-[var(--text-tertiary)]" />
