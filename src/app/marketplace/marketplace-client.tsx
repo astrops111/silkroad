@@ -46,6 +46,9 @@ export interface MarketplaceTopCategory {
 
 export interface MarketplaceProduct {
   id: string;
+  /** Canonical SEO URL for the product, built server-side. Falls back to the
+   *  id URL (mock data), which 301-redirects to the canonical path. */
+  href?: string;
   name: string;
   originCountry: string | null;
   tradeTerm: string | null;
@@ -906,7 +909,7 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
 
   return (
     <Link
-      href={`/marketplace/${product.id}`}
+      href={product.href ?? `/marketplace/${product.id}`}
       className="group card-elevated flex sm:block overflow-hidden"
     >
       {/* Image area */}
@@ -922,7 +925,7 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
           <img
             src={product.image}
             alt={product.name}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
           />
         )}

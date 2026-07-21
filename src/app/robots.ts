@@ -25,7 +25,7 @@ export default function robots(): MetadataRoute.Robots {
           "/api/",
           "/admin",
           "/superadmin",
-          "/supplier",
+          "/supplier/", // protected supplier dashboard — NOT the public /suppliers pages
         ],
       },
     ],

@@ -5,6 +5,7 @@ import {
   type Category,
 } from "@/lib/queries/categories";
 import { applyMarkup } from "@/lib/pricing";
+import { buildProductPath } from "@/lib/product-url";
 import { isMarketplaceCountry } from "@/lib/countries";
 import {
   MarketplaceClient,
@@ -142,6 +143,13 @@ export default async function MarketplacePage({
       const unitPrice = applyMarkup(p.base_price / 100);
       return {
         id: p.id,
+        href: buildProductPath({
+          id: p.id,
+          slug: p.slug,
+          name: p.name,
+          origin_country: p.origin_country,
+          category_path: (p.categories as { path?: string } | null)?.path ?? null,
+        }),
         name: p.name,
         originCountry:
           p.origin_country ??

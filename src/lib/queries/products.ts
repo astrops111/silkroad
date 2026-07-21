@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { idPrefixRange } from "@/lib/product-url";
 import type { Tables } from "@/lib/supabase/database.types";
 
 export type ProductWithDetails = Tables<"products"> & {
@@ -101,4 +102,24 @@ export async function getProductWithSupplier(productId: string) {
     .single();
 
   return { product: data as ProductWithDetails | null, error: error?.message };
+}
+
+/**
+ * Resolve a full product id from the short "xxxxxxxx-xxxx" prefix carried in the
+ * SEO URL, using a UUID range scan (no assumption of unique slugs). Returns null
+ * if nothing matches or — astronomically unlikely — the prefix is ambiguous.
+ */
+export async function resolveProductIdByPrefix(prefix: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { low, high } = idPrefixRange(prefix);
+  const { data } = await supabase
+    .from("products")
+    .select("id")
+    .gte("id", low)
+    .lte("id", high)
+    .eq("is_active", true)
+    .eq("moderation_status", "approved")
+    .limit(2);
+  if (!data || data.length !== 1) return null;
+  return data[0].id as string;
 }

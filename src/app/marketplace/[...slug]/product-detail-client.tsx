@@ -299,7 +299,7 @@ export default function ProductDetailClient({
                     <img
                       src={currentImage}
                       alt={effectiveImages[selectedImage]?.altText ?? product.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain p-4"
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -339,7 +339,7 @@ export default function ProductDetailClient({
                         <img
                           src={img.url}
                           alt={img.altText}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain p-1"
                         />
                       </button>
                     ))}

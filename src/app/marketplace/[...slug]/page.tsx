@@ -1,23 +1,50 @@
-import { notFound } from "next/navigation";
-import { getProductWithSupplier } from "@/lib/queries/products";
+import { notFound, permanentRedirect } from "next/navigation";
+import { getProductWithSupplier, resolveProductIdByPrefix } from "@/lib/queries/products";
 import { getPoolingInfoByProductIds } from "@/lib/queries/marketplace";
 import { volumeCbmFromDimensions } from "@/lib/logistics/rates/config";
+import { buildProductPath, isUuid, extractIdPrefix } from "@/lib/product-url";
 import ProductDetailClient from "./product-detail-client";
 import { RecommendationRail } from "@/components/ai/recommendation-rail";
 
 export const dynamic = "force-dynamic";
 
+// Resolve the incoming path to a full product id.
+//   /marketplace/{uuid}                             → legacy id (redirected below)
+//   /marketplace/{region}/{cat}/.../{slug}-{prefix} → SEO URL, resolved by prefix
+async function resolveProductId(slug: string[]): Promise<string | null> {
+  if (slug.length === 1 && isUuid(slug[0])) return slug[0];
+  const last = slug[slug.length - 1] ?? "";
+  const prefix = extractIdPrefix(last);
+  if (!prefix) return null;
+  return resolveProductIdByPrefix(prefix);
+}
+
 export default async function ProductDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string[] }>;
 }) {
-  const { id } = await params;
-  const { product } = await getProductWithSupplier(id);
+  const { slug } = await params;
 
+  const productId = await resolveProductId(slug);
+  if (!productId) notFound();
+
+  const { product } = await getProductWithSupplier(productId);
   if (!product) notFound();
   // Inactive or unapproved listings are not visible to buyers.
   if (!product.is_active || product.moderation_status !== "approved") notFound();
+
+  // Enforce the canonical SEO URL — legacy /marketplace/{id} links and any stale
+  // region/category/slug in the path 301 here.
+  const canonical = buildProductPath({
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    origin_country: product.origin_country,
+    category_path: product.categories?.path ?? null,
+  });
+  const requested = `/marketplace/${slug.join("/")}`;
+  if (requested !== canonical) permanentRedirect(canonical);
 
   const images = (product.product_images ?? [])
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))

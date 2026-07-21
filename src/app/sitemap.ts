@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { buildProductPath } from "@/lib/product-url";
 
 // Rendered at request time (not prerendered at build): the Docker build image
 // has no SUPABASE_SERVICE_ROLE_KEY. The internal unstable_cache (6h) keeps the
@@ -42,11 +43,17 @@ const getSitemapEntries = unstable_cache(
   async () => {
     const supabase = createServiceClient();
 
-    const [products, suppliers] = await Promise.all([
-      fetchAllRows<{ id: string; updated_at: string | null }>((from, to) =>
+    const [products, suppliers, cats] = await Promise.all([
+      fetchAllRows<{
+        id: string;
+        slug: string | null;
+        origin_country: string | null;
+        category_id: string | null;
+        updated_at: string | null;
+      }>((from, to) =>
         supabase
           .from("products")
-          .select("id, updated_at")
+          .select("id, slug, origin_country, category_id, updated_at")
           .eq("moderation_status", "approved")
           .eq("is_active", true)
           .order("updated_at", { ascending: false })
@@ -61,7 +68,14 @@ const getSitemapEntries = unstable_cache(
           .eq("verification_status", "verified")
           .range(from, to)
       ),
+      fetchAllRows<{ id: string; path: string | null }>((from, to) =>
+        supabase.from("categories").select("id, path").range(from, to)
+      ),
     ]);
+
+    // category_id → full ancestry path (e.g. "consumer-electronics/computer-peripherals")
+    const catPath: Record<string, string | null> = {};
+    for (const c of cats) catPath[c.id] = c.path;
 
     if (products.length > MAX_PRODUCT_URLS) {
       console.warn(
@@ -70,7 +84,7 @@ const getSitemapEntries = unstable_cache(
       );
     }
 
-    return { products: products.slice(0, MAX_PRODUCT_URLS), suppliers };
+    return { products: products.slice(0, MAX_PRODUCT_URLS), suppliers, catPath };
   },
   ["sitemap-entries"],
   { revalidate: 21600, tags: ["catalog"] } // 6 hours
@@ -100,17 +114,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ] satisfies MetadataRoute.Sitemap
   ).map((e) => ({ ...e, lastModified: now }));
 
-  let products: { id: string; updated_at: string | null }[] = [];
+  let products: {
+    id: string;
+    slug: string | null;
+    origin_country: string | null;
+    category_id: string | null;
+    updated_at: string | null;
+  }[] = [];
   let suppliers: { slug: string; updated_at: string | null }[] = [];
+  let catPath: Record<string, string | null> = {};
   try {
-    ({ products, suppliers } = await getSitemapEntries());
+    ({ products, suppliers, catPath } = await getSitemapEntries());
   } catch (err) {
     // DB unavailable (e.g. quota-restricted) — still emit the static sitemap.
     console.error("[sitemap] catalog fetch failed, emitting static routes only:", err);
   }
 
   const productRoutes: MetadataRoute.Sitemap = products.map((p) => ({
-    url: `${base}/marketplace/${p.id}`,
+    url: `${base}${buildProductPath({
+      id: p.id,
+      slug: p.slug,
+      origin_country: p.origin_country,
+      category_path: p.category_id ? catPath[p.category_id] ?? null : null,
+    })}`,
     lastModified: p.updated_at ? new Date(p.updated_at) : now,
     changeFrequency: "weekly",
     priority: 0.6,

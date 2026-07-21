@@ -29,6 +29,7 @@ import {
 } from "@/lib/queries/categories";
 import { imageForSlug } from "@/lib/category-images";
 import { getCountryFacets, searchProducts } from "@/lib/queries/marketplace";
+import { buildProductPath } from "@/lib/product-url";
 import { regionMeta } from "@/lib/product-labels";
 import { applyMarkup } from "@/lib/pricing";
 
@@ -335,6 +336,13 @@ function toRailProducts(
     const company = p.companies as { name: string; country_code: string } | null;
     return {
       id: p.id,
+      href: buildProductPath({
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        origin_country: p.origin_country,
+        category_path: (p.categories as { path?: string } | null)?.path ?? null,
+      }),
       name: p.name,
       image: p.product_images?.[0]?.url ?? FALLBACK_PRODUCT_IMAGE,
       amount: Math.round(boxPackQty > 1 ? unitAmount * boxPackQty : unitAmount),

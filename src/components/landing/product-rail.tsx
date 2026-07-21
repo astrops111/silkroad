@@ -10,6 +10,8 @@ import { formatConvertedPriceWithCode } from "@/lib/currency/formatter";
 
 export type RailProduct = {
   id: string;
+  /** Canonical SEO URL; falls back to the id URL (which 301s to canonical). */
+  href?: string;
   name: string;
   image: string;
   /** Price in minor units (cents) of `currency`. */
@@ -109,7 +111,7 @@ export function ProductRail({
           {products.map((p) => (
             <Link
               key={p.id}
-              href={`/marketplace/${p.id}`}
+              href={p.href ?? `/marketplace/${p.id}`}
               className="group snap-start shrink-0 w-[240px] lg:w-[280px] bg-white"
             >
               <div className="relative aspect-square rounded-xl overflow-hidden bg-[var(--surface-secondary)]">
