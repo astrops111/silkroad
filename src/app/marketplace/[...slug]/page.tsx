@@ -31,6 +31,27 @@ export default async function ProductDetailPage({
 
   const { product } = await getProductWithSupplier(productId);
   if (!product) notFound();
+
+  // Consolidated child listings (merged into a canonical parent during variant
+  // consolidation) are deactivated — 301 them to the parent's canonical URL so
+  // old links, bookmarks, and crawled URLs keep resolving instead of 404ing.
+  if (product.merged_into_product_id) {
+    const { product: parent } = await getProductWithSupplier(
+      product.merged_into_product_id,
+    );
+    if (parent?.is_active && parent.moderation_status === "approved") {
+      permanentRedirect(
+        buildProductPath({
+          id: parent.id,
+          slug: parent.slug,
+          name: parent.name,
+          origin_country: parent.origin_country,
+          category_path: parent.categories?.path ?? null,
+        }),
+      );
+    }
+  }
+
   // Inactive or unapproved listings are not visible to buyers.
   if (!product.is_active || product.moderation_status !== "approved") notFound();
 
@@ -100,6 +121,8 @@ export default async function ProductDetailPage({
       return {
         id: v.id,
         name: v.name,
+        optionSize: v.option_size ?? null,
+        optionShade: v.option_shade ?? null,
         janCode: v.jan_code ?? product.jan_code ?? null,
         moq: v.moq ?? product.moq ?? 1,
         boxPackQty: v.box_pack_qty ?? product.box_pack_qty ?? null,

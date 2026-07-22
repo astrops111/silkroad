@@ -95,6 +95,8 @@ interface Category {
 interface VariantData {
   id: string;
   name: string;
+  optionSize: string | null;
+  optionShade: string | null;
   janCode: string | null;
   moq: number;
   boxPackQty: number | null;
@@ -122,6 +124,60 @@ const CERT_LABELS: Record<string, string> = {
   msds: "MSDS / safety data",
   other: "Other",
 };
+
+// One variant axis (e.g. Size or Shade). Renders a dropdown when the axis has
+// more than 10 options, otherwise a row of buttons.
+function VariantAxis({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: string[];
+  value: string | null;
+  onSelect: (v: string) => void;
+}) {
+  const asDropdown = options.length > 10;
+  return (
+    <div>
+      <p className="text-xs font-medium text-[var(--text-tertiary)] mb-2">
+        {label}:{" "}
+        <span className="text-[var(--text-primary)]">{value ?? "Select"}</span>
+      </p>
+      {asDropdown ? (
+        <select
+          value={value ?? ""}
+          onChange={(e) => onSelect(e.target.value)}
+          aria-label={label}
+          className="w-full max-w-xs px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-sm text-[var(--text-primary)]"
+        >
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {options.map((o) => (
+            <button
+              key={o}
+              onClick={() => onSelect(o)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                o === value
+                  ? "border-[var(--amber)] bg-[var(--amber)]/10 text-[var(--obsidian)]"
+                  : "border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]"
+              }`}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function formatMoney(value: number, currency: string) {
   try {
@@ -187,6 +243,33 @@ export default function ProductDetailClient({
     const qs = new URLSearchParams(searchParams.toString());
     qs.set("variant", variantId);
     router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
+  }
+
+  // Structured 2-axis variants (e.g. Size + Shade). Legacy single-axis variants
+  // leave optionSize/optionShade null and fall back to the flat selector below.
+  const hasAxes = variants.some((v) => v.optionSize || v.optionShade);
+  const shadeNum = (s: string) => {
+    const m = s.match(/#\s*(\d+)/);
+    return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
+  };
+  const sizeOptions = hasAxes
+    ? [...new Set(variants.map((v) => v.optionSize).filter((s): s is string => Boolean(s)))]
+    : [];
+  const shadeOptions = hasAxes
+    ? [
+        ...new Set(
+          variants.map((v) => v.optionShade).filter((s): s is string => Boolean(s)),
+        ),
+      ].sort((a, b) => shadeNum(a) - shadeNum(b) || a.localeCompare(b))
+    : [];
+  // Resolve an (size, shade) selection to a concrete variant, tolerating an axis
+  // that doesn't exist for the other's current value by falling back sensibly.
+  function selectAxis(size: string | null, shade: string | null) {
+    const target =
+      variants.find((v) => v.optionSize === size && v.optionShade === shade) ??
+      variants.find((v) => v.optionSize === size) ??
+      variants.find((v) => v.optionShade === shade);
+    if (target) selectVariant(target.id);
   }
 
   const region = regionMeta(product.originCountry);
@@ -390,7 +473,32 @@ export default function ProductDetailClient({
                   </div>
                 )}
 
-                {variants.length > 1 && (
+                {variants.length > 1 && hasAxes && (
+                  <div className="mt-4 space-y-4">
+                    {sizeOptions.length > 1 && (
+                      <VariantAxis
+                        label="Size"
+                        options={sizeOptions}
+                        value={currentVariant?.optionSize ?? null}
+                        onSelect={(v) =>
+                          selectAxis(v, currentVariant?.optionShade ?? null)
+                        }
+                      />
+                    )}
+                    {shadeOptions.length > 1 && (
+                      <VariantAxis
+                        label="Shade"
+                        options={shadeOptions}
+                        value={currentVariant?.optionShade ?? null}
+                        onSelect={(v) =>
+                          selectAxis(currentVariant?.optionSize ?? null, v)
+                        }
+                      />
+                    )}
+                  </div>
+                )}
+
+                {variants.length > 1 && !hasAxes && (
                   <div className="mt-4">
                     <p className="text-xs font-medium text-[var(--text-tertiary)] mb-2">
                       Size: <span className="text-[var(--text-primary)]">{currentVariant?.name}</span>

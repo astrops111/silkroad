@@ -6877,6 +6877,8 @@ export type Database = {
           jan_code: string | null
           moq: number | null
           name: string
+          option_shade: string | null
+          option_size: string | null
           price_override: number | null
           product_id: string
           sku: string | null
@@ -6892,6 +6894,8 @@ export type Database = {
           jan_code?: string | null
           moq?: number | null
           name: string
+          option_shade?: string | null
+          option_size?: string | null
           price_override?: number | null
           product_id: string
           sku?: string | null
@@ -6907,6 +6911,8 @@ export type Database = {
           jan_code?: string | null
           moq?: number | null
           name?: string
+          option_shade?: string | null
+          option_size?: string | null
           price_override?: number | null
           product_id?: string
           sku?: string | null
