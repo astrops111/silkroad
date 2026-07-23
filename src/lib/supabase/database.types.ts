@@ -10472,6 +10472,15 @@ export type Database = {
       }
     }
     Functions: {
+      product_redirect_target: {
+        Args: { p_key: string }
+        Returns: {
+          canonical_id: string
+          canonical_slug: string
+          origin_country: string
+          category_path: string
+        }[]
+      }
       auth_company_id: { Args: never; Returns: string }
       auth_profile_id: { Args: never; Returns: string }
       caller_has_paid_company: { Args: never; Returns: boolean }

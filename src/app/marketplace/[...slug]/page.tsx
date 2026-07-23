@@ -1,4 +1,5 @@
 import { notFound, permanentRedirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { getProductWithSupplier, resolveProductIdByPrefix } from "@/lib/queries/products";
 import { getPoolingInfoByProductIds } from "@/lib/queries/marketplace";
 import { volumeCbmFromDimensions } from "@/lib/logistics/rates/config";
@@ -19,6 +20,27 @@ async function resolveProductId(slug: string[]): Promise<string | null> {
   return resolveProductIdByPrefix(prefix);
 }
 
+// A consolidated child listing is deactivated and hidden from the anon client by
+// RLS, so the page can't read it to find its canonical parent. This resolves the
+// redirect target (SECURITY DEFINER, bypasses RLS) by full uuid or SEO id-prefix.
+// 301s to the parent when one exists; otherwise 404s. Always throws.
+async function redirectMergedOrNotFound(key: string): Promise<never> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("product_redirect_target", { p_key: key });
+  const target = data?.[0];
+  if (target?.canonical_id) {
+    permanentRedirect(
+      buildProductPath({
+        id: target.canonical_id,
+        slug: target.canonical_slug,
+        origin_country: target.origin_country,
+        category_path: target.category_path,
+      }),
+    );
+  }
+  notFound();
+}
+
 export default async function ProductDetailPage({
   params,
 }: {
@@ -27,10 +49,21 @@ export default async function ProductDetailPage({
   const { slug } = await params;
 
   const productId = await resolveProductId(slug);
-  if (!productId) notFound();
+  if (!productId) {
+    // A merged child's SEO URL won't resolve (its prefix scan filters is_active);
+    // try to 301 to the canonical parent by id-prefix before 404ing.
+    const prefix = extractIdPrefix(slug[slug.length - 1] ?? "");
+    if (prefix) await redirectMergedOrNotFound(prefix);
+    notFound();
+  }
 
   const { product } = await getProductWithSupplier(productId);
-  if (!product) notFound();
+  // A merged child is hidden from the anon client by RLS → null here; 301 it to
+  // the canonical parent (by uuid) instead of 404ing.
+  if (!product) {
+    await redirectMergedOrNotFound(productId);
+    notFound();
+  }
 
   // Consolidated child listings (merged into a canonical parent during variant
   // consolidation) are deactivated — 301 them to the parent's canonical URL so
