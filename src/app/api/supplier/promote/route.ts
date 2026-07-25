@@ -86,11 +86,28 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { productId, companyId, placement = "search", durationDays = 30 } = await request.json();
 
   if (!productId || !companyId) {
     return NextResponse.json({ error: "productId and companyId required" }, { status: 400 });
   }
+
+  // Verify caller belongs to this company
+  const { data: callerProfile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  const { data: membership } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", callerProfile?.id)
+    .eq("company_id", companyId)
+    .single();
+  if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Check tier
   const { data: profile } = await supabase

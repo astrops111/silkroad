@@ -1,63 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Gavel, Clock, CheckCircle2, AlertTriangle, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
-const DISPUTES = [
-  {
-    id: "d1",
-    title: "Damaged goods on arrival",
-    type: "damaged",
-    buyer: "TechHub Ghana",
-    supplier: "SunTech Shenzhen",
-    orderNumber: "SR-20260408-003",
-    amount: "$2,400",
-    status: "open",
-    createdAt: "2026-04-14",
-  },
-  {
-    id: "d2",
-    title: "Wrong item received - ordered blue, received red",
-    type: "wrong_item",
-    buyer: "Nairobi Imports Ltd",
-    supplier: "Silk Valley Textiles",
-    orderNumber: "SR-20260405-012",
-    amount: "$560",
-    status: "under_review",
-    createdAt: "2026-04-12",
-  },
-  {
-    id: "d3",
-    title: "Quantity mismatch - received 450 of 500 ordered",
-    type: "quantity_mismatch",
-    buyer: "Cairo Electronics",
-    supplier: "BrightPath Lighting",
-    orderNumber: "SR-20260401-008",
-    amount: "$1,425",
-    status: "awaiting_evidence",
-    createdAt: "2026-04-10",
-  },
-];
+interface Dispute {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  disputed_amount: number | null;
+  currency: string | null;
+  created_at: string;
+  buyer: { name: string } | null;
+  supplier: { name: string } | null;
+  order: { order_number: string } | null;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   open: "destructive",
   under_review: "secondary",
   awaiting_evidence: "outline",
-  resolved: "default",
+  escalated: "destructive",
 };
 
 type Resolution = "full_pay_supplier" | "partial_refund_buyer" | "full_refund_buyer" | "dismissed";
 
+function formatAmount(amount: number | null, currency: string | null) {
+  if (!amount) return "—";
+  return `${currency ?? "USD"} ${(amount / 100).toFixed(2)}`;
+}
+
 export default function AdminDisputesPage() {
-  const [disputes, setDisputes] = useState(DISPUTES);
+  const [disputes, setDisputes] = useState<Dispute[] | null>(null);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [selectedResolution, setSelectedResolution] = useState<Record<string, string>>({});
+  const [selectedResolution, setSelectedResolution] = useState<Record<string, Resolution | "">>({});
+  const [refundAmounts, setRefundAmounts] = useState<Record<string, string>>({});
+
+  async function loadDisputes() {
+    const res = await fetch("/api/admin/disputes");
+    if (!res.ok) {
+      toast.error("Failed to load disputes");
+      setDisputes([]);
+      return;
+    }
+    const data = await res.json();
+    setDisputes(data.disputes ?? []);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadDisputes();
+  }, []);
 
   async function handleResolve(disputeId: string) {
     const resolution = selectedResolution[disputeId];
@@ -66,9 +66,25 @@ export default function AdminDisputesPage() {
       return;
     }
     setResolvingId(disputeId);
-    await new Promise((r) => setTimeout(r, 800));
-    setDisputes((prev) => prev.filter((d) => d.id !== disputeId));
+    const res = await fetch("/api/admin/disputes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        disputeId,
+        resolution,
+        refundAmount:
+          resolution === "partial_refund_buyer" && refundAmounts[disputeId]
+            ? Math.round(Number(refundAmounts[disputeId]) * 100)
+            : undefined,
+      }),
+    });
+    const data = await res.json();
     setResolvingId(null);
+    if (!res.ok) {
+      toast.error(data.error || "Failed to resolve dispute");
+      return;
+    }
+    setDisputes((prev) => (prev ?? []).filter((d) => d.id !== disputeId));
     toast.success("Dispute resolved");
   }
 
@@ -79,11 +95,15 @@ export default function AdminDisputesPage() {
           Disputes
         </h1>
         <p className="text-sm text-[var(--text-tertiary)] mt-1">
-          {disputes.length} open disputes requiring attention
+          {disputes === null ? "Loading…" : `${disputes.length} open disputes requiring attention`}
         </p>
       </div>
 
-      {disputes.length === 0 ? (
+      {disputes === null ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-[var(--text-tertiary)]" />
+        </div>
+      ) : disputes.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle2 className="w-12 h-12 text-[var(--success)] mx-auto mb-4" />
@@ -102,29 +122,28 @@ export default function AdminDisputesPage() {
                       <p className="font-semibold text-[var(--obsidian)]">{dispute.title}</p>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
-                      <span>Order: {dispute.orderNumber}</span>
-                      <span>Buyer: {dispute.buyer}</span>
-                      <span>Supplier: {dispute.supplier}</span>
+                      <span>Order: {dispute.order?.order_number ?? "—"}</span>
+                      <span>Buyer: {dispute.buyer?.name ?? "—"}</span>
+                      <span>Supplier: {dispute.supplier?.name ?? "—"}</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <Badge variant={STATUS_COLORS[dispute.status] as "default" | "destructive" | "secondary" | "outline"}>
+                    <Badge variant={(STATUS_COLORS[dispute.status] as "default" | "destructive" | "secondary" | "outline") ?? "outline"}>
                       {dispute.status === "open" && <AlertTriangle className="w-3 h-3" />}
                       {dispute.status === "under_review" && <Clock className="w-3 h-3" />}
                       {dispute.status === "awaiting_evidence" && <MessageSquare className="w-3 h-3" />}
                       {dispute.status.replace(/_/g, " ")}
                     </Badge>
                     <p className="text-lg font-bold text-[var(--obsidian)] mt-1" style={{ fontFamily: "var(--font-display)" }}>
-                      {dispute.amount}
+                      {formatAmount(dispute.disputed_amount, dispute.currency)}
                     </p>
                   </div>
                 </div>
 
-                {/* Resolution controls */}
-                <div className="flex items-center gap-3 pt-2 border-t border-[var(--border-subtle)]">
+                <div className="flex items-center gap-3 pt-2 border-t border-[var(--border-subtle)] flex-wrap">
                   <Select
                     value={selectedResolution[dispute.id] ?? ""}
-                    onValueChange={(v) => setSelectedResolution((p) => ({ ...p, [dispute.id]: v }))}
+                    onValueChange={(v) => setSelectedResolution((p) => ({ ...p, [dispute.id]: v as Resolution }))}
                   >
                     <SelectTrigger className="w-64">
                       <SelectValue placeholder="Select resolution..." />
@@ -136,6 +155,17 @@ export default function AdminDisputesPage() {
                       <SelectItem value="dismissed">Dismiss dispute</SelectItem>
                     </SelectContent>
                   </Select>
+                  {selectedResolution[dispute.id] === "partial_refund_buyer" && (
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Refund amount"
+                      className="w-36"
+                      value={refundAmounts[dispute.id] ?? ""}
+                      onChange={(e) => setRefundAmounts((p) => ({ ...p, [dispute.id]: e.target.value }))}
+                    />
+                  )}
                   <Button
                     size="sm"
                     onClick={() => handleResolve(dispute.id)}

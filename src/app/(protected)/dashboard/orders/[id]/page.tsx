@@ -175,7 +175,13 @@ export default function OrderDetailPage() {
   const config = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.paid;
   const HeaderIcon = config.icon;
   const canTrack   = ["in_transit", "delivered"].includes(order.status);
-  const canConfirm = order.status === "delivered";
+  // Confirmable once any shipment is out for delivery — not once it's already
+  // "delivered" (confirmDelivery() transitions INTO delivered, so gating on
+  // the post-confirmation status would make the button un-actionable).
+  const canConfirm = order.supplier_orders.some((so) =>
+    ["dispatched", "in_transit", "out_for_delivery"].includes(so.status)
+  );
+  const canDispute = order.status === "delivered";
   const canReorder = ["delivered", "completed"].includes(order.status);
 
   return (
@@ -440,7 +446,7 @@ export default function OrderDetailPage() {
 
       {/* ── Footer actions */}
       <div className="flex flex-wrap gap-3 pb-4">
-        {canConfirm && (
+        {canDispute && (
           <Link href={`/dashboard/orders/${orderId}/dispute`}>
             <Button variant="outline" size="sm">
               <AlertCircle className="w-4 h-4" />

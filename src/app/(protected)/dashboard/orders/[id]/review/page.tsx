@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Star, Loader2, Send } from "lucide-react";
 import { submitReview } from "@/lib/actions/reviews";
 import { toast } from "sonner";
+
+interface SupplierOrderOption {
+  id: string;
+  order_number: string;
+  companies: { name: string } | null;
+}
 
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
@@ -34,8 +41,30 @@ export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(true);
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrderOption[]>([]);
+  const [supplierOrderId, setSupplierOrderId] = useState("");
 
-  const orderId = params.id as string;
+  const purchaseOrderId = params.id as string;
+
+  const loadOrder = useCallback(async () => {
+    setLoadingOrder(true);
+    try {
+      const res = await fetch(`/api/orders/${purchaseOrderId}`);
+      if (!res.ok) throw new Error();
+      const { order } = await res.json();
+      const options: SupplierOrderOption[] = order.supplier_orders ?? [];
+      setSupplierOrders(options);
+      if (options.length === 1) setSupplierOrderId(options[0].id);
+    } catch {
+      toast.error("Order not found");
+      router.push("/dashboard/orders");
+    } finally {
+      setLoadingOrder(false);
+    }
+  }, [purchaseOrderId, router]);
+
+  useEffect(() => { loadOrder(); }, [loadOrder]);
 
   const [form, setForm] = useState({
     rating: 0,
@@ -48,26 +77,24 @@ export default function ReviewPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!supplierOrderId) {
+      toast.error("Please select which shipment this review is about");
+      return;
+    }
     if (form.rating === 0) {
       toast.error("Please select an overall rating");
       return;
     }
 
     setLoading(true);
-    const result = await submitReview(
-      orderId,
-      "current-user",
-      "current-company",
-      "supplier-company",
-      {
-        rating: form.rating,
-        title: form.title || undefined,
-        content: form.content || undefined,
-        productQualityRating: form.productQuality || undefined,
-        communicationRating: form.communication || undefined,
-        shippingRating: form.shipping || undefined,
-      }
-    );
+    const result = await submitReview(supplierOrderId, {
+      rating: form.rating,
+      title: form.title || undefined,
+      content: form.content || undefined,
+      productQualityRating: form.productQuality || undefined,
+      communicationRating: form.communication || undefined,
+      shippingRating: form.shipping || undefined,
+    });
 
     if (!result.success) {
       toast.error(result.error ?? "Failed to submit review");
@@ -82,7 +109,7 @@ export default function ReviewPage() {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/orders/${orderId}`} className="p-2 rounded-lg hover:bg-[var(--surface-primary)] transition-colors">
+        <Link href={`/dashboard/orders/${purchaseOrderId}`} className="p-2 rounded-lg hover:bg-[var(--surface-primary)] transition-colors">
           <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
         </Link>
         <h1 className="text-2xl font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -96,7 +123,30 @@ export default function ReviewPage() {
           <CardDescription>Help other buyers make informed decisions</CardDescription>
         </CardHeader>
         <CardContent>
+          {loadingOrder ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-[var(--text-tertiary)]" />
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {supplierOrders.length > 1 && (
+              <div className="space-y-2">
+                <Label>Shipment *</Label>
+                <Select value={supplierOrderId} onValueChange={setSupplierOrderId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select which shipment this is about" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supplierOrders.map((so) => (
+                      <SelectItem key={so.id} value={so.id}>
+                        {so.order_number} — {so.companies?.name ?? "Supplier"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Overall Rating */}
             <div className="space-y-2">
               <Label>Overall Rating *</Label>
@@ -143,11 +193,12 @@ export default function ReviewPage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || form.rating === 0}>
+            <Button type="submit" className="w-full" disabled={loading || form.rating === 0 || !supplierOrderId}>
               {loading ? <Loader2 className="animate-spin" /> : <Send className="w-4 h-4" />}
               {loading ? "Submitting..." : "Submit Review"}
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -76,7 +76,7 @@ export async function createOrder(
       .from("supplier_orders")
       .insert({
         purchase_order_id: purchaseOrder.id,
-        supplier_company_id: supplierId,
+        supplier_id: supplierId,
         status: "pending_payment",
         subtotal: supplierTotal,
         total_amount: supplierTotal,
@@ -117,10 +117,19 @@ export async function createOrder(
 export async function updateSupplierOrderStatus(
   supplierOrderId: string,
   newStatus: string,
-  changedBy: string,
   note?: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return { success: false, error: "Profile not found" };
 
   // Get current status
   const { data: current } = await supabase
@@ -133,7 +142,8 @@ export async function updateSupplierOrderStatus(
     return { success: false, error: "Order not found" };
   }
 
-  // Update status
+  // Update status (RLS: supplier_orders_update_supplier already scopes this
+  // to the supplier's own company or an admin)
   const { error: updateError } = await supabase
     .from("supplier_orders")
     .update({ status: newStatus, updated_at: new Date().toISOString() })
@@ -148,8 +158,8 @@ export async function updateSupplierOrderStatus(
     supplier_order_id: supplierOrderId,
     from_status: current.status,
     to_status: newStatus,
-    changed_by: changedBy,
-    note: note ?? null,
+    changed_by: profile.id,
+    reason: note ?? null,
   });
 
   return { success: true };

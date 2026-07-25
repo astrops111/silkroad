@@ -1310,6 +1310,7 @@ export function MarketplaceClient({
   subcategoriesByParent = {},
   leavesByParent = {},
   totalProductCount,
+  currentPage = 1,
   poolingRules = {},
   groupFacets = {},
 }: {
@@ -1322,6 +1323,7 @@ export function MarketplaceClient({
   subcategoriesByParent?: Record<string, MarketplaceSubcategory[]>;
   leavesByParent?: Record<string, MarketplaceSubcategory[]>;
   totalProductCount?: number;
+  currentPage?: number;
   poolingRules?: Record<string, RegionPoolingRule[]>;
   groupFacets?: Record<string, ShippingGroupFacet[]>;
 }) {
@@ -1364,6 +1366,14 @@ export function MarketplaceClient({
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
+  const pageHrefFor = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page <= 1) params.delete("page");
+    else params.set("page", String(page));
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
+
   const requestedPageSize = Number(searchParams.get("limit"));
   const pageSize = (PAGE_SIZE_OPTIONS as readonly number[]).includes(requestedPageSize)
     ? requestedPageSize
@@ -1395,6 +1405,23 @@ export function MarketplaceClient({
   // category counts); falls back to the visible list length only when running
   // on mock data (totalProductCount is undefined in that case).
   const productCountForDisplay = totalProductCount ?? displayProducts.length;
+
+  const totalPages = Math.max(1, Math.ceil(productCountForDisplay / pageSize));
+  // Windowed page list: first, last, current ± 1, with "…" filling gaps —
+  // keeps the control usable even when totalPages is in the hundreds.
+  const paginationItems = useMemo(() => {
+    const items: (number | "...")[] = [];
+    const windowStart = Math.max(2, currentPage - 1);
+    const windowEnd = Math.min(totalPages - 1, currentPage + 1);
+    items.push(1);
+    if (windowStart > 2) items.push("...");
+    for (let p = windowStart; p <= windowEnd; p++) {
+      if (p > 1 && p < totalPages) items.push(p);
+    }
+    if (windowEnd < totalPages - 1) items.push("...");
+    if (totalPages > 1) items.push(totalPages);
+    return items;
+  }, [currentPage, totalPages]);
 
   const clearFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1623,22 +1650,52 @@ export function MarketplaceClient({
               </div>
 
               {/* Pagination */}
-              <div className="mt-10 flex items-center justify-center gap-2">
-                {[1, 2, 3, "...", 24].map((page, i) => (
-                  <button
-                    key={i}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                      page === 1
-                        ? "bg-[var(--amber)] text-[var(--obsidian)]"
-                        : page === "..."
-                        ? "text-[var(--text-tertiary)] cursor-default"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-primary)] border border-[var(--border-subtle)]"
+              {totalPages > 1 && (
+                <div className="mt-10 flex items-center justify-center gap-2">
+                  <Link
+                    href={pageHrefFor(currentPage - 1)}
+                    aria-disabled={currentPage <= 1}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-colors border border-[var(--border-subtle)] ${
+                      currentPage <= 1
+                        ? "pointer-events-none opacity-40 text-[var(--text-tertiary)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-primary)]"
                     }`}
                   >
-                    {page}
-                  </button>
-                ))}
-              </div>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Link>
+                  {paginationItems.map((page, i) => (
+                    page === "..." ? (
+                      <span key={`ellipsis-${i}`} className="w-10 h-10 flex items-center justify-center text-sm text-[var(--text-tertiary)]">
+                        …
+                      </span>
+                    ) : (
+                      <Link
+                        key={page}
+                        href={pageHrefFor(page)}
+                        scroll={false}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${
+                          page === currentPage
+                            ? "bg-[var(--amber)] text-[var(--obsidian)]"
+                            : "text-[var(--text-secondary)] hover:bg-[var(--surface-primary)] border border-[var(--border-subtle)]"
+                        }`}
+                      >
+                        {page}
+                      </Link>
+                    )
+                  ))}
+                  <Link
+                    href={pageHrefFor(currentPage + 1)}
+                    aria-disabled={currentPage >= totalPages}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-colors border border-[var(--border-subtle)] ${
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-40 text-[var(--text-tertiary)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-primary)]"
+                    }`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

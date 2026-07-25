@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Settings,
   Percent,
@@ -14,6 +14,58 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+
+interface PlatformSettingsRow {
+  commission_rate: number;
+  min_order_value: number;
+  max_order_value: number;
+  quote_ttl_days: number;
+  dispute_window_days: number;
+  default_currency: string;
+  supported_currencies: string[];
+  gateways: Record<string, boolean>;
+  notify_on_new_order: boolean;
+  notify_on_dispute: boolean;
+  notify_on_payment_fail: boolean;
+  notify_on_supplier_apply: boolean;
+  maintenance_mode: boolean;
+}
+
+function fromRow(row: PlatformSettingsRow): PlatformSettings {
+  return {
+    commissionRate: row.commission_rate,
+    minOrderValue: row.min_order_value,
+    maxOrderValue: row.max_order_value,
+    quoteTtlDays: row.quote_ttl_days,
+    disputeWindowDays: row.dispute_window_days,
+    defaultCurrency: row.default_currency,
+    supportedCurrencies: row.supported_currencies,
+    gateways: row.gateways,
+    notifyOnNewOrder: row.notify_on_new_order,
+    notifyOnDispute: row.notify_on_dispute,
+    notifyOnPaymentFail: row.notify_on_payment_fail,
+    notifyOnSupplierApply: row.notify_on_supplier_apply,
+    maintenanceMode: row.maintenance_mode,
+  };
+}
+
+function toPatch(s: PlatformSettings): Record<string, unknown> {
+  return {
+    commission_rate: s.commissionRate,
+    min_order_value: s.minOrderValue,
+    max_order_value: s.maxOrderValue,
+    quote_ttl_days: s.quoteTtlDays,
+    dispute_window_days: s.disputeWindowDays,
+    default_currency: s.defaultCurrency,
+    supported_currencies: s.supportedCurrencies,
+    gateways: s.gateways,
+    notify_on_new_order: s.notifyOnNewOrder,
+    notify_on_dispute: s.notifyOnDispute,
+    notify_on_payment_fail: s.notifyOnPaymentFail,
+    notify_on_supplier_apply: s.notifyOnSupplierApply,
+    maintenance_mode: s.maintenanceMode,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -153,8 +205,19 @@ function NumInput({ value, onChange, min, max, prefix, suffix }: {
 /* ------------------------------------------------------------------ */
 export default function AdminSettingsPage() {
   const [s, setS] = useState<PlatformSettings>(DEFAULTS);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) setS(fromRow(data.settings));
+      })
+      .catch(() => toast.error("Failed to load settings"))
+      .finally(() => setLoading(false));
+  }, []);
 
   function patch<K extends keyof PlatformSettings>(key: K, value: PlatformSettings[K]) {
     setS((prev) => ({ ...prev, [key]: value }));
@@ -178,10 +241,28 @@ export default function AdminSettingsPage() {
 
   async function handleSave() {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
+    const res = await fetch("/api/admin/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toPatch(s)),
+    });
+    const data = await res.json();
     setSaving(false);
+    if (!res.ok) {
+      toast.error(data.error || "Failed to save settings");
+      return;
+    }
+    setS(fromRow(data.settings));
     setSaved(true);
     toast.success("Settings saved");
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--text-tertiary)" }} />
+      </div>
+    );
   }
 
   return (

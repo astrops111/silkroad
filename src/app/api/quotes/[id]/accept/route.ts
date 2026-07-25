@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { UNLINKED_PRODUCT_ID } from "@/lib/orders";
 
 /**
  * POST /api/quotes/[id]/accept
@@ -95,7 +96,6 @@ export async function POST(
       currency:           quote.currency ?? "USD",
       status:             "pending_payment",
       cost_components:    quote.cost_components ?? null,
-      market_region:      quote.destination_country ?? null,
       metadata: {
         source:             "buyer_quote_request",
         quoteId:            quote.id,
@@ -122,6 +122,23 @@ export async function POST(
   // /api/rfqs/convert).
   const serviceClient = createServiceClient();
 
+  // Multiple suppliers means multiple inserts with no surrounding DB
+  // transaction (the Supabase client doesn't expose one here) — if a later
+  // group fails, roll back every supplier_order/-item already committed in
+  // this call plus the purchase_order, instead of leaving orphaned rows
+  // that a client retry would only add to (the idempotency check above
+  // only short-circuits once quote.purchase_order_id is actually set).
+  const purchaseOrderId = purchaseOrder.id;
+  const createdSupplierOrderIds: string[] = [];
+
+  async function rollback() {
+    if (createdSupplierOrderIds.length > 0) {
+      await serviceClient.from("supplier_order_items").delete().in("supplier_order_id", createdSupplierOrderIds);
+      await serviceClient.from("supplier_orders").delete().in("id", createdSupplierOrderIds);
+    }
+    await serviceClient.from("purchase_orders").delete().eq("id", purchaseOrderId);
+  }
+
   for (const group of Object.values(supplierMap)) {
     const { data: supplierOrder, error: soErr } = await serviceClient
       .from("supplier_orders")
@@ -142,12 +159,14 @@ export async function POST(
 
     if (soErr || !supplierOrder) {
       console.error("[quotes/accept] supplier_orders insert failed:", soErr);
+      await rollback();
       return NextResponse.json({ error: "Failed to create supplier order" }, { status: 500 });
     }
+    createdSupplierOrderIds.push(supplierOrder.id);
 
     const orderItems = group.items.map((item) => ({
       supplier_order_id: supplierOrder.id,
-      product_id:         item.productId || "00000000-0000-0000-0000-000000000000",
+      product_id:         item.productId || UNLINKED_PRODUCT_ID,
       variant_id:         item.variantId || null,
       product_name:       item.productName ?? "",
       variant_name:       item.variantName || null,
@@ -161,16 +180,27 @@ export async function POST(
       const { error: itemsErr } = await serviceClient.from("supplier_order_items").insert(orderItems);
       if (itemsErr) {
         console.error("[quotes/accept] supplier_order_items insert failed:", itemsErr);
+        await rollback();
         return NextResponse.json({ error: "Failed to create supplier order items" }, { status: 500 });
       }
     }
   }
 
   // ── Mark quote as accepted ────────────────────────────────────────────────
-  await supabase
+  // Migration 00075 removed the buyer UPDATE policy on buyer_quote_requests
+  // (service_role only) — using the RLS-scoped `supabase` client here would
+  // silently match 0 rows with no error, leaving purchase_order_id unset and
+  // permanently defeating the idempotency check above on every retry.
+  const { error: acceptErr } = await serviceClient
     .from("buyer_quote_requests")
     .update({ status: "accepted", purchase_order_id: purchaseOrder.id, updated_at: new Date().toISOString() })
     .eq("id", id);
+
+  if (acceptErr) {
+    console.error("[quotes/accept] buyer_quote_requests update failed:", acceptErr);
+    await rollback();
+    return NextResponse.json({ error: "Failed to finalize quote acceptance" }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, orderId: purchaseOrder.id, orderNumber });
 }

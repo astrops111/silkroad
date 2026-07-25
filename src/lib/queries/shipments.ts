@@ -18,3 +18,21 @@ export async function getShipmentById(id: string): Promise<B2BShipmentRow | null
   }
   return data;
 }
+
+export async function getShipmentBySupplierOrderId(
+  supplierOrderId: string
+): Promise<B2BShipmentRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("b2b_shipments")
+    .select("*")
+    .eq("supplier_order_id", supplierOrderId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("getShipmentBySupplierOrderId failed", error);
+    return null;
+  }
+  return data;
+}

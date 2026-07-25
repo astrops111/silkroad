@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     let shipmentData: ShipmentData | null = null;
     const { data: shipment } = await supabase
       .from("b2b_shipments")
-      .select("status, tracking_number, delivered_at, pod_signature_url, pod_photo_url")
+      .select("id, status, tracking_number, delivered_at, pod_signature_url, pod_photo_url")
       .eq("supplier_order_id", dispute.supplier_order_id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       const { data: events } = await supabase
         .from("shipment_tracking_events")
         .select("event_type, created_at, description")
-        .eq("shipment_id", shipment.tracking_number) // join on shipment
+        .eq("shipment_id", shipment.id) // join on shipment UUID FK, not the human-readable tracking number
         .order("created_at", { ascending: true })
         .limit(20);
 

@@ -14,11 +14,13 @@ const WRITE_ROLES = ["admin_super", "admin_moderator"];
 
 async function requireAdminWrite() {
   const user = await getCurrentUser();
-  const role = user?.company_members?.[0]?.role;
-  if (!role || !WRITE_ROLES.includes(role)) {
+  // Filter by role, not by array index — a user can have both admin +
+  // supplier/buyer memberships, and the admin one may not be first.
+  const membership = user?.company_members?.find((m) => WRITE_ROLES.includes(m.role));
+  if (!membership) {
     return { ok: false as const, error: "Forbidden" };
   }
-  return { ok: true as const, role };
+  return { ok: true as const, role: membership.role };
 }
 
 function slugify(text: string): string {

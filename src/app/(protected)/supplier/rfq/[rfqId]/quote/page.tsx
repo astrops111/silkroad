@@ -52,6 +52,8 @@ const PAYMENT_TERMS = [
 const TRADE_TERMS = [
   { value: "fob", label: "FOB (Free on Board)" },
   { value: "cif", label: "CIF (Cost, Insurance & Freight)" },
+  { value: "cpt", label: "CPT (Carriage Paid To)" },
+  { value: "fca", label: "FCA (Free Carrier)" },
   { value: "exw", label: "EXW (Ex Works)" },
   { value: "ddp", label: "DDP (Delivered Duty Paid)" },
 ];

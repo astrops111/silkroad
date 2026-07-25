@@ -2,90 +2,70 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  ArrowLeft, UserCircle2, CheckCircle2, Clock, XCircle, AlertTriangle,
+  ArrowLeft, UserCircle2, CheckCircle2, Clock, XCircle,
   Mail, MapPin, ShoppingCart, TrendingUp, CreditCard as CreditCardIcon,
-  Loader2, Pencil, Save, ExternalLink,
+  Loader2, Pencil, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                               */
-/* ------------------------------------------------------------------ */
-type BuyerStatus = "active" | "pending_kyc" | "suspended" | "inactive";
+type BuyerStatus = "active" | "pending_kyc" | "suspended";
 
 interface BuyerDetail {
-  id: string; companyName: string; contactName: string; email: string;
-  countryFlag: string; city: string; country: string;
-  totalOrders: number; totalGMV: number; lastOrderDate: string;
-  status: BuyerStatus; creditLimit: number | null;
-  registeredAt: string; paymentMethods: string[];
+  id: string;
+  companyName: string;
+  city: string | null;
+  countryCode: string;
+  isActive: boolean;
+  verificationStatus: string | null;
+  creditLimit: number | null;
+  createdAt: string;
+  contact: { full_name: string | null; email: string | null } | null;
+  totalOrders: number;
+  totalGmv: number;
+  lastOrderAt: string | null;
 }
 
-interface RecentOrder { orderNumber: string; date: string; total: number; status: string; }
+function deriveStatus(buyer: BuyerDetail): BuyerStatus {
+  if (!buyer.isActive) return "suspended";
+  if (buyer.verificationStatus === "pending") return "pending_kyc";
+  return "active";
+}
 
-/* ------------------------------------------------------------------ */
-/*  Mock data (mirrors buyers list)                                     */
-/* ------------------------------------------------------------------ */
-const BUYERS: BuyerDetail[] = [
-  { id: "BUY-001", companyName: "TechHub Ghana", contactName: "Kwame Asante", email: "kwame@techhubgh.com", countryFlag: "🇬🇭", city: "Accra", country: "Ghana", totalOrders: 34, totalGMV: 142800, lastOrderDate: "2026-04-15", status: "active", creditLimit: 50000, registeredAt: "2024-08-12", paymentMethods: ["MTN MoMo", "Stripe"] },
-  { id: "BUY-002", companyName: "Nairobi Imports Ltd", contactName: "Amina Wanjiku", email: "amina@nairobiimports.co.ke", countryFlag: "🇰🇪", city: "Nairobi", country: "Kenya", totalOrders: 71, totalGMV: 398500, lastOrderDate: "2026-04-14", status: "active", creditLimit: 120000, registeredAt: "2024-03-05", paymentMethods: ["M-Pesa", "Bank Transfer"] },
-  { id: "BUY-003", companyName: "Cairo Electronics", contactName: "Ahmed Hassan", email: "ahmed.h@cairoelectronics.eg", countryFlag: "🇪🇬", city: "Cairo", country: "Egypt", totalOrders: 18, totalGMV: 87200, lastOrderDate: "2026-04-10", status: "active", creditLimit: null, registeredAt: "2024-11-20", paymentMethods: ["Stripe"] },
-  { id: "BUY-004", companyName: "Lagos Distribution Co", contactName: "Chidi Okafor", email: "chidi@lagosdist.ng", countryFlag: "🇳🇬", city: "Lagos", country: "Nigeria", totalOrders: 0, totalGMV: 0, lastOrderDate: "—", status: "pending_kyc", creditLimit: null, registeredAt: "2026-04-08", paymentMethods: [] },
-  { id: "BUY-005", companyName: "Dar Trading House", contactName: "Fatuma Mshangama", email: "fatuma@dartrading.tz", countryFlag: "🇹🇿", city: "Dar es Salaam", country: "Tanzania", totalOrders: 12, totalGMV: 44600, lastOrderDate: "2026-03-22", status: "active", creditLimit: 20000, registeredAt: "2025-01-14", paymentMethods: ["M-Pesa", "Airtel Money"] },
-  { id: "BUY-006", companyName: "Kampala Wholesale Group", contactName: "Robert Mugisha", email: "r.mugisha@kwg.ug", countryFlag: "🇺🇬", city: "Kampala", country: "Uganda", totalOrders: 8, totalGMV: 28900, lastOrderDate: "2026-01-30", status: "suspended", creditLimit: null, registeredAt: "2025-04-21", paymentMethods: ["Airtel Money"] },
-  { id: "BUY-007", companyName: "Addis Trade Partners", contactName: "Tigist Bekele", email: "tigist@addistradeEt.com", countryFlag: "🇪🇹", city: "Addis Ababa", country: "Ethiopia", totalOrders: 5, totalGMV: 19200, lastOrderDate: "2026-02-14", status: "inactive", creditLimit: null, registeredAt: "2025-07-03", paymentMethods: ["Bank Transfer"] },
-  { id: "BUY-008", companyName: "Kigali Fresh Markets", contactName: "Jean-Pierre Nkurunziza", email: "jp@kigalifresh.rw", countryFlag: "🇷🇼", city: "Kigali", country: "Rwanda", totalOrders: 22, totalGMV: 63400, lastOrderDate: "2026-04-08", status: "active", creditLimit: 30000, registeredAt: "2024-12-01", paymentMethods: ["MTN MoMo", "Bank Transfer"] },
-];
-
-const RECENT_ORDERS: Record<string, RecentOrder[]> = {
-  "BUY-001": [
-    { orderNumber: "ORD-2025-4871", date: "2026-04-15", total: 12400, status: "confirmed" },
-    { orderNumber: "ORD-2025-4820", date: "2026-03-28", total: 8700,  status: "delivered" },
-    { orderNumber: "ORD-2025-4790", date: "2026-03-10", total: 15600, status: "delivered" },
-  ],
-  "BUY-002": [
-    { orderNumber: "ORD-2025-4870", date: "2026-04-14", total: 22400, status: "processing" },
-    { orderNumber: "ORD-2025-4845", date: "2026-04-01", total: 18200, status: "delivered" },
-    { orderNumber: "ORD-2025-4812", date: "2026-03-15", total: 31000, status: "delivered" },
-  ],
-  "BUY-003": [
-    { orderNumber: "ORD-2025-4862", date: "2026-04-10", total: 9100,  status: "shipped" },
-    { orderNumber: "ORD-2025-4831", date: "2026-03-22", total: 14800, status: "delivered" },
-  ],
-  "BUY-005": [
-    { orderNumber: "ORD-2025-4833", date: "2026-03-22", total: 6200,  status: "delivered" },
-    { orderNumber: "ORD-2025-4801", date: "2026-02-28", total: 8100,  status: "delivered" },
-  ],
-};
-
-/* ------------------------------------------------------------------ */
-/*  Config                                                              */
-/* ------------------------------------------------------------------ */
 const statusConfig: Record<BuyerStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
-  active:      { label: "Active",      color: "var(--success)",      bg: "color-mix(in srgb, var(--success) 10%, transparent)", icon: CheckCircle2 },
-  pending_kyc: { label: "Pending KYC", color: "var(--warning)",      bg: "color-mix(in srgb, var(--warning) 10%, transparent)", icon: Clock },
-  suspended:   { label: "Suspended",   color: "var(--danger)",       bg: "color-mix(in srgb, var(--danger) 10%, transparent)",  icon: XCircle },
-  inactive:    { label: "Inactive",    color: "var(--text-tertiary)", bg: "var(--surface-secondary)",                            icon: AlertTriangle },
+  active:      { label: "Active",      color: "var(--success)", bg: "color-mix(in srgb, var(--success) 10%, transparent)", icon: CheckCircle2 },
+  pending_kyc: { label: "Pending KYC", color: "var(--warning)", bg: "color-mix(in srgb, var(--warning) 10%, transparent)", icon: Clock },
+  suspended:   { label: "Suspended",   color: "var(--danger)",  bg: "color-mix(in srgb, var(--danger) 10%, transparent)",  icon: XCircle },
 };
 
-const orderStatusColor: Record<string, string> = {
-  confirmed: "var(--indigo)", processing: "var(--amber)", shipped: "var(--indigo)",
-  delivered: "var(--success)", pending: "var(--warning)", cancelled: "var(--danger)",
-};
-
-/* ------------------------------------------------------------------ */
-/*  Page                                                                */
-/* ------------------------------------------------------------------ */
 export default function BuyerDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const buyer = BUYERS.find((b) => b.id === id);
-  const recentOrders = RECENT_ORDERS[id] ?? [];
-
+  const [buyer, setBuyer] = useState<BuyerDetail | null | undefined>(undefined);
   const [editingLimit, setEditingLimit] = useState(false);
-  const [limitValue, setLimitValue] = useState(String(buyer?.creditLimit ?? ""));
+  const [limitValue, setLimitValue] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  async function load() {
+    const res = await fetch(`/api/admin/buyers?id=${id}`);
+    const data = await res.json();
+    const found = data.buyers?.[0] ?? null;
+    setBuyer(found);
+    if (found) setLimitValue(found.creditLimit != null ? String(found.creditLimit / 100) : "");
+  }
+
+  useEffect(() => {
+    if (id) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  if (buyer === undefined) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--text-tertiary)" }} />
+      </div>
+    );
+  }
 
   if (!buyer) {
     return (
@@ -97,28 +77,37 @@ export default function BuyerDetailPage() {
     );
   }
 
-  const status = statusConfig[buyer.status];
+  const status = statusConfig[deriveStatus(buyer)];
   const StatusIcon = status.icon;
 
-  async function handleAction(action: string) {
+  async function runAction(action: "suspend" | "reinstate" | "set_credit_limit", creditLimit?: number | null) {
     setActionLoading(action);
-    await new Promise((r) => setTimeout(r, 700));
+    const res = await fetch("/api/admin/buyers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId: id, action, creditLimit }),
+    });
+    const data = await res.json();
     setActionLoading(null);
+    if (!res.ok) {
+      toast.error(data.error || "Action failed");
+      return;
+    }
     if (action === "suspend") toast.error("Buyer account suspended");
     else if (action === "reinstate") toast.success("Buyer account reinstated");
-    else if (action === "save_limit") { setEditingLimit(false); toast.success("Credit limit updated"); }
+    else { setEditingLimit(false); toast.success("Credit limit updated"); }
+    load();
   }
 
   return (
     <div className="space-y-6">
-      {/* Back + header */}
       <div>
         <Link href="/admin/buyers" className="inline-flex items-center gap-1.5 text-sm mb-4 hover:opacity-70 transition-opacity" style={{ color: "var(--text-tertiary)" }}>
           <ArrowLeft className="w-4 h-4" /> Buyers
         </Link>
         <div className="flex items-center gap-4 flex-wrap">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: "color-mix(in srgb, var(--indigo) 12%, transparent)" }}>
-            {buyer.countryFlag}
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-sm font-bold shrink-0" style={{ background: "color-mix(in srgb, var(--indigo) 12%, transparent)", color: "var(--indigo)" }}>
+            {buyer.countryCode}
           </div>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
@@ -131,18 +120,17 @@ export default function BuyerDetailPage() {
               </span>
             </div>
             <p className="mt-0.5 text-sm" style={{ color: "var(--text-tertiary)" }}>
-              {buyer.id} · registered {new Date(buyer.registeredAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              registered {new Date(buyer.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </p>
           </div>
         </div>
       </div>
 
-      {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { label: "Total GMV",    value: buyer.totalGMV > 0 ? `$${buyer.totalGMV.toLocaleString()}` : "—", icon: TrendingUp,      accent: "var(--amber)" },
-          { label: "Total Orders", value: String(buyer.totalOrders),                                          icon: ShoppingCart,    accent: "var(--indigo)" },
-          { label: "Last Order",   value: buyer.lastOrderDate,                                                icon: CreditCardIcon,  accent: "var(--success)" },
+          { label: "Total GMV",    value: buyer.totalGmv > 0 ? `$${(buyer.totalGmv / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—", icon: TrendingUp,     accent: "var(--amber)" },
+          { label: "Total Orders", value: String(buyer.totalOrders),                                                                                        icon: ShoppingCart,   accent: "var(--indigo)" },
+          { label: "Last Order",   value: buyer.lastOrderAt ? new Date(buyer.lastOrderAt).toLocaleDateString() : "—",                                       icon: CreditCardIcon, accent: "var(--success)" },
         ].map((k) => (
           <div key={k.label} className="p-5 rounded-2xl border" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3" style={{ background: `color-mix(in srgb, ${k.accent} 12%, transparent)` }}>
@@ -154,28 +142,24 @@ export default function BuyerDetailPage() {
         ))}
       </div>
 
-      {/* Main grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left: contact + account + actions */}
         <div className="space-y-5">
-          {/* Contact */}
           <div className="rounded-2xl border p-5 space-y-3" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
             <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Contact</h2>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-tertiary)" }}>Primary Contact</p>
-              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{buyer.contactName}</p>
+              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{buyer.contact?.full_name ?? "—"}</p>
             </div>
             <div className="flex items-center gap-2">
               <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-tertiary)" }} />
-              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{buyer.email}</span>
+              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{buyer.contact?.email ?? "—"}</span>
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-tertiary)" }} />
-              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{buyer.city}, {buyer.country}</span>
+              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{buyer.city ? `${buyer.city}, ` : ""}{buyer.countryCode}</span>
             </div>
           </div>
 
-          {/* Account */}
           <div className="rounded-2xl border p-5 space-y-4" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
             <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Account</h2>
             <div>
@@ -189,15 +173,18 @@ export default function BuyerDetailPage() {
                       className="flex-1 px-3 py-2 text-sm bg-transparent outline-none" style={{ color: "var(--text-primary)" }} autoFocus
                     />
                   </div>
-                  <button onClick={() => handleAction("save_limit")} disabled={!!actionLoading}
-                    className="p-2 rounded-lg" style={{ background: "var(--success)", color: "white" }}>
-                    {actionLoading === "save_limit" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <button
+                    onClick={() => runAction("set_credit_limit", limitValue ? Math.round(Number(limitValue) * 100) : null)}
+                    disabled={!!actionLoading}
+                    className="p-2 rounded-lg" style={{ background: "var(--success)", color: "white" }}
+                  >
+                    {actionLoading === "set_credit_limit" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                    {buyer.creditLimit ? `$${buyer.creditLimit.toLocaleString()}` : "None"}
+                    {buyer.creditLimit ? `$${(buyer.creditLimit / 100).toLocaleString()}` : "None"}
                   </span>
                   <button onClick={() => setEditingLimit(true)} className="p-1.5 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
                     <Pencil className="w-3.5 h-3.5" />
@@ -205,91 +192,41 @@ export default function BuyerDetailPage() {
                 </div>
               )}
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-tertiary)" }}>Payment Methods</p>
-              {buyer.paymentMethods.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {buyer.paymentMethods.map((m) => (
-                    <span key={m} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: "var(--surface-secondary)", color: "var(--text-secondary)" }}>{m}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>None added yet</p>
-              )}
-            </div>
           </div>
 
-          {/* Actions */}
           <div className="rounded-2xl border p-5 space-y-2.5" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
             <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Actions</h2>
-            {buyer.status === "pending_kyc" && (
-              <Link href="/admin/verification"
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: "color-mix(in srgb, var(--warning) 10%, transparent)", color: "var(--warning)", border: "1px solid color-mix(in srgb, var(--warning) 25%, transparent)" }}>
-                Review KYC <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
-            )}
-            {buyer.status === "suspended" ? (
-              <button onClick={() => handleAction("reinstate")} disabled={!!actionLoading}
+            {deriveStatus(buyer) === "suspended" ? (
+              <button onClick={() => runAction("reinstate")} disabled={!!actionLoading}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
                 style={{ background: "var(--success)", color: "white" }}>
                 {actionLoading === "reinstate" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Reinstate Account
               </button>
-            ) : buyer.status === "active" ? (
-              <button onClick={() => handleAction("suspend")} disabled={!!actionLoading}
+            ) : (
+              <button onClick={() => runAction("suspend")} disabled={!!actionLoading}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border"
                 style={{ color: "var(--danger)", borderColor: "color-mix(in srgb, var(--danger) 25%, transparent)", background: "color-mix(in srgb, var(--danger) 8%, transparent)" }}>
                 {actionLoading === "suspend" ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} Suspend Account
               </button>
-            ) : null}
+            )}
           </div>
         </div>
 
-        {/* Right: recent orders */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border overflow-hidden" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4" style={{ color: "var(--amber)" }} />
-                <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Recent Orders</h2>
+                <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Orders</h2>
               </div>
-              <Link href="/admin/orders" className="text-xs font-semibold" style={{ color: "var(--amber)" }}>View all →</Link>
+              <Link href={`/admin/orders?buyerCompanyId=${buyer.id}`} className="text-xs font-semibold" style={{ color: "var(--amber)" }}>View all →</Link>
             </div>
-            {recentOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <ShoppingCart className="w-10 h-10 mb-3" style={{ color: "var(--text-tertiary)" }} />
-                <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No orders yet</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    {["Order", "Date", "Amount", "Status", ""].map((h) => (
-                      <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((o) => (
-                    <tr key={o.orderNumber}
-                      style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <td className="px-5 py-3.5"><span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{o.orderNumber}</span></td>
-                      <td className="px-5 py-3.5"><span className="text-sm" style={{ color: "var(--text-tertiary)" }}>{new Date(o.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span></td>
-                      <td className="px-5 py-3.5"><span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>${o.total.toLocaleString()}</span></td>
-                      <td className="px-5 py-3.5"><span className="text-xs font-semibold capitalize" style={{ color: orderStatusColor[o.status] ?? "var(--text-secondary)" }}>{o.status}</span></td>
-                      <td className="px-5 py-3.5">
-                        <Link href="/admin/orders" className="p-1.5 rounded-lg block" style={{ color: "var(--text-tertiary)" }}>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div className="flex flex-col items-center justify-center py-16">
+              <ShoppingCart className="w-10 h-10 mb-3" style={{ color: "var(--text-tertiary)" }} />
+              <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+                {buyer.totalOrders > 0 ? `${buyer.totalOrders} total orders — see the orders list for details` : "No orders yet"}
+              </p>
+            </div>
           </div>
         </div>
       </div>

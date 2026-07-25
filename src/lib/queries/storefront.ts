@@ -49,11 +49,19 @@ export interface StorefrontData {
     reviewer_name: string | null;
     reviewer_company: string | null;
     created_at: string;
+    communicationRating: number | null;
+    productQualityRating: number | null;
+    shippingRating: number | null;
+    images: string[];
+    isVerifiedPurchase: boolean;
   }[];
   reviewSummary: {
     average: number;
     total: number;
     distribution: Record<number, number>;
+    qualityAverage: number | null;
+    communicationAverage: number | null;
+    shippingAverage: number | null;
   };
 }
 
@@ -92,7 +100,7 @@ export async function getStorefrontBySlug(slug: string): Promise<StorefrontData 
   // Fetch reviews
   const { data: reviews } = await supabase
     .from("reviews")
-    .select("id, rating, title, content, created_at, user_profiles:reviewer_user_id (full_name), companies:reviewer_company_id (name)")
+    .select("id, rating, title, content, created_at, communication_rating, product_quality_rating, shipping_rating, images, is_verified_purchase, user_profiles:reviewer_user_id (full_name), companies:reviewer_company_id (name)")
     .eq("supplier_company_id", company.id)
     .eq("is_visible", true)
     .order("created_at", { ascending: false })
@@ -101,17 +109,24 @@ export async function getStorefrontBySlug(slug: string): Promise<StorefrontData 
   // Calculate review summary
   const { data: allRatings } = await supabase
     .from("reviews")
-    .select("rating")
+    .select("rating, communication_rating, product_quality_rating, shipping_rating")
     .eq("supplier_company_id", company.id)
     .eq("is_visible", true);
 
   const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   let ratingSum = 0;
+  let qualitySum = 0, qualityCount = 0;
+  let communicationSum = 0, communicationCount = 0;
+  let shippingSum = 0, shippingCount = 0;
   for (const r of allRatings ?? []) {
     distribution[r.rating] = (distribution[r.rating] ?? 0) + 1;
     ratingSum += r.rating;
+    if (r.product_quality_rating != null) { qualitySum += r.product_quality_rating; qualityCount++; }
+    if (r.communication_rating != null) { communicationSum += r.communication_rating; communicationCount++; }
+    if (r.shipping_rating != null) { shippingSum += r.shipping_rating; shippingCount++; }
   }
   const totalReviews = allRatings?.length ?? 0;
+  const round1 = (n: number) => Math.round(n * 10) / 10;
 
   return {
     company,
@@ -127,12 +142,20 @@ export async function getStorefrontBySlug(slug: string): Promise<StorefrontData 
       content: r.content,
       reviewer_name: (r.user_profiles as unknown as { full_name: string } | null)?.full_name ?? null,
       reviewer_company: (r.companies as unknown as { name: string } | null)?.name ?? null,
-      created_at: r.created_at,
+      created_at: r.created_at ?? new Date().toISOString(),
+      communicationRating: r.communication_rating,
+      productQualityRating: r.product_quality_rating,
+      shippingRating: r.shipping_rating,
+      images: r.images ?? [],
+      isVerifiedPurchase: r.is_verified_purchase ?? false,
     })),
     reviewSummary: {
-      average: totalReviews > 0 ? Math.round((ratingSum / totalReviews) * 10) / 10 : 0,
+      average: totalReviews > 0 ? round1(ratingSum / totalReviews) : 0,
       total: totalReviews,
       distribution,
+      qualityAverage: qualityCount > 0 ? round1(qualitySum / qualityCount) : null,
+      communicationAverage: communicationCount > 0 ? round1(communicationSum / communicationCount) : null,
+      shippingAverage: shippingCount > 0 ? round1(shippingSum / shippingCount) : null,
     },
   };
 }

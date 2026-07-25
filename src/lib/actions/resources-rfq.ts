@@ -35,7 +35,7 @@ export interface CreateResourceRfqInput {
   quantity: number;
   unitOfMeasure: string; // 'MT' | 'BDMT' | 'm3' | 'troy_oz' | 'kg' | 'TEU'
   targetPricePerUnitUsd?: number;
-  incoterm?: "fob" | "cif" | "cfr" | "dap" | "exw";
+  incoterm?: "fob" | "cif" | "cpt" | "fca" | "dap" | "exw";
   portOfLoading?: string;
   portOfDischarge?: string;
   shipmentWindowStart?: string; // ISO date
@@ -136,7 +136,7 @@ export interface SubmitResourceQuoteInput {
   unitPriceUsd: number;
   quantity: number;
   unitOfMeasure: string;
-  incoterm?: "fob" | "cif" | "cfr" | "dap" | "exw";
+  incoterm?: "fob" | "cif" | "cpt" | "fca" | "dap" | "exw";
   portOfLoading?: string;
   portOfDischarge?: string;
   leadTimeDays?: number;

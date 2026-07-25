@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Building2, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/browser";
+import { completeOnboarding } from "@/lib/actions/onboarding";
 
 const COUNTRIES = [
   { code: "GH", name: "Ghana", region: "africa_west" },
@@ -89,69 +89,10 @@ export default function OnboardingPage() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const result = await completeOnboarding(form);
+      if (!result.success) throw new Error(result.error);
 
-      // Get user profile
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("id")
-        .eq("auth_id", user.id)
-        .single();
-
-      if (!profile) throw new Error("Profile not found");
-
-      // Create company
-      const slug =
-        form.companyName
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/[\s_]+/g, "-")
-          .replace(/^-+|-+$/g, "") +
-        "-" +
-        Math.random().toString(36).slice(2, 8);
-
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
-        .insert({
-          name: form.companyName,
-          slug,
-          type: form.type,
-          country_code: form.countryCode,
-          market_region: form.marketRegion,
-          industry: form.industry || null,
-          city: form.city || null,
-        })
-        .select()
-        .single();
-
-      if (companyError) throw companyError;
-
-      // Create company membership
-      const role =
-        form.type === "supplier" ? "supplier_owner" : "buyer";
-
-      await supabase.from("company_members").insert({
-        company_id: company.id,
-        user_id: profile.id,
-        role,
-        is_primary: true,
-      });
-
-      // If supplier, create supplier profile
-      if (form.type === "supplier") {
-        await supabase.from("supplier_profiles").insert({
-          company_id: company.id,
-          factory_country: form.countryCode,
-        });
-      }
-
-      const redirectPath =
-        form.type === "supplier" ? "/supplier" : "/dashboard";
-      router.push(redirectPath);
+      router.push(result.redirectPath);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");

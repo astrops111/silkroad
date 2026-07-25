@@ -8,11 +8,20 @@ import {
   TrendingUp,
   DollarSign,
   Users,
-  BarChart3,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/charts/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { getCurrentUser } from "@/lib/queries/user";
+import {
+  getBuyerKpis,
+  getBuyerMonthlySpend,
+  getBuyerTopSuppliers,
+  type KpiData,
+  type MonthlyTrend,
+  type TopSupplier,
+} from "@/lib/queries/analytics";
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -29,32 +38,47 @@ function formatCompact(cents: number): string {
   return formatCurrency(cents);
 }
 
-// Mock data — will be replaced with getBuyerKpis(), getBuyerMonthlySpend(), getBuyerTopSuppliers()
-const MOCK_KPIS = { totalOrders: 156, totalSpend: 48200000, avgOrderValue: 3089744, activeRfqs: 8 };
-const MOCK_MONTHLY = [
-  { label: "Nov", value: 3200000 },
-  { label: "Dec", value: 4100000 },
-  { label: "Jan", value: 3800000 },
-  { label: "Feb", value: 5200000 },
-  { label: "Mar", value: 4600000 },
-  { label: "Apr", value: 5800000 },
-];
-const MOCK_TOP_SUPPLIERS = [
-  { name: "HuaNan Precision Machinery", spend: 12400000, orders: 23 },
-  { name: "SunPower Energy Tech", spend: 8900000, orders: 15 },
-  { name: "BrightPath Lighting", spend: 7200000, orders: 31 },
-  { name: "Silk Valley Textiles", spend: 5600000, orders: 42 },
-  { name: "AgroTech Equipment", spend: 3100000, orders: 8 },
-];
-const MOCK_CATEGORIES = [
-  { label: "Machinery", value: 18500000 },
-  { label: "Electronics", value: 12300000 },
-  { label: "Textiles", value: 8700000 },
-  { label: "Agriculture", value: 5200000 },
-  { label: "Construction", value: 3500000 },
-];
+function formatMonthLabel(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short" });
+}
 
 export default function BuyerAnalyticsPage() {
+  const [loading, setLoading] = useState(true);
+  const [kpis, setKpis] = useState<KpiData | null>(null);
+  const [monthly, setMonthly] = useState<MonthlyTrend[]>([]);
+  const [topSuppliers, setTopSuppliers] = useState<TopSupplier[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUser();
+      const companyId = user?.company_members?.[0]?.company_id;
+      if (!companyId) {
+        setLoading(false);
+        return;
+      }
+      const [k, m, s] = await Promise.all([
+        getBuyerKpis(companyId),
+        getBuyerMonthlySpend(companyId, 6),
+        getBuyerTopSuppliers(companyId),
+      ]);
+      setKpis(k);
+      setMonthly(m);
+      setTopSuppliers(s);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin text-[var(--text-tertiary)]" />
+      </div>
+    );
+  }
+
+  const monthlyChartData = monthly.map((m) => ({ label: formatMonthLabel(m.month), value: m.amount }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,49 +92,33 @@ export default function BuyerAnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Orders" value={MOCK_KPIS.totalOrders.toString()} subtitle="all time" icon={ShoppingCart} accent="var(--amber)" />
-        <StatCard label="Total Spend" value={formatCompact(MOCK_KPIS.totalSpend)} subtitle="all time" icon={CreditCard} accent="var(--success)" />
-        <StatCard label="Avg Order Value" value={formatCurrency(MOCK_KPIS.avgOrderValue)} subtitle="per order" icon={DollarSign} accent="var(--indigo)" />
-        <StatCard label="Active RFQs" value={MOCK_KPIS.activeRfqs.toString()} subtitle="awaiting quotes" icon={FileText} accent="var(--terracotta)" />
+        <StatCard label="Total Orders" value={(kpis?.totalOrders ?? 0).toString()} subtitle="all time" icon={ShoppingCart} accent="var(--amber)" />
+        <StatCard label="Total Spend" value={formatCompact(kpis?.totalSpend ?? 0)} subtitle="all time" icon={CreditCard} accent="var(--success)" />
+        <StatCard label="Avg Order Value" value={formatCurrency(kpis?.avgOrderValue ?? 0)} subtitle="per order" icon={DollarSign} accent="var(--indigo)" />
+        <StatCard label="Active RFQs" value={(kpis?.activeRfqs ?? 0).toString()} subtitle="awaiting quotes" icon={FileText} accent="var(--terracotta)" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Monthly Spend */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[var(--amber)]" />
-              Monthly Spend
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Monthly Spend */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-[var(--amber)]" />
+            Monthly Spend
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {monthlyChartData.length === 0 ? (
+            <p className="text-sm text-[var(--text-tertiary)] py-8 text-center">No spend data yet</p>
+          ) : (
             <BarChart
-              data={MOCK_MONTHLY}
+              data={monthlyChartData}
               color="var(--amber)"
               formatValue={(v) => formatCompact(v)}
               height={220}
             />
-          </CardContent>
-        </Card>
-
-        {/* Spend by Category */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--indigo)]" />
-              Spend by Category
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BarChart
-              data={MOCK_CATEGORIES}
-              color="var(--indigo)"
-              formatValue={(v) => formatCompact(v)}
-              height={220}
-            />
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Top Suppliers */}
       <Card>
@@ -133,14 +141,22 @@ export default function BuyerAnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_TOP_SUPPLIERS.map((supplier, i) => (
-                  <tr key={supplier.name} className="border-b border-[var(--border-subtle)] last:border-b-0">
-                    <td className="px-4 py-3 text-sm font-bold text-[var(--text-tertiary)]">#{i + 1}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-[var(--obsidian)]">{supplier.name}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-[var(--obsidian)]">{formatCurrency(supplier.spend)}</td>
-                    <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">{supplier.orders}</td>
+                {topSuppliers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-[var(--text-tertiary)]">
+                      No supplier spend yet
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  topSuppliers.map((supplier, i) => (
+                    <tr key={supplier.supplierId} className="border-b border-[var(--border-subtle)] last:border-b-0">
+                      <td className="px-4 py-3 text-sm font-bold text-[var(--text-tertiary)]">#{i + 1}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-[var(--obsidian)]">{supplier.supplierName}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--obsidian)]">{formatCurrency(supplier.totalSpend)}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">{supplier.orderCount}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

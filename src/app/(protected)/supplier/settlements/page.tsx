@@ -1,24 +1,56 @@
-"use client";
-
+import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Clock, CheckCircle2, TrendingUp, Landmark } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, TrendingUp, Landmark, XCircle, AlertTriangle } from "lucide-react";
+import { getCurrentUser } from "@/lib/queries/user";
+import { canSupply } from "@/lib/company-access";
+import { getSupplierSettlements } from "@/lib/settlement/engine";
 
-const SETTLEMENTS = [
-  { id: "s1", number: "STL-ABC123", amount: 324000, commission: 16200, net: 307800, currency: "USD", status: "paid", paidAt: "2026-04-10", method: "Stripe Connect" },
-  { id: "s2", number: "STL-DEF456", amount: 156000, commission: 7800, net: 148200, currency: "USD", status: "paid", paidAt: "2026-04-05", method: "MTN Mobile Money" },
-  { id: "s3", number: "STL-GHI789", amount: 89500, commission: 4475, net: 85025, currency: "USD", status: "ready", paidAt: null, method: "Pending" },
-  { id: "s4", number: "STL-JKL012", amount: 210000, commission: 10500, net: 199500, currency: "USD", status: "processing", paidAt: null, method: "Stripe Connect" },
-];
+export const dynamic = "force-dynamic";
 
 function formatPrice(cents: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(cents / 100);
 }
 
-const totalPaid = SETTLEMENTS.filter((s) => s.status === "paid").reduce((sum, s) => sum + s.net, 0);
-const totalPending = SETTLEMENTS.filter((s) => s.status !== "paid").reduce((sum, s) => sum + s.net, 0);
+const STATUS_ICON: Record<string, typeof CheckCircle2> = {
+  paid: CheckCircle2,
+  processing: Clock,
+  ready: Landmark,
+  pending: Clock,
+  calculating: Clock,
+  failed: XCircle,
+  disputed: AlertTriangle,
+  cancelled: XCircle,
+};
 
-export default function SupplierSettlementsPage() {
+const METHOD_LABELS: Record<string, string> = {
+  stripe: "Stripe Connect",
+  xtransfer: "XTransfer",
+  bank_transfer: "Bank Transfer",
+  mobile_money: "Mobile Money",
+  platform_wallet: "Platform Wallet",
+};
+
+export default async function SupplierSettlementsPage() {
+  const user = await getCurrentUser();
+  const membership = user?.company_members?.[0];
+  if (!membership || !canSupply(membership.companies?.type)) {
+    redirect("/dashboard");
+  }
+
+  const settlements = await getSupplierSettlements(membership.company_id);
+
+  const currency = settlements[0]?.currency ?? "USD";
+  const totalPaid = settlements
+    .filter((s) => s.status === "paid")
+    .reduce((sum, s) => sum + Number(s.net_payout), 0);
+  const totalPending = settlements
+    .filter((s) => s.status !== "paid")
+    .reduce((sum, s) => sum + Number(s.net_payout), 0);
+  const totalGross = settlements.reduce((sum, s) => sum + Number(s.gross_sales), 0);
+  const totalCommission = settlements.reduce((sum, s) => sum + Number(s.total_commission), 0);
+  const commissionRateLabel = totalGross > 0 ? `${((totalCommission / totalGross) * 100).toFixed(1)}%` : "—";
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -35,7 +67,7 @@ export default function SupplierSettlementsPage() {
             <div>
               <p className="text-xs text-[var(--text-tertiary)]">Total Paid</p>
               <p className="text-lg font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
-                {formatPrice(totalPaid, "USD")}
+                {formatPrice(totalPaid, currency)}
               </p>
             </div>
           </CardContent>
@@ -48,7 +80,7 @@ export default function SupplierSettlementsPage() {
             <div>
               <p className="text-xs text-[var(--text-tertiary)]">Pending Payout</p>
               <p className="text-lg font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
-                {formatPrice(totalPending, "USD")}
+                {formatPrice(totalPending, currency)}
               </p>
             </div>
           </CardContent>
@@ -60,7 +92,9 @@ export default function SupplierSettlementsPage() {
             </div>
             <div>
               <p className="text-xs text-[var(--text-tertiary)]">Commission Rate</p>
-              <p className="text-lg font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>5%</p>
+              <p className="text-lg font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
+                {commissionRateLabel}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -84,27 +118,36 @@ export default function SupplierSettlementsPage() {
                 </tr>
               </thead>
               <tbody>
-                {SETTLEMENTS.map((s) => (
-                  <tr key={s.id} className="border-b border-[var(--border-subtle)] last:border-b-0">
-                    <td className="px-4 py-3 text-sm font-semibold text-[var(--obsidian)]">{s.number}</td>
-                    <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">{formatPrice(s.amount, s.currency)}</td>
-                    <td className="px-4 py-3 text-sm text-[var(--danger)]">-{formatPrice(s.commission, s.currency)}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-[var(--obsidian)]">{formatPrice(s.net, s.currency)}</td>
-                    <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">{s.method}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={s.status === "paid" ? "default" : s.status === "processing" ? "secondary" : "outline"}>
-                        {s.status === "paid" && <CheckCircle2 className="w-3 h-3" />}
-                        {s.status === "processing" && <Clock className="w-3 h-3" />}
-                        {s.status === "ready" && <Landmark className="w-3 h-3" />}
-                        {s.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[var(--text-tertiary)]">{s.paidAt ?? "—"}</td>
-                  </tr>
-                ))}
+                {settlements.map((s) => {
+                  const StatusIcon = STATUS_ICON[s.status ?? ""] ?? Clock;
+                  return (
+                    <tr key={s.id} className="border-b border-[var(--border-subtle)] last:border-b-0">
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--obsidian)]">{s.settlement_number}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">{formatPrice(Number(s.gross_sales), s.currency ?? currency)}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--danger)]">-{formatPrice(Number(s.total_commission), s.currency ?? currency)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--obsidian)]">{formatPrice(Number(s.net_payout), s.currency ?? currency)}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">
+                        {s.payout_method ? (METHOD_LABELS[s.payout_method] ?? s.payout_method) : "Pending"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={s.status === "paid" ? "default" : s.status === "processing" ? "secondary" : "outline"}>
+                          <StatusIcon className="w-3 h-3" />
+                          {s.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-tertiary)]">
+                        {s.paid_at ? new Date(s.paid_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {settlements.length === 0 && (
+            <p className="py-8 text-center text-sm text-[var(--text-tertiary)]">No settlements yet.</p>
+          )}
         </CardContent>
       </Card>
     </div>

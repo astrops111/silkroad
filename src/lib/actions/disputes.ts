@@ -10,10 +10,6 @@ type ActionResult<T = undefined> = {
 
 export async function openDispute(
   supplierOrderId: string,
-  purchaseOrderId: string,
-  openedByUserId: string,
-  openedByCompanyId: string,
-  supplierCompanyId: string,
   data: {
     type: string;
     title: string;
@@ -23,6 +19,31 @@ export async function openDispute(
   }
 ): Promise<ActionResult<{ disputeId: string }>> {
   const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return { success: false, error: "Profile not found" };
+
+  // Derive purchase order / company IDs server-side from the order itself —
+  // never trust client-supplied IDs for who's opening the dispute against whom.
+  const { data: supplierOrder } = await supabase
+    .from("supplier_orders")
+    .select("id, supplier_id, purchase_order_id, purchase_orders!inner(buyer_company_id, buyer_user_id)")
+    .eq("id", supplierOrderId)
+    .single();
+
+  if (!supplierOrder) return { success: false, error: "Order not found" };
+
+  const purchaseOrder = supplierOrder.purchase_orders[0];
+  if (!purchaseOrder || purchaseOrder.buyer_user_id !== profile.id) {
+    return { success: false, error: "You do not have access to this order" };
+  }
 
   // Check for existing open dispute on this order
   const { data: existing } = await supabase
@@ -40,10 +61,10 @@ export async function openDispute(
     .from("disputes")
     .insert({
       supplier_order_id: supplierOrderId,
-      purchase_order_id: purchaseOrderId,
-      opened_by_user_id: openedByUserId,
-      opened_by_company_id: openedByCompanyId,
-      supplier_company_id: supplierCompanyId,
+      purchase_order_id: supplierOrder.purchase_order_id,
+      opened_by_user_id: profile.id,
+      opened_by_company_id: purchaseOrder.buyer_company_id,
+      supplier_company_id: supplierOrder.supplier_id,
       type: data.type,
       title: data.title,
       description: data.description,

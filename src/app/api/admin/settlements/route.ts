@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 import { randomBytes } from "crypto";
+import { logAdminAction } from "@/lib/logging/admin-audit";
 
 /**
  * GET /api/admin/settlements — List settlements with supplier info
@@ -190,15 +191,26 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: `Invalid action: ${action}` }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("settlements")
     .update(updates)
-    .eq("id", settlementId);
+    .eq("id", settlementId)
+    .select("settlement_number")
+    .single();
 
   if (error) {
     console.error("[admin/settlements]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+
+  await logAdminAction({
+    adminId: auth.profile.id,
+    actionType: "settlement_payout_" + action,
+    targetEntity: "settlement",
+    targetId: settlementId,
+    targetLabel: updated?.settlement_number,
+    reason: `action: ${action}`,
+  });
 
   return NextResponse.json({ success: true, settlementId, action });
 }

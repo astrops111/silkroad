@@ -54,7 +54,7 @@ export const MARKETPLACE_DEFAULT_PAGE_SIZE = 50;
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; sub?: string; country?: string; brand?: string; use?: string; limit?: string; group?: string }>;
+  searchParams: Promise<{ category?: string; sub?: string; country?: string; brand?: string; use?: string; limit?: string; group?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   const activeCategorySlug = sp.category ?? null;
@@ -73,6 +73,7 @@ export default async function MarketplacePage({
   const pageSize = MARKETPLACE_PAGE_SIZES.includes(requestedLimit as (typeof MARKETPLACE_PAGE_SIZES)[number])
     ? requestedLimit
     : MARKETPLACE_DEFAULT_PAGE_SIZE;
+  const currentPage = Math.max(1, Math.floor(Number(sp.page)) || 1);
 
   let products: MarketplaceProduct[] = [];
   let subcategories: MarketplaceSubcategory[] = [];
@@ -160,6 +161,7 @@ export default async function MarketplacePage({
       shippingGroupId: activeGroupId ?? undefined,
       sort: "name",
       limit: pageSize,
+      page: currentPage,
     });
     totalProductCount = result.total;
     const poolingById = await getPoolingInfoByProductIds(result.products.map((p) => p.id));
@@ -223,6 +225,7 @@ export default async function MarketplacePage({
         subcategoriesByParent={subcategoriesByParent}
         leavesByParent={leavesByParent}
         totalProductCount={totalProductCount}
+        currentPage={currentPage}
         poolingRules={poolingRules}
         groupFacets={groupFacets}
       />

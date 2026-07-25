@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 import { sanitizeSearchTerm } from "@/lib/security/sanitize";
+import { logAdminAction } from "@/lib/logging/admin-audit";
 
 /**
  * GET /api/admin/orders — List all platform orders
@@ -114,8 +115,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Missing orderId or status" }, { status: 400 });
   }
 
-  const PURCHASE_STATUSES = ["pending_payment","paid","processing","shipped","delivered","completed","cancelled","refunded"];
-  const SUPPLIER_STATUSES = ["pending_payment","paid","processing","shipped","delivered","completed","cancelled","refunded","disputed"];
+  // Must match the b2b_order_status enum exactly — "processing"/"shipped" are
+  // not valid enum values (that update would 500 at the DB level).
+  const PURCHASE_STATUSES = ["pending_payment","paid","confirmed","in_production","dispatched","in_transit","delivered","completed","cancelled","refunded"];
+  const SUPPLIER_STATUSES = ["pending_payment","paid","confirmed","in_production","dispatched","in_transit","delivered","completed","cancelled","refunded","disputed"];
   const allowed = type === "supplier" ? SUPPLIER_STATUSES : PURCHASE_STATUSES;
   if (!allowed.includes(newStatus)) {
     return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
@@ -123,10 +126,12 @@ export async function PATCH(request: NextRequest) {
 
   const table = type === "supplier" ? "supplier_orders" : "purchase_orders";
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from(table)
     .update({ status: newStatus, updated_at: new Date().toISOString() })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("order_number, status")
+    .single();
 
   if (error) {
     console.error("[admin/orders]", error);
@@ -141,6 +146,15 @@ export async function PATCH(request: NextRequest) {
       reason: "Admin status update",
     });
   }
+
+  await logAdminAction({
+    adminId: auth.profile.id,
+    actionType: type === "supplier" ? "supplier_order_status_updated" : "purchase_order_status_updated",
+    targetEntity: table,
+    targetId: orderId,
+    targetLabel: updated?.order_number,
+    reason: `status -> ${newStatus}`,
+  });
 
   return NextResponse.json({ success: true, orderId, newStatus });
 }

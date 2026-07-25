@@ -1,5 +1,4 @@
-"use client";
-
+import { redirect } from "next/navigation";
 import {
   DollarSign,
   ShoppingCart,
@@ -13,6 +12,17 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/charts/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { getCurrentUser } from "@/lib/queries/user";
+import { canSupply } from "@/lib/company-access";
+import {
+  getSupplierKpis,
+  getSupplierMonthlyRevenue,
+  getSupplierTopProducts,
+} from "@/lib/queries/analytics";
+
+export const dynamic = "force-dynamic";
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(cents / 100);
@@ -25,25 +35,26 @@ function formatCompact(cents: number): string {
   return formatCurrency(cents);
 }
 
-// Mock — will be replaced with getSupplierKpis(), getSupplierMonthlyRevenue(), getSupplierTopProducts()
-const MOCK_KPIS = { totalOrders: 342, totalRevenue: 12485000, activeProducts: 156, averageRating: 4.7, responseRate: 98, onTimeDeliveryRate: 96.4 };
-const MOCK_MONTHLY = [
-  { label: "Nov", value: 1800000 },
-  { label: "Dec", value: 2200000 },
-  { label: "Jan", value: 1900000 },
-  { label: "Feb", value: 2600000 },
-  { label: "Mar", value: 2100000 },
-  { label: "Apr", value: 2800000 },
-];
-const MOCK_TOP_PRODUCTS = [
-  { name: "3000W Fiber Laser Cutter", revenue: 4200000, units: 28 },
-  { name: "CNC Press Brake 160T", revenue: 2800000, units: 15 },
-  { name: "Plasma Cutting Table 1530", revenue: 1900000, units: 42 },
-  { name: "Welding Robot Cell", revenue: 1500000, units: 8 },
-  { name: "Spare Parts Bundle", revenue: 800000, units: 156 },
-];
+export default async function SupplierAnalyticsPage() {
+  const user = await getCurrentUser();
+  const membership = user?.company_members?.[0];
+  if (!membership || !canSupply(membership.companies?.type)) {
+    redirect("/dashboard");
+  }
 
-export default function SupplierAnalyticsPage() {
+  const companyId = membership.company_id;
+  const [kpis, monthly, topProducts] = await Promise.all([
+    getSupplierKpis(companyId),
+    getSupplierMonthlyRevenue(companyId),
+    getSupplierTopProducts(companyId),
+  ]);
+
+  const monthlyChart = monthly.map((m) => ({
+    label: MONTH_LABELS[Number(m.month.slice(5, 7)) - 1] ?? m.month,
+    value: m.amount,
+  }));
+  const maxRevenue = topProducts[0]?.revenue ?? 1;
+
   return (
     <div className="space-y-6">
       <div>
@@ -57,12 +68,12 @@ export default function SupplierAnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard label="Total Revenue" value={formatCompact(MOCK_KPIS.totalRevenue)} subtitle="all time" icon={DollarSign} accent="var(--amber)" />
-        <StatCard label="Total Orders" value={MOCK_KPIS.totalOrders.toString()} subtitle="all time" icon={ShoppingCart} accent="var(--indigo)" />
-        <StatCard label="Active Products" value={MOCK_KPIS.activeProducts.toString()} subtitle="approved & listed" icon={Package} accent="var(--terracotta)" />
-        <StatCard label="Average Rating" value={MOCK_KPIS.averageRating.toFixed(1)} subtitle="out of 5.0" icon={Star} accent="var(--success)" />
-        <StatCard label="Response Rate" value={`${MOCK_KPIS.responseRate}%`} subtitle="within 24h" icon={Clock} accent="var(--info)" />
-        <StatCard label="On-Time Delivery" value={`${MOCK_KPIS.onTimeDeliveryRate}%`} subtitle="last 90 days" icon={Truck} accent="var(--success)" />
+        <StatCard label="Total Revenue" value={formatCompact(kpis.totalRevenue)} subtitle="all time" icon={DollarSign} accent="var(--amber)" />
+        <StatCard label="Total Orders" value={kpis.totalOrders.toString()} subtitle="all time" icon={ShoppingCart} accent="var(--indigo)" />
+        <StatCard label="Active Products" value={kpis.activeProducts.toString()} subtitle="approved & listed" icon={Package} accent="var(--terracotta)" />
+        <StatCard label="Average Rating" value={kpis.averageRating.toFixed(1)} subtitle="out of 5.0" icon={Star} accent="var(--success)" />
+        <StatCard label="Response Rate" value={`${kpis.responseRate}%`} subtitle="within 24h" icon={Clock} accent="var(--info)" />
+        <StatCard label="On-Time Delivery" value={`${kpis.onTimeDeliveryRate}%`} subtitle="last 90 days" icon={Truck} accent="var(--success)" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -75,12 +86,16 @@ export default function SupplierAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <BarChart
-              data={MOCK_MONTHLY}
-              color="var(--amber)"
-              formatValue={(v) => formatCompact(v)}
-              height={220}
-            />
+            {monthlyChart.length > 0 ? (
+              <BarChart
+                data={monthlyChart}
+                color="var(--amber)"
+                formatValue={(v) => formatCompact(v)}
+                height={220}
+              />
+            ) : (
+              <p className="text-sm text-[var(--text-tertiary)] py-8 text-center">No revenue in the last 12 months yet.</p>
+            )}
           </CardContent>
         </Card>
 
@@ -93,30 +108,33 @@ export default function SupplierAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {MOCK_TOP_PRODUCTS.map((product, i) => {
-                const maxRevenue = MOCK_TOP_PRODUCTS[0].revenue;
-                const pct = (product.revenue / maxRevenue) * 100;
-                return (
-                  <div key={product.name} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[var(--text-primary)] font-medium truncate max-w-[60%]">
-                        {i + 1}. {product.name}
-                      </span>
-                      <span className="text-[var(--text-secondary)] shrink-0">
-                        {formatCurrency(product.revenue)} · {product.units} units
-                      </span>
+            {topProducts.length > 0 ? (
+              <div className="space-y-3">
+                {topProducts.map((product, i) => {
+                  const pct = (product.revenue / maxRevenue) * 100;
+                  return (
+                    <div key={product.productId} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-[var(--text-primary)] font-medium truncate max-w-[60%]">
+                          {i + 1}. {product.name}
+                        </span>
+                        <span className="text-[var(--text-secondary)] shrink-0">
+                          {formatCurrency(product.revenue)} · {product.units} units
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-[var(--surface-tertiary)] overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: "var(--indigo)" }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-2 rounded-full bg-[var(--surface-tertiary)] overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, background: "var(--indigo)" }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--text-tertiary)] py-8 text-center">No sales yet.</p>
+            )}
           </CardContent>
         </Card>
       </div>

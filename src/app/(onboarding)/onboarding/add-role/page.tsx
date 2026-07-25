@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShoppingCart, Factory, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/browser";
+import { addCompanyRole } from "@/lib/actions/onboarding";
 
 const COUNTRIES = [
   { code: "GH", name: "Ghana", region: "africa_west" },
@@ -104,63 +104,10 @@ function AddRoleForm() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const result = await addCompanyRole({ ...form, type: companyType });
+      if (!result.success) throw new Error(result.error);
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("id")
-        .eq("auth_id", user.id)
-        .single();
-      if (!profile) throw new Error("Profile not found");
-
-      const slug =
-        form.companyName
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/[\s_]+/g, "-")
-          .replace(/^-+|-+$/g, "") +
-        "-" +
-        Math.random().toString(36).slice(2, 8);
-
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
-        .insert({
-          name: form.companyName,
-          slug,
-          type: companyType,
-          country_code: form.countryCode,
-          market_region: form.marketRegion,
-          industry: form.industry || null,
-          city: form.city || null,
-        })
-        .select()
-        .single();
-      if (companyError) throw companyError;
-
-      // New membership is NOT primary — the user's existing primary stays put.
-      const role = companyType === "supplier" ? "supplier_owner" : "buyer";
-      const { error: memberError } = await supabase
-        .from("company_members")
-        .insert({
-          company_id: company.id,
-          user_id: profile.id,
-          role,
-          is_primary: false,
-        });
-      if (memberError) throw memberError;
-
-      if (companyType === "supplier") {
-        await supabase.from("supplier_profiles").insert({
-          company_id: company.id,
-          factory_country: form.countryCode,
-        });
-      }
-
-      router.push(postRedirect);
+      router.push(result.redirectPath);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");

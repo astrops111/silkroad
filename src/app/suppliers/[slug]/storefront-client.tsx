@@ -556,11 +556,39 @@ const FACTORY_GALLERY = [
 
 type TabKey = "products" | "profile" | "reviews" | "gallery";
 
-function SupplierHero() {
+// Initials for the logo badge when a supplier has no uploaded logo_url —
+// derived from their real name, never a fixed placeholder like every
+// storefront previously shared.
+function initialsFromName(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+// Fields a real supplier can genuinely be missing (no local name, no listed
+// founding year, etc.) are nullable here so the UI can fall back to an honest
+// "not provided" state instead of silently reusing the mock company's own
+// specific facts (its Chinese name, its 2008 founding year, ...).
+type SupplierView = Omit<
+  typeof SUPPLIER,
+  "website" | "nameZh" | "city" | "province" | "description" | "established" | "employees"
+> & {
+  logoUrl: string | null;
+  website: string | null;
+  nameZh: string | null;
+  city: string | null;
+  province: string | null;
+  description: string | null;
+  established: number | null;
+  employees: string | null;
+};
+
+function SupplierHero({ supplier, isReal }: { supplier: SupplierView; isReal: boolean }) {
   return (
     <section className="relative overflow-hidden">
       {/* Cover gradient */}
-      <div className={`h-48 lg:h-56 bg-gradient-to-br ${SUPPLIER.coverGradient} relative`}>
+      <div className={`h-48 lg:h-56 bg-gradient-to-br ${supplier.coverGradient} relative`}>
         <div className="absolute inset-0 grid-pattern opacity-15" />
         <div
           className="absolute bottom-0 right-0 w-[500px] h-[300px]"
@@ -574,15 +602,24 @@ function SupplierHero() {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
         <div className="-mt-16 relative z-10 flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
           {/* Logo */}
-          <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl bg-[var(--surface-primary)] border-4 border-[var(--surface-primary)] shadow-lg flex items-center justify-center shrink-0">
-            <div className="w-full h-full rounded-xl bg-gradient-to-br from-[var(--indigo)] to-[var(--indigo-light)] flex items-center justify-center">
-              <span
-                className="text-3xl lg:text-4xl font-black text-white tracking-tight"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {SUPPLIER.logo}
-              </span>
-            </div>
+          <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl bg-[var(--surface-primary)] border-4 border-[var(--surface-primary)] shadow-lg flex items-center justify-center shrink-0 overflow-hidden">
+            {supplier.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={supplier.logoUrl}
+                alt={supplier.name}
+                className="w-full h-full object-cover rounded-xl"
+              />
+            ) : (
+              <div className="w-full h-full rounded-xl bg-gradient-to-br from-[var(--indigo)] to-[var(--indigo-light)] flex items-center justify-center">
+                <span
+                  className="text-3xl lg:text-4xl font-black text-white tracking-tight"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {supplier.logo}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Info */}
@@ -591,21 +628,24 @@ function SupplierHero() {
               <div>
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {SUPPLIER.verified && (
+                  {supplier.verified && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20">
                       <BadgeCheck className="w-3.5 h-3.5" />
                       Verified Supplier
                     </span>
                   )}
-                  {SUPPLIER.goldSupplier && (
+                  {supplier.goldSupplier && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--amber)]/10 text-[var(--amber-dark)] border border-[var(--amber)]/20">
                       <Award className="w-3.5 h-3.5" />
                       Gold Supplier
                     </span>
                   )}
-                  <span className="text-xs text-[var(--text-tertiary)]">
-                    · {SUPPLIER.yearsOnPlatform} yrs on platform
-                  </span>
+                  {/* "Years on platform" isn't tracked on companies yet — demo only. */}
+                  {!isReal && (
+                    <span className="text-xs text-[var(--text-tertiary)]">
+                      · {supplier.yearsOnPlatform} yrs on platform
+                    </span>
+                  )}
                 </div>
 
                 {/* Name */}
@@ -613,31 +653,41 @@ function SupplierHero() {
                   className="text-2xl lg:text-3xl font-bold text-[var(--obsidian)] tracking-tight leading-tight"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  {SUPPLIER.name}
+                  {supplier.name}
                 </h1>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">
-                  {SUPPLIER.nameZh}
-                </p>
+                {supplier.nameZh && (
+                  <p className="text-sm text-[var(--text-tertiary)] mt-1">
+                    {supplier.nameZh}
+                  </p>
+                )}
 
-                {/* Tagline */}
-                <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-xl">
-                  {SUPPLIER.tagline}
-                </p>
+                {/* Tagline — free-text marketing copy, not stored per-supplier. */}
+                {!isReal && (
+                  <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-xl">
+                    {supplier.tagline}
+                  </p>
+                )}
 
                 {/* Location & quick stats */}
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-[var(--text-tertiary)]">
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" />
-                    {SUPPLIER.city}, {SUPPLIER.province}, {SUPPLIER.country}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Building2 className="w-4 h-4" />
-                    Est. {SUPPLIER.established}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Users className="w-4 h-4" />
-                    {SUPPLIER.employees} employees
-                  </span>
+                  {(supplier.city || supplier.province || supplier.country) && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4" />
+                      {[supplier.city, supplier.province, supplier.country].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                  {supplier.established && (
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4" />
+                      Est. {supplier.established}
+                    </span>
+                  )}
+                  {supplier.employees && (
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-4 h-4" />
+                      {supplier.employees} employees
+                    </span>
+                  )}
                 </div>
 
                 {/* Rating */}
@@ -648,7 +698,7 @@ function SupplierHero() {
                         <Star
                           key={i}
                           className={`w-4 h-4 ${
-                            i < Math.floor(SUPPLIER.rating)
+                            i < Math.floor(supplier.rating)
                               ? "text-[var(--amber)] fill-[var(--amber)]"
                               : "text-[var(--border-strong)]"
                           }`}
@@ -656,14 +706,14 @@ function SupplierHero() {
                       ))}
                     </div>
                     <span className="text-sm font-semibold text-[var(--text-primary)]">
-                      {SUPPLIER.rating}
+                      {supplier.rating}
                     </span>
                     <span className="text-sm text-[var(--text-tertiary)]">
-                      ({SUPPLIER.totalReviews} reviews)
+                      ({supplier.totalReviews} reviews)
                     </span>
                   </div>
                   <span className="text-sm text-[var(--text-tertiary)]">
-                    · {SUPPLIER.totalTransactions.toLocaleString()} transactions
+                    · {supplier.totalTransactions.toLocaleString()} transactions
                   </span>
                 </div>
               </div>
@@ -698,12 +748,16 @@ function SupplierHero() {
 }
 
 /* ---------- Performance metrics strip ---------- */
-function PerformanceStrip() {
+// Response time and repeat-buyer rate aren't tracked anywhere in the schema
+// yet (supplier_profiles has response_rate/on_time_delivery_rate, but no
+// response-latency or repeat-buyer columns) — show "-" for a real supplier
+// rather than the same fabricated number every storefront used to display.
+function PerformanceStrip({ supplier, isReal }: { supplier: SupplierView; isReal: boolean }) {
   const metrics = [
-    { icon: Timer, label: "Response Time", value: SUPPLIER.responseTime, accent: "var(--success)" },
-    { icon: ThumbsUp, label: "Response Rate", value: SUPPLIER.responseRate, accent: "var(--amber-dark)" },
-    { icon: Truck, label: "On-Time Delivery", value: SUPPLIER.onTimeDelivery, accent: "var(--indigo-light)" },
-    { icon: Users, label: "Repeat Buyers", value: SUPPLIER.repeatBuyerRate, accent: "var(--terracotta-light)" },
+    { icon: Timer, label: "Response Time", value: isReal ? "-" : supplier.responseTime, accent: "var(--success)" },
+    { icon: ThumbsUp, label: "Response Rate", value: supplier.responseRate, accent: "var(--amber-dark)" },
+    { icon: Truck, label: "On-Time Delivery", value: supplier.onTimeDelivery, accent: "var(--indigo-light)" },
+    { icon: Users, label: "Repeat Buyers", value: isReal ? "-" : supplier.repeatBuyerRate, accent: "var(--terracotta-light)" },
   ];
 
   return (
@@ -739,7 +793,81 @@ function PerformanceStrip() {
 }
 
 /* ---------- Products Tab ---------- */
-function ProductsTab() {
+function ProductsTab({ products, isReal }: { products: RealSupplierProduct[]; isReal: boolean }) {
+  if (isReal) {
+    return (
+      <div>
+        {/* Search within supplier */}
+        <div className="flex items-center h-11 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-secondary)] focus-within:border-[var(--amber)] transition-colors mb-6 max-w-md">
+          <Search className="w-4 h-4 ml-4 text-[var(--text-tertiary)]" />
+          <input
+            type="text"
+            placeholder="Search this supplier's products..."
+            className="w-full bg-transparent px-3 text-sm outline-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+          />
+        </div>
+
+        {products.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Package className="w-10 h-10 text-[var(--text-tertiary)] opacity-40 mb-3" />
+            <p className="text-sm font-medium text-[var(--text-secondary)]">No products listed yet</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              This supplier hasn&apos;t published any approved products.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            {products.map((product) => (
+              <Link
+                key={product.id}
+                href={`/marketplace/${product.id}`}
+                className="group card-elevated block overflow-hidden"
+              >
+                <div className="relative h-44 bg-[var(--surface-secondary)]">
+                  {product.isFeatured && (
+                    <div className="absolute top-2.5 left-2.5 flex gap-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[var(--amber)]/15 text-[var(--amber-dark)] border border-[var(--amber)]/20">
+                        Featured
+                      </span>
+                    </div>
+                  )}
+                  {product.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="absolute inset-0 w-full h-full object-contain p-3"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <Package className="absolute inset-0 m-auto w-14 h-14 text-[var(--text-primary)] opacity-[0.05]" />
+                  )}
+                </div>
+                <div className="p-4">
+                  <div className="flex items-baseline gap-1.5 mb-1.5">
+                    <span
+                      className="text-lg font-bold text-[var(--obsidian)]"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {product.currency === "USD" ? "$" : `${product.currency} `}
+                      {product.price.toLocaleString()}
+                    </span>
+                  </div>
+                  <h3 className="text-sm text-[var(--text-secondary)] leading-snug line-clamp-2 mb-2 group-hover:text-[var(--amber-dark)] transition-colors">
+                    {product.name}
+                  </h3>
+                  <div className="text-xs text-[var(--text-tertiary)]">
+                    MOQ: {product.moq.toLocaleString()}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Category chips */}
@@ -833,7 +961,7 @@ function ProductsTab() {
 }
 
 /* ---------- Company Profile Tab ---------- */
-function ProfileTab() {
+function ProfileTab({ supplier, isReal }: { supplier: SupplierView; isReal: boolean }) {
   return (
     <div className="grid lg:grid-cols-3 gap-8">
       {/* Main info */}
@@ -847,11 +975,14 @@ function ProfileTab() {
             About the Company
           </h3>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            {SUPPLIER.description}
+            {supplier.description ?? "No company description provided yet."}
           </p>
         </div>
 
-        {/* Company details grid */}
+        {/* Company details grid — registration number, capital, trade
+            capacity, etc. aren't in the companies schema, so a real supplier
+            only gets the handful of fields we actually store, not every
+            HuaNan-specific fact restated for a different company. */}
         <div>
           <h3
             className="text-lg font-bold text-[var(--obsidian)] mb-4"
@@ -860,118 +991,152 @@ function ProfileTab() {
             Company Details
           </h3>
           <div className="grid sm:grid-cols-2 gap-x-10 gap-y-4">
-            {[
-              { icon: Building2, label: "Business Type", value: SUPPLIER.companyOverview.businessType },
-              { icon: Calendar, label: "Year Established", value: String(SUPPLIER.established) },
-              { icon: MapPin, label: "Registered Address", value: SUPPLIER.companyOverview.registeredAddress },
-              { icon: Users, label: "Total Employees", value: SUPPLIER.employees },
-              { icon: CircleDollarSign, label: "Annual Revenue", value: SUPPLIER.annualRevenue },
-              { icon: CircleDollarSign, label: "Registered Capital", value: SUPPLIER.companyOverview.registeredCapital },
-              { icon: Ruler, label: "Factory Area", value: SUPPLIER.companyOverview.totalArea },
-              { icon: Factory, label: "Production Lines", value: String(SUPPLIER.productionLines) },
-              { icon: Users, label: "R&D Staff", value: String(SUPPLIER.rdStaff) },
-              { icon: Users, label: "QC Staff", value: String(SUPPLIER.companyOverview.qualityControlStaff) },
-              { icon: TrendingUp, label: "Annual Output", value: SUPPLIER.companyOverview.annualOutputValue },
-              { icon: Globe, label: "Export Percentage", value: SUPPLIER.exportPercentage },
-              { icon: Truck, label: "Nearest Port", value: SUPPLIER.companyOverview.nearestPort },
-              { icon: Truck, label: "Trade Capacity", value: SUPPLIER.companyOverview.tradeCapacity },
-              { icon: Clock, label: "Average Lead Time", value: SUPPLIER.companyOverview.averageLeadTime },
-              { icon: Truck, label: "Delivery Terms", value: SUPPLIER.companyOverview.deliveryTerms },
-              { icon: CircleDollarSign, label: "Payment Terms", value: SUPPLIER.companyOverview.paymentTerms },
-              { icon: Shield, label: "After-Sales Service", value: SUPPLIER.companyOverview.afterSalesService },
-              { icon: Globe, label: "Languages", value: SUPPLIER.languages.join(", ") },
-              { icon: Package, label: "Sample Policy", value: SUPPLIER.companyOverview.samplePolicy },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex items-start gap-3 py-3 border-b border-[var(--border-subtle)]"
-              >
-                <item.icon className="w-4 h-4 text-[var(--text-tertiary)] mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs text-[var(--text-tertiary)] mb-0.5">{item.label}</div>
-                  <div className="text-sm font-medium text-[var(--text-primary)]">{item.value}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Main Markets */}
-        <div>
-          <h3
-            className="text-lg font-bold text-[var(--obsidian)] mb-4"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Main Export Markets
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {SUPPLIER.mainMarkets.map((market) => (
-              <span
-                key={market}
-                className="px-4 py-2 text-sm font-medium rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
-              >
-                {market}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Top Buyer Countries */}
-        <div>
-          <h3
-            className="text-lg font-bold text-[var(--obsidian)] mb-4"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Top Buyer Countries
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {SUPPLIER.socialProof.topBuyerCountries.map((c, i) => (
-              <div
-                key={c.country}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)]"
-              >
-                <span className="text-lg">{c.flag}</span>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-[var(--text-primary)]">{c.country}</div>
-                  <div className="text-xs text-[var(--text-tertiary)]">{c.orders} orders</div>
-                </div>
-                <span className="text-xs font-semibold text-[var(--amber-dark)]">#{i + 1}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div>
-          <h3
-            className="text-lg font-bold text-[var(--obsidian)] mb-4"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Recent Transactions
-          </h3>
-          <div className="space-y-3">
-            {SUPPLIER.socialProof.recentTransactions.map((tx) => (
-              <div
-                key={tx.date + tx.buyer}
-                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)]"
-              >
-                <div className="w-9 h-9 rounded-lg bg-[var(--success)]/10 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-4 h-4 text-[var(--success)]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-[var(--text-primary)] truncate">{tx.product}</div>
-                  <div className="text-xs text-[var(--text-tertiary)]">{tx.buyer} · {tx.date}</div>
-                </div>
-                <span
-                  className="text-sm font-bold text-[var(--obsidian)] shrink-0"
-                  style={{ fontFamily: "var(--font-display)" }}
+            {(isReal
+              ? [
+                  { icon: Calendar, label: "Year Established", value: supplier.established ? String(supplier.established) : null },
+                  { icon: Users, label: "Total Employees", value: supplier.employees ?? null },
+                  { icon: MapPin, label: "Location", value: [supplier.city, supplier.country].filter(Boolean).join(", ") || null },
+                ]
+              : [
+                  { icon: Building2, label: "Business Type", value: SUPPLIER.companyOverview.businessType },
+                  { icon: Calendar, label: "Year Established", value: String(SUPPLIER.established) },
+                  { icon: MapPin, label: "Registered Address", value: SUPPLIER.companyOverview.registeredAddress },
+                  { icon: Users, label: "Total Employees", value: SUPPLIER.employees },
+                  { icon: CircleDollarSign, label: "Annual Revenue", value: SUPPLIER.annualRevenue },
+                  { icon: CircleDollarSign, label: "Registered Capital", value: SUPPLIER.companyOverview.registeredCapital },
+                  { icon: Ruler, label: "Factory Area", value: SUPPLIER.companyOverview.totalArea },
+                  { icon: Factory, label: "Production Lines", value: String(SUPPLIER.productionLines) },
+                  { icon: Users, label: "R&D Staff", value: String(SUPPLIER.rdStaff) },
+                  { icon: Users, label: "QC Staff", value: String(SUPPLIER.companyOverview.qualityControlStaff) },
+                  { icon: TrendingUp, label: "Annual Output", value: SUPPLIER.companyOverview.annualOutputValue },
+                  { icon: Globe, label: "Export Percentage", value: SUPPLIER.exportPercentage },
+                  { icon: Truck, label: "Nearest Port", value: SUPPLIER.companyOverview.nearestPort },
+                  { icon: Truck, label: "Trade Capacity", value: SUPPLIER.companyOverview.tradeCapacity },
+                  { icon: Clock, label: "Average Lead Time", value: SUPPLIER.companyOverview.averageLeadTime },
+                  { icon: Truck, label: "Delivery Terms", value: SUPPLIER.companyOverview.deliveryTerms },
+                  { icon: CircleDollarSign, label: "Payment Terms", value: SUPPLIER.companyOverview.paymentTerms },
+                  { icon: Shield, label: "After-Sales Service", value: SUPPLIER.companyOverview.afterSalesService },
+                  { icon: Globe, label: "Languages", value: SUPPLIER.languages.join(", ") },
+                  { icon: Package, label: "Sample Policy", value: SUPPLIER.companyOverview.samplePolicy },
+                ]
+            )
+              .filter((item) => item.value)
+              .map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-start gap-3 py-3 border-b border-[var(--border-subtle)]"
                 >
-                  {tx.amount}
-                </span>
-              </div>
-            ))}
+                  <item.icon className="w-4 h-4 text-[var(--text-tertiary)] mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-xs text-[var(--text-tertiary)] mb-0.5">{item.label}</div>
+                    <div className="text-sm font-medium text-[var(--text-primary)]">{item.value}</div>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
+
+        {/* Main Markets — not tracked per-supplier in the schema; demo only. */}
+        {!isReal && (
+          <div>
+            <h3
+              className="text-lg font-bold text-[var(--obsidian)] mb-4"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Main Export Markets
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {SUPPLIER.mainMarkets.map((market) => (
+                <span
+                  key={market}
+                  className="px-4 py-2 text-sm font-medium rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
+                >
+                  {market}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top Buyer Countries / Recent Transactions — no order/transaction
+            aggregation query exists yet, and exposing real buyer identities
+            here would leak other customers' data publicly, so a real
+            supplier gets an honest empty state instead of fabricated
+            buyers/amounts. Demo (disconnected DB) mode keeps the illustrative
+            mock content. */}
+        {isReal ? (
+          <div>
+            <h3
+              className="text-lg font-bold text-[var(--obsidian)] mb-4"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Recent Activity
+            </h3>
+            <div className="flex items-center gap-3 px-4 py-6 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-sm text-[var(--text-tertiary)]">
+              <TrendingUp className="w-4 h-4 shrink-0" />
+              Order and buyer activity isn&apos;t published for this supplier yet.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Top Buyer Countries */}
+            <div>
+              <h3
+                className="text-lg font-bold text-[var(--obsidian)] mb-4"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Top Buyer Countries
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {SUPPLIER.socialProof.topBuyerCountries.map((c, i) => (
+                  <div
+                    key={c.country}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)]"
+                  >
+                    <span className="text-lg">{c.flag}</span>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-[var(--text-primary)]">{c.country}</div>
+                      <div className="text-xs text-[var(--text-tertiary)]">{c.orders} orders</div>
+                    </div>
+                    <span className="text-xs font-semibold text-[var(--amber-dark)]">#{i + 1}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Transactions */}
+            <div>
+              <h3
+                className="text-lg font-bold text-[var(--obsidian)] mb-4"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Recent Transactions
+              </h3>
+              <div className="space-y-3">
+                {SUPPLIER.socialProof.recentTransactions.map((tx) => (
+                  <div
+                    key={tx.date + tx.buyer}
+                    className="flex items-center gap-4 px-4 py-3 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)]"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-[var(--success)]/10 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-4 h-4 text-[var(--success)]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-[var(--text-primary)] truncate">{tx.product}</div>
+                      <div className="text-xs text-[var(--text-tertiary)]">{tx.buyer} · {tx.date}</div>
+                    </div>
+                    <span
+                      className="text-sm font-bold text-[var(--obsidian)] shrink-0"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {tx.amount}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Sidebar */}
@@ -984,17 +1149,21 @@ function ProfileTab() {
           >
             Certifications
           </h4>
-          <div className="space-y-3">
-            {SUPPLIER.certifications.map((cert) => (
-              <div
-                key={cert}
-                className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)]"
-              >
-                <ShieldCheck className="w-4 h-4 text-[var(--success)] shrink-0" />
-                <span className="text-sm font-medium text-[var(--text-primary)]">{cert}</span>
-              </div>
-            ))}
-          </div>
+          {supplier.certifications.length === 0 ? (
+            <p className="text-sm text-[var(--text-tertiary)]">No certifications listed yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {supplier.certifications.map((cert) => (
+                <div
+                  key={cert}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)]"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[var(--success)] shrink-0" />
+                  <span className="text-sm font-medium text-[var(--text-primary)]">{cert}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Contact info */}
@@ -1006,22 +1175,35 @@ function ProfileTab() {
             Contact Information
           </h4>
           <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm">
-              <Users className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
-              <span className="text-[var(--text-primary)]">{SUPPLIER.contactPerson}</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Phone className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
-              <span className="text-[var(--text-secondary)]">{SUPPLIER.phone}</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Mail className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
-              <span className="text-[var(--text-secondary)]">{SUPPLIER.email}</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
-              <span className="text-[var(--indigo-light)]">{SUPPLIER.website}</span>
-            </div>
+            {/* Phone/email/named contact aren't in the companies schema yet —
+                only shown in demo mode, never fabricated for a real supplier. */}
+            {!isReal && (
+              <>
+                <div className="flex items-center gap-3 text-sm">
+                  <Users className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                  <span className="text-[var(--text-primary)]">{SUPPLIER.contactPerson}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Phone className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                  <span className="text-[var(--text-secondary)]">{SUPPLIER.phone}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Mail className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                  <span className="text-[var(--text-secondary)]">{SUPPLIER.email}</span>
+                </div>
+              </>
+            )}
+            {supplier.website && (
+              <div className="flex items-center gap-3 text-sm">
+                <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                <span className="text-[var(--indigo-light)]">{supplier.website}</span>
+              </div>
+            )}
+            {isReal && !supplier.website && (
+              <p className="text-sm text-[var(--text-tertiary)]">
+                No public contact details listed yet — use Send Inquiry below.
+              </p>
+            )}
           </div>
           <button className="mt-5 btn-primary w-full !rounded-xl !py-3 !text-sm">
             <MessageSquare className="w-4 h-4" />
@@ -1034,7 +1216,199 @@ function ProfileTab() {
 }
 
 /* ---------- Reviews Tab ---------- */
-function ReviewsTab() {
+function ReviewsTab({
+  reviews,
+  isReal,
+  rating,
+  totalReviews,
+  qualityScore,
+  communicationScore,
+  shippingScore,
+}: {
+  reviews: RealSupplierReview[];
+  isReal: boolean;
+  rating: number;
+  totalReviews: number;
+  qualityScore?: number;
+  communicationScore?: number;
+  shippingScore?: number;
+}) {
+  if (isReal) {
+    const dims = (
+      [
+        { label: "Product Quality", value: qualityScore },
+        { label: "Communication", value: communicationScore },
+        { label: "Shipping Speed", value: shippingScore },
+      ] as { label: string; value: number | undefined }[]
+    ).filter((d) => d.value != null) as { label: string; value: number }[];
+
+    return (
+      <div>
+        {/* Summary bar */}
+        <div className="flex flex-col sm:flex-row gap-6 p-6 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)] mb-8">
+          <div className="text-center sm:text-left sm:pr-8 sm:border-r border-[var(--border-subtle)]">
+            <div
+              className="text-5xl font-bold text-[var(--obsidian)] tracking-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {totalReviews > 0 ? rating : "-"}
+            </div>
+            <div className="flex justify-center sm:justify-start gap-0.5 mt-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-4 h-4 ${
+                    i < Math.floor(rating)
+                      ? "text-[var(--amber)] fill-[var(--amber)]"
+                      : "text-[var(--border-strong)]"
+                  }`}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">{totalReviews} reviews</p>
+          </div>
+
+          {dims.length > 0 && (
+            <div className="flex-1 grid grid-cols-3 gap-4">
+              {dims.map((dim) => (
+                <div key={dim.label}>
+                  <div className="text-xs text-[var(--text-tertiary)] mb-2">{dim.label}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full bg-[var(--border-subtle)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[var(--amber)]"
+                        style={{ width: `${(dim.value / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-[var(--text-primary)] w-7 text-right">
+                      {dim.value}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Review list */}
+        {reviews.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Star className="w-10 h-10 text-[var(--text-tertiary)] opacity-40 mb-3" />
+            <p className="text-sm font-medium text-[var(--text-secondary)]">No reviews yet</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Be the first buyer to review this supplier after an order.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {reviews.map((review) => {
+              const dimensions = (
+                [
+                  { key: "quality", value: review.productQualityRating },
+                  { key: "communication", value: review.communicationRating },
+                  { key: "shipping", value: review.shippingRating },
+                ] as { key: string; value: number | null }[]
+              ).filter((d) => d.value != null) as { key: string; value: number }[];
+
+              return (
+                <div
+                  key={review.id}
+                  className="p-6 rounded-xl bg-[var(--surface-primary)] border border-[var(--border-subtle)]"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[var(--amber)]/10 border border-[var(--amber)]/20 flex items-center justify-center text-xs font-bold text-[var(--amber-dark)]">
+                        {initialsFromName(review.reviewerName ?? "Buyer")}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          {review.reviewerName ?? "Verified Buyer"}
+                        </div>
+                        {review.reviewerCompany && (
+                          <div className="text-xs text-[var(--text-tertiary)]">{review.reviewerCompany}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-[var(--text-tertiary)]">
+                      {new Date(review.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-3.5 h-3.5 ${
+                            i < review.rating
+                              ? "text-[var(--amber)] fill-[var(--amber)]"
+                              : "text-[var(--border-strong)]"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {review.isVerifiedPurchase && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--success)]">
+                        <BadgeCheck className="w-3 h-3" />
+                        Verified Purchase
+                      </span>
+                    )}
+                  </div>
+
+                  {review.title && (
+                    <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">{review.title}</p>
+                  )}
+                  {review.content && (
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">{review.content}</p>
+                  )}
+
+                  {review.images.length > 0 && (
+                    <div className="flex gap-2 mb-4">
+                      {review.images.slice(0, 4).map((url, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={i}
+                          src={url}
+                          alt=""
+                          className="w-16 h-16 rounded-lg object-cover border border-[var(--border-subtle)]"
+                        />
+                      ))}
+                      {review.images.length > 4 && (
+                        <div className="w-16 h-16 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)] flex items-center justify-center text-xs font-semibold text-[var(--text-tertiary)]">
+                          +{review.images.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {dimensions.length > 0 && (
+                    <div className="flex gap-4">
+                      {dimensions.map((d) => (
+                        <div key={d.key} className="flex items-center gap-1.5 text-xs">
+                          <span className="text-[var(--text-tertiary)] capitalize">{d.key}:</span>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  i < d.value ? "bg-[var(--amber)]" : "bg-[var(--border-subtle)]"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Summary bar */}
@@ -1187,7 +1561,22 @@ function ReviewsTab() {
 }
 
 /* ---------- Factory Gallery Tab ---------- */
-function GalleryTab() {
+// There is no factory-photo table anywhere in the schema (see
+// database.types.ts) — a real supplier gets an honest empty state instead of
+// the same twelve stock-gradient tiles every storefront used to show.
+function GalleryTab({ isReal }: { isReal: boolean }) {
+  if (isReal) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <ImageIcon className="w-10 h-10 text-[var(--text-tertiary)] opacity-40 mb-3" />
+        <p className="text-sm font-medium text-[var(--text-secondary)]">No photos yet</p>
+        <p className="text-xs text-[var(--text-tertiary)] mt-1">
+          This supplier hasn&apos;t uploaded factory photos or video.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xl">
@@ -1234,12 +1623,41 @@ function GalleryTab() {
    PAGE COMPONENT
    ========================================================================== */
 
+export interface RealSupplierProduct {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+  moq: number;
+  isFeatured: boolean;
+  image: string | null;
+}
+
+export interface RealSupplierReview {
+  id: string;
+  rating: number;
+  title: string | null;
+  content: string | null;
+  reviewerName: string | null;
+  reviewerCompany: string | null;
+  createdAt: string;
+  communicationRating: number | null;
+  productQualityRating: number | null;
+  shippingRating: number | null;
+  images: string[];
+  isVerifiedPurchase: boolean;
+}
+
 export interface StorefrontProps {
   supplierData?: {
     name: string;
     nameLocal?: string;
     slug: string;
+    logoUrl?: string;
+    website?: string;
     city?: string;
+    province?: string;
     country: string;
     description?: string;
     verified: boolean;
@@ -1252,19 +1670,33 @@ export interface StorefrontProps {
     certifications: string[];
     established?: number;
     employees?: string;
+    qualityScore?: number;
+    communicationScore?: number;
+    shippingScore?: number;
+    products: RealSupplierProduct[];
+    reviews: RealSupplierReview[];
   } | null;
 }
 
 export function StorefrontClient({ supplierData }: StorefrontProps) {
+  // supplierData is only non-null once a real company has been resolved by
+  // the server component — every tab below switches on this flag so a real
+  // supplier never renders another company's mock products/reviews/photos.
+  const isReal = !!supplierData;
+
   // If real data is provided, override SUPPLIER with it
-  const supplier = supplierData ? {
+  const supplier: SupplierView = supplierData ? {
     ...SUPPLIER,
     name: supplierData.name,
-    nameZh: supplierData.nameLocal ?? SUPPLIER.nameZh,
+    nameZh: supplierData.nameLocal ?? null,
     slug: supplierData.slug,
-    city: supplierData.city ?? SUPPLIER.city,
+    logo: initialsFromName(supplierData.name),
+    logoUrl: supplierData.logoUrl ?? null,
+    website: supplierData.website ?? null,
+    city: supplierData.city ?? null,
+    province: supplierData.province ?? null,
     country: supplierData.country === "CN" ? "China" : supplierData.country === "GH" ? "Ghana" : supplierData.country,
-    description: supplierData.description ?? SUPPLIER.description,
+    description: supplierData.description ?? null,
     verified: supplierData.verified,
     goldSupplier: supplierData.tier === "gold" || supplierData.tier === "verified",
     rating: supplierData.rating,
@@ -1272,16 +1704,24 @@ export function StorefrontClient({ supplierData }: StorefrontProps) {
     totalTransactions: supplierData.totalOrders,
     responseRate: `${supplierData.responseRate}%`,
     onTimeDelivery: `${supplierData.onTimeDelivery}%`,
-    certifications: supplierData.certifications.length > 0 ? supplierData.certifications : SUPPLIER.certifications,
-    established: supplierData.established ?? SUPPLIER.established,
-    employees: supplierData.employees ?? SUPPLIER.employees,
-  } : SUPPLIER;
+    certifications: supplierData.certifications,
+    established: supplierData.established ?? null,
+    employees: supplierData.employees ?? null,
+  } : { ...SUPPLIER, logoUrl: null };
+
+  const realProducts = supplierData?.products ?? [];
+  const realReviews = supplierData?.reviews ?? [];
+
   const [activeTab, setActiveTab] = useState<TabKey>("products");
 
   const tabs: { key: TabKey; label: string; count?: number }[] = [
-    { key: "products", label: "Products", count: PRODUCT_CATEGORIES.reduce((s, c) => s + c.count, 0) },
+    {
+      key: "products",
+      label: "Products",
+      count: isReal ? realProducts.length : PRODUCT_CATEGORIES.reduce((s, c) => s + c.count, 0),
+    },
     { key: "profile", label: "Company Profile" },
-    { key: "reviews", label: "Reviews", count: SUPPLIER.totalReviews },
+    { key: "reviews", label: "Reviews", count: supplier.totalReviews },
     { key: "gallery", label: "Factory Gallery" },
   ];
 
@@ -1289,8 +1729,8 @@ export function StorefrontClient({ supplierData }: StorefrontProps) {
     <>
       <Navbar />
       <main className="pt-[104px] lg:pt-[184px] bg-[var(--surface-secondary)] min-h-screen">
-        <SupplierHero />
-        <PerformanceStrip />
+        <SupplierHero supplier={supplier} isReal={isReal} />
+        <PerformanceStrip supplier={supplier} isReal={isReal} />
 
         {/* Tabs */}
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 mt-8">
@@ -1324,10 +1764,20 @@ export function StorefrontClient({ supplierData }: StorefrontProps) {
 
           {/* Tab content */}
           <div className="py-8 pb-16">
-            {activeTab === "products" && <ProductsTab />}
-            {activeTab === "profile" && <ProfileTab />}
-            {activeTab === "reviews" && <ReviewsTab />}
-            {activeTab === "gallery" && <GalleryTab />}
+            {activeTab === "products" && <ProductsTab products={realProducts} isReal={isReal} />}
+            {activeTab === "profile" && <ProfileTab supplier={supplier} isReal={isReal} />}
+            {activeTab === "reviews" && (
+              <ReviewsTab
+                reviews={realReviews}
+                isReal={isReal}
+                rating={supplier.rating}
+                totalReviews={supplier.totalReviews}
+                qualityScore={supplierData?.qualityScore}
+                communicationScore={supplierData?.communicationScore}
+                shippingScore={supplierData?.shippingScore}
+              />
+            )}
+            {activeTab === "gallery" && <GalleryTab isReal={isReal} />}
           </div>
         </div>
       </main>

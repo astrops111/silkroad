@@ -1,30 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Globe,
   Bell,
-  Shield,
   Save,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getUserSettings, updateUserSettings, type UserSettingsData } from "@/lib/actions/settings";
+
+const DEFAULT_FORM: UserSettingsData = {
+  fullName: "",
+  email: "",
+  phone: "",
+  preferredLocale: "en",
+  preferredCurrency: "USD",
+  countryCode: "",
+  emailNotifications: true,
+  orderUpdates: true,
+  rfqAlerts: true,
+  promotionalEmails: false,
+};
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    preferredLocale: "en",
-    preferredCurrency: "USD",
-    countryCode: "",
-    emailNotifications: true,
-    orderUpdates: true,
-    rfqAlerts: true,
-    promotionalEmails: false,
-  });
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [form, setForm] = useState<UserSettingsData>(DEFAULT_FORM);
+
+  useEffect(() => {
+    (async () => {
+      const settings = await getUserSettings();
+      if (settings) setForm(settings);
+      setLoadingSettings(false);
+    })();
+  }, []);
 
   const updateForm = (field: string, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -32,10 +43,32 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    toast.success("Settings saved");
+    const result = await updateUserSettings({
+      fullName: form.fullName,
+      phone: form.phone,
+      countryCode: form.countryCode,
+      preferredLocale: form.preferredLocale,
+      preferredCurrency: form.preferredCurrency,
+      emailNotifications: form.emailNotifications,
+      orderUpdates: form.orderUpdates,
+      rfqAlerts: form.rfqAlerts,
+      promotionalEmails: form.promotionalEmails,
+    });
+    if (!result.success) {
+      toast.error(result.error ?? "Failed to save settings");
+    } else {
+      toast.success("Settings saved");
+    }
     setLoading(false);
   };
+
+  if (loadingSettings) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--text-tertiary)" }} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -62,8 +95,8 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-tertiary)" }}>Email</label>
-            <input value={form.email} onChange={(e) => updateForm("email", e.target.value)} placeholder="email@company.com" type="email"
-              className="w-full rounded-xl px-4 py-2.5 text-sm" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+            <input value={form.email} disabled placeholder="email@company.com" type="email"
+              className="w-full rounded-xl px-4 py-2.5 text-sm opacity-60 cursor-not-allowed" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-tertiary)" }}>Phone</label>

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { Pause, Play, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Pause, Play, Pencil, Trash2, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { deleteProduct, toggleProductActive } from "@/lib/actions/products";
 
@@ -61,6 +61,14 @@ export default function ProductRowActions({
         title="Edit"
       >
         <Pencil size={16} className="text-[var(--text-tertiary)]" />
+      </Link>
+      <Link
+        href={`/supplier/products/promote?productId=${productId}`}
+        className={iconClass}
+        aria-label="Promote product"
+        title="Promote"
+      >
+        <Megaphone size={16} className="text-[var(--indigo)]" />
       </Link>
       <button
         onClick={handleDelete}

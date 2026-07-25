@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, type UserWithCompany } from "@/lib/queries/user";
+import { getCurrentUser } from "@/lib/queries/user";
 import { SuperAdminShell } from "@/components/layouts/superadmin-shell";
 
 export default async function SuperAdminLayout({
@@ -7,7 +7,8 @@ export default async function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = (await getCurrentUser()) as UserWithCompany;
+  const user = await getCurrentUser();
+  if (!user) redirect("/auth/login");
 
   // Filter by role rather than indexing [0] — superadmins may have
   // other memberships (supplier/buyer) that come before the admin row.

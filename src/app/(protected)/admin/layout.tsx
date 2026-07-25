@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, type UserWithCompany } from "@/lib/queries/user";
+import { getCurrentUser } from "@/lib/queries/user";
 import { AdminShell } from "@/components/layouts/admin-shell";
 
 const ADMIN_ROLES = ["admin_super", "admin_moderator", "admin_support"] as const;
@@ -10,7 +10,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = (await getCurrentUser()) as UserWithCompany;
+  const user = await getCurrentUser();
+  if (!user) redirect("/auth/login");
 
   // Filter by role, not by array index — a user can have both
   // admin + supplier/buyer memberships, and the admin one may not be first.

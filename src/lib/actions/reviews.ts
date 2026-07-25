@@ -9,9 +9,6 @@ type ActionResult = {
 
 export async function submitReview(
   supplierOrderId: string,
-  reviewerUserId: string,
-  reviewerCompanyId: string,
-  supplierCompanyId: string,
   data: {
     rating: number;
     title?: string;
@@ -23,21 +20,39 @@ export async function submitReview(
 ): Promise<ActionResult> {
   const supabase = await createClient();
 
-  // Verify the order is delivered
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!profile) return { success: false, error: "Profile not found" };
+
+  // Derive reviewer/supplier company IDs server-side from the order itself —
+  // never trust client-supplied IDs for who's reviewing whom.
   const { data: order } = await supabase
     .from("supplier_orders")
-    .select("status")
+    .select("status, supplier_id, purchase_orders!inner(buyer_company_id, buyer_user_id)")
     .eq("id", supplierOrderId)
     .single();
 
-  if (!order || !["delivered", "completed"].includes(order.status)) {
+  const purchaseOrder = order?.purchase_orders?.[0];
+  if (!order || !purchaseOrder) return { success: false, error: "Order not found" };
+  if (purchaseOrder.buyer_user_id !== profile.id) {
+    return { success: false, error: "You do not have access to this order" };
+  }
+  if (!["delivered", "completed"].includes(order.status)) {
     return { success: false, error: "Can only review delivered orders" };
   }
 
+  const supplierCompanyId = order.supplier_id;
+
   const { error } = await supabase.from("reviews").insert({
     supplier_order_id: supplierOrderId,
-    reviewer_user_id: reviewerUserId,
-    reviewer_company_id: reviewerCompanyId,
+    reviewer_user_id: profile.id,
+    reviewer_company_id: purchaseOrder.buyer_company_id,
     supplier_company_id: supplierCompanyId,
     rating: data.rating,
     title: data.title ?? null,

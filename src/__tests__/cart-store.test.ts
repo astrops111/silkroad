@@ -114,6 +114,7 @@ describe("SavedStore", () => {
     useSavedStore.getState().addItem({
       productId: "p1",
       productName: "Widget",
+      supplierId: "s1",
       supplierName: "Supplier A",
       imageUrl: null,
       basePrice: 1000,
@@ -125,14 +126,14 @@ describe("SavedStore", () => {
   });
 
   it("does not duplicate saved items", () => {
-    const item = { productId: "p1", productName: "W", supplierName: "A", imageUrl: null, basePrice: 100, currency: "USD" };
+    const item = { productId: "p1", productName: "W", supplierId: "s1", supplierName: "A", imageUrl: null, basePrice: 100, currency: "USD" };
     useSavedStore.getState().addItem(item);
     useSavedStore.getState().addItem(item);
     expect(useSavedStore.getState().items).toHaveLength(1);
   });
 
   it("removes saved item", () => {
-    useSavedStore.getState().addItem({ productId: "p1", productName: "W", supplierName: "A", imageUrl: null, basePrice: 100, currency: "USD" });
+    useSavedStore.getState().addItem({ productId: "p1", productName: "W", supplierId: "s1", supplierName: "A", imageUrl: null, basePrice: 100, currency: "USD" });
     useSavedStore.getState().removeItem("p1");
     expect(useSavedStore.getState().isSaved("p1")).toBe(false);
   });

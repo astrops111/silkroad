@@ -5,6 +5,21 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 const DEFAULT_COMMISSION_RATE = Number(process.env.PLATFORM_COMMISSION_RATE ?? "0.05");
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Admin-editable via /admin/settings (platform_settings.commission_rate is a
+// percentage, e.g. 8.00 for 8% — converted to the fraction form used
+// throughout this file). Falls back to the env var if the settings row is
+// ever missing, so a fresh environment without the 00118 migration applied
+// doesn't hard-fail settlement calculation.
+async function getPlatformCommissionRate(supabase: ReturnType<typeof createServiceClient>): Promise<number> {
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("commission_rate")
+    .eq("singleton", true)
+    .single();
+  if (data?.commission_rate == null) return DEFAULT_COMMISSION_RATE;
+  return Number(data.commission_rate) / 100;
+}
+
 export async function calculateSettlement(supplierOrderId: string) {
   const supabase = createServiceClient();
 
@@ -52,22 +67,22 @@ export async function calculateSettlement(supplierOrderId: string) {
   }
 
   // Get commission rate (supplier override > category > platform default)
-  let commissionRate = DEFAULT_COMMISSION_RATE;
+  let commissionRate = await getPlatformCommissionRate(supabase);
 
   const { data: supplierProfile } = await supabase
     .from("supplier_profiles")
     .select("commission_rate")
-    .eq("company_id", order.supplier_company_id)
+    .eq("company_id", order.supplier_id)
     .single();
 
   // Use !== null/undefined so a 0% rate (e.g. strategic partner) is respected
   if (supplierProfile?.commission_rate !== null && supplierProfile?.commission_rate !== undefined) {
     commissionRate = Number(supplierProfile.commission_rate);
-  } else if (UUID_RE.test(order.supplier_company_id ?? "")) {
+  } else if (UUID_RE.test(order.supplier_id ?? "")) {
     const { data: rules } = await supabase
       .from("commission_rules")
       .select("rate")
-      .or(`supplier_id.eq.${order.supplier_company_id},supplier_id.is.null`)
+      .or(`supplier_id.eq.${order.supplier_id},supplier_id.is.null`)
       .eq("is_active", true)
       .order("priority", { ascending: false })
       .limit(1);
@@ -91,7 +106,7 @@ export async function calculateSettlement(supplierOrderId: string) {
   const { data: settlement, error } = await supabase
     .from("settlements")
     .insert({
-      supplier_id:        order.supplier_company_id,
+      supplier_id:        order.supplier_id,
       settlement_number:  settlementNumber,
       period_start:       (order.created_at ?? new Date().toISOString()).slice(0, 10),
       period_end:         new Date().toISOString().slice(0, 10),

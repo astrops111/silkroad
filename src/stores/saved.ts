@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 export interface SavedItem {
   productId: string;
   productName: string;
+  supplierId: string;
   supplierName: string;
   imageUrl: string | null;
   basePrice: number;

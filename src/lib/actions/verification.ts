@@ -39,6 +39,9 @@ export async function submitVerification(
       .eq("id", companyId);
   }
 
+  // TODO: documents.factoryPhotos is accepted but not persisted — supplier_profiles
+  // has no factory-photos column yet; add one via migration before storing these.
+
   // Update supplier profile with documents
   if (documents.businessLicenseUrl) {
     await supabase

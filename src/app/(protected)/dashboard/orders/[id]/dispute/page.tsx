@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Gavel, Loader2 } from "lucide-react";
 import { openDispute } from "@/lib/actions/disputes";
 import { toast } from "sonner";
+
+interface SupplierOrderOption {
+  id: string;
+  order_number: string;
+  companies: { name: string } | null;
+}
 
 const DISPUTE_TYPES = [
   { value: "product_quality", label: "Product Quality Issue" },
@@ -27,8 +33,30 @@ export default function DisputePage() {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(true);
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrderOption[]>([]);
+  const [supplierOrderId, setSupplierOrderId] = useState("");
 
-  const orderId = params.id as string;
+  const purchaseOrderId = params.id as string;
+
+  const loadOrder = useCallback(async () => {
+    setLoadingOrder(true);
+    try {
+      const res = await fetch(`/api/orders/${purchaseOrderId}`);
+      if (!res.ok) throw new Error();
+      const { order } = await res.json();
+      const options: SupplierOrderOption[] = order.supplier_orders ?? [];
+      setSupplierOrders(options);
+      if (options.length === 1) setSupplierOrderId(options[0].id);
+    } catch {
+      toast.error("Order not found");
+      router.push("/dashboard/orders");
+    } finally {
+      setLoadingOrder(false);
+    }
+  }, [purchaseOrderId, router]);
+
+  useEffect(() => { loadOrder(); }, [loadOrder]);
 
   const [form, setForm] = useState({
     type: "",
@@ -39,25 +67,22 @@ export default function DisputePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!supplierOrderId) {
+      toast.error("Please select which shipment this dispute is about");
+      return;
+    }
     if (!form.type || !form.title || !form.description) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     setLoading(true);
-    const result = await openDispute(
-      orderId,
-      "purchase-order-id",
-      "current-user",
-      "current-company",
-      "supplier-company",
-      {
-        type: form.type,
-        title: form.title,
-        description: form.description,
-        disputedAmount: form.disputedAmount ? parseFloat(form.disputedAmount) : undefined,
-      }
-    );
+    const result = await openDispute(supplierOrderId, {
+      type: form.type,
+      title: form.title,
+      description: form.description,
+      disputedAmount: form.disputedAmount ? parseFloat(form.disputedAmount) : undefined,
+    });
 
     if (!result.success) {
       toast.error(result.error ?? "Failed to open dispute");
@@ -72,7 +97,7 @@ export default function DisputePage() {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/orders/${orderId}`} className="p-2 rounded-lg hover:bg-[var(--surface-primary)] transition-colors">
+        <Link href={`/dashboard/orders/${purchaseOrderId}`} className="p-2 rounded-lg hover:bg-[var(--surface-primary)] transition-colors">
           <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
         </Link>
         <h1 className="text-2xl font-bold text-[var(--obsidian)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -92,7 +117,30 @@ export default function DisputePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {loadingOrder ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-[var(--text-tertiary)]" />
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {supplierOrders.length > 1 && (
+              <div className="space-y-2">
+                <Label>Shipment *</Label>
+                <Select value={supplierOrderId} onValueChange={setSupplierOrderId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select which shipment this is about" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supplierOrders.map((so) => (
+                      <SelectItem key={so.id} value={so.id}>
+                        {so.order_number} — {so.companies?.name ?? "Supplier"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Issue Type *</Label>
               <Select value={form.type} onValueChange={(v) => setForm((p) => ({ ...p, type: v }))}>
@@ -141,11 +189,12 @@ export default function DisputePage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !supplierOrderId}>
               {loading ? <Loader2 className="animate-spin" /> : <Gavel className="w-4 h-4" />}
               {loading ? "Submitting..." : "Submit Dispute"}
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

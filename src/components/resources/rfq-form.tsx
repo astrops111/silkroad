@@ -41,7 +41,7 @@ interface Props {
   };
 }
 
-const INCOTERMS = ["fob", "cif", "dap", "exw"] as const;
+const INCOTERMS = ["fob", "cif", "cpt", "fca", "dap", "exw"] as const;
 const INSTRUMENTS = [
   "lc_at_sight",
   "lc_usance",

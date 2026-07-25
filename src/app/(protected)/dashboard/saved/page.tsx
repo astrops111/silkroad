@@ -18,7 +18,7 @@ export default function SavedItemsPage() {
   const handleAddToCart = (item: typeof items[0]) => {
     addToCart({
       productId: item.productId,
-      supplierId: "",
+      supplierId: item.supplierId,
       supplierName: item.supplierName,
       productName: item.productName,
       unitPrice: item.basePrice,

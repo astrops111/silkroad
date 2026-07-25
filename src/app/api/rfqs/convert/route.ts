@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { UNLINKED_PRODUCT_ID } from "@/lib/orders";
 import { calculateOrderTax } from "@/lib/tax";
 import { onOrderCreated } from "@/lib/email/events";
 import { findDealByRfq, attachToDealThread } from "@/lib/deals/threads";
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest) {
     .from("rfqs")
     .select(`
       id, rfq_number, buyer_user_id, buyer_company_id, buyer_company_name,
-      buyer_country, awarded_quotation_id, status, delivery_country, delivery_city
+      buyer_country, awarded_quotation_id, status, delivery_country, delivery_city,
+      converted_order_id
     `)
     .eq("id", rfqId)
     .eq("buyer_user_id", profile.id)
@@ -47,6 +49,17 @@ export async function POST(request: NextRequest) {
 
   if (rfqError || !rfq) {
     return NextResponse.json({ error: "RFQ not found" }, { status: 404 });
+  }
+
+  // Idempotency: if this RFQ was already converted (retry, double-submit, or
+  // a race with a concurrent request), return the existing order instead of
+  // creating a duplicate.
+  if (rfq.converted_order_id) {
+    return NextResponse.json({
+      success: true,
+      orderId: rfq.converted_order_id,
+      message: "RFQ already converted to a purchase order.",
+    });
   }
 
   if (rfq.status !== "awarded") {
@@ -126,9 +139,20 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
 
-  if (poError) {
+  if (poError || !purchaseOrder) {
     console.error("[rfqs/convert] PO error:", poError);
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+  }
+  const purchaseOrderId = purchaseOrder.id;
+
+  // No DB transaction wraps these writes — any failure from here on must
+  // clean up everything already committed in this call, not just the last step.
+  async function rollbackOrder(supplierOrderId?: string) {
+    if (supplierOrderId) {
+      await serviceClient.from("supplier_order_items").delete().eq("supplier_order_id", supplierOrderId);
+      await serviceClient.from("supplier_orders").delete().eq("id", supplierOrderId);
+    }
+    await serviceClient.from("purchase_orders").delete().eq("id", purchaseOrderId);
   }
 
   // Create supplier order
@@ -153,8 +177,9 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
 
-  if (soError) {
+  if (soError || !supplierOrder) {
     console.error("[rfqs/convert] SO error:", soError);
+    await rollbackOrder();
     return NextResponse.json({ error: "Failed to create supplier order" }, { status: 500 });
   }
 
@@ -167,7 +192,7 @@ export async function POST(request: NextRequest) {
       specifications: Record<string, unknown> | null;
     }) => ({
       supplier_order_id: supplierOrder.id,
-      product_id: qi.product_id || "00000000-0000-0000-0000-000000000000",
+      product_id: qi.product_id || UNLINKED_PRODUCT_ID,
       variant_id: qi.variant_id || null,
       product_name: qi.product_name,
       unit_price: qi.unit_price,
@@ -182,18 +207,48 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    await serviceClient.from("supplier_order_items").insert(orderItems);
+    const { error: itemsError } = await serviceClient.from("supplier_order_items").insert(orderItems);
+    if (itemsError) {
+      console.error("[rfqs/convert] supplier_order_items insert failed:", itemsError);
+      await rollbackOrder(supplierOrder.id);
+      return NextResponse.json({ error: "Failed to create order items" }, { status: 500 });
+    }
   }
 
-  // Update RFQ status to converted
-  await serviceClient
+  // Update RFQ status to converted — conditioned on status still being
+  // "awarded" so a concurrent request that already converted this RFQ loses
+  // the race cleanly (0 rows updated) instead of both requests succeeding
+  // and creating two orders for the same award.
+  const { data: statusUpdate, error: statusErr } = await serviceClient
     .from("rfqs")
     .update({
       status: "converted",
       converted_order_id: purchaseOrder.id,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", rfqId);
+    .eq("id", rfqId)
+    .eq("status", "awarded")
+    .select("id")
+    .maybeSingle();
+
+  if (statusErr || !statusUpdate) {
+    console.error("[rfqs/convert] rfqs status update failed or lost race:", statusErr);
+    await rollbackOrder(supplierOrder.id);
+    // If a concurrent request won the race, return its order instead of a bare error.
+    const { data: winner } = await serviceClient
+      .from("rfqs")
+      .select("converted_order_id")
+      .eq("id", rfqId)
+      .single();
+    if (winner?.converted_order_id) {
+      return NextResponse.json({
+        success: true,
+        orderId: winner.converted_order_id,
+        message: "RFQ already converted to a purchase order.",
+      });
+    }
+    return NextResponse.json({ error: "Failed to finalize RFQ conversion" }, { status: 500 });
+  }
 
   // Notify buyer + supplier + ops (email and in-app); never blocks the conversion
   try {

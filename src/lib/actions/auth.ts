@@ -169,12 +169,21 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   const memberRole: PlatformRole =
     parsed.data.role === "supplier" ? "supplier_owner" : "buyer";
 
-  await serviceClient.from("company_members").insert({
+  const { error: memberError } = await serviceClient.from("company_members").insert({
     company_id: company.id,
     user_id: profile.id,
     role: memberRole,
     is_primary: true,
   });
+
+  if (memberError) {
+    // Don't leave an orphaned company with zero members — the user's auth
+    // account and profile already exist, but without a membership they'd
+    // hit an empty dashboard with no way to retry company creation.
+    console.error("[signUp] company_members insert failed:", memberError);
+    await serviceClient.from("companies").delete().eq("id", company.id);
+    return { success: false, error: "Failed to create company membership" };
+  }
 
   // 5. If supplier, create supplier profile
   if (parsed.data.role === "supplier") {

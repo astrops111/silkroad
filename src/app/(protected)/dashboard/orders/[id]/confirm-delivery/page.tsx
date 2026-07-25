@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,20 +9,52 @@ import { ArrowLeft, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { confirmDelivery } from "@/lib/actions/delivery";
 import { toast } from "sonner";
 
+const DELIVERABLE_STATUSES = ["dispatched", "in_transit", "out_for_delivery"];
+
+interface SupplierOrderOption {
+  id: string;
+  status: string;
+}
+
 export default function ConfirmDeliveryPage() {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(true);
   const [confirmed, setConfirmed] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
 
   const orderId = params.id as string;
 
-  async function handleConfirm() {
-    setLoading(true);
-    const result = await confirmDelivery(orderId);
+  const loadOrder = useCallback(async () => {
+    setLoadingOrder(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`);
+      if (!res.ok) throw new Error();
+      const { order } = await res.json();
+      const supplierOrders: SupplierOrderOption[] = order.supplier_orders ?? [];
+      setPendingIds(
+        supplierOrders.filter((so) => DELIVERABLE_STATUSES.includes(so.status)).map((so) => so.id)
+      );
+    } catch {
+      toast.error("Order not found");
+      router.push("/dashboard/orders");
+    } finally {
+      setLoadingOrder(false);
+    }
+  }, [orderId, router]);
 
-    if (!result.success) {
-      toast.error(result.error ?? "Failed to confirm delivery");
+  useEffect(() => { loadOrder(); }, [loadOrder]);
+
+  async function handleConfirm() {
+    if (pendingIds.length === 0) return;
+    setLoading(true);
+
+    const results = await Promise.all(pendingIds.map((id) => confirmDelivery(id)));
+    const failed = results.find((r) => !r.success);
+
+    if (failed) {
+      toast.error(failed.error ?? "Failed to confirm delivery");
       setLoading(false);
       return;
     }
@@ -77,6 +109,16 @@ export default function ConfirmDeliveryPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {loadingOrder ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-[var(--text-tertiary)]" />
+            </div>
+          ) : pendingIds.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)]">
+              No shipments on this order are currently out for delivery to confirm.
+            </p>
+          ) : (
+          <>
           <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-[var(--success)] mt-0.5 shrink-0" />
@@ -111,6 +153,8 @@ export default function ConfirmDeliveryPage() {
               <Button variant="outline" className="w-full">Open Dispute</Button>
             </Link>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
     </div>

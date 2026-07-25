@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, isAuthError } from "@/lib/auth/guard";
+import { processRefund } from "@/lib/payments/refund";
 
 /**
  * POST /api/refunds — Initiate a refund for a supplier order
  * Body: { supplierOrderId, reason, amount?, type: "full" | "partial" }
+ *
+ * Admin-only: refunds move real money, so this is not a buyer self-service
+ * endpoint. Cumulative refunded amount (across prior calls for the same
+ * supplier order) is capped at the original charge so repeated partial
+ * refunds can't exceed what was actually paid. Dispute resolution
+ * (PATCH /api/admin/disputes) can also trigger a refund via the same
+ * processRefund() — this route and that one share the implementation.
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const admin = await requireAdmin();
+  if (isAuthError(admin)) return admin;
 
   const { supplierOrderId, reason, amount, type = "full" } = await request.json();
 
@@ -16,136 +24,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "supplierOrderId and reason are required" }, { status: 400 });
   }
 
-  const serviceClient = createServiceClient();
-
-  const { data: callerProfile } = await supabase
-    .from("user_profiles")
-    .select("id")
-    .eq("auth_id", user.id)
-    .single();
-
-  const { data: order } = await serviceClient
-    .from("supplier_orders")
-    .select("id, status, total_amount, currency, purchase_order_id, supplier_id")
-    .eq("id", supplierOrderId)
-    .single();
-
-  if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-
-  // Ownership check: verify caller owns the parent purchase order
-  const { data: purchaseOrder } = await supabase
-    .from("purchase_orders")
-    .select("id")
-    .eq("id", order.purchase_order_id)
-    .eq("buyer_user_id", callerProfile?.id)
-    .single();
-  if (!purchaseOrder) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-
-  // Only allow refunds on paid/delivered orders
-  if (!["paid", "delivered", "completed", "disputed"].includes(order.status)) {
-    return NextResponse.json(
-      { error: `Cannot refund order in status: ${order.status}` },
-      { status: 400 }
-    );
-  }
-
-  const refundAmount = type === "full"
-    ? order.total_amount
-    : Math.min(amount || 0, order.total_amount);
-
-  if (refundAmount <= 0) {
-    return NextResponse.json({ error: "Invalid refund amount" }, { status: 400 });
-  }
-
-  // Check for existing payment
-  const { data: payment } = await serviceClient
-    .from("payment_transactions")
-    .select("id, gateway, stripe_payment_intent_id, mobile_money_reference, status")
-    .eq("purchase_order_id", order.purchase_order_id)
-    .eq("status", "succeeded")
-    .limit(1)
-    .single();
-
-  let refundReference = "";
-  let refundMethod = "platform_wallet";
-
-  // Execute refund based on payment gateway
-  if (payment?.gateway === "stripe" && payment.stripe_payment_intent_id) {
-    try {
-      const Stripe = (await import("stripe")).default;
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-      const refund = await stripe.refunds.create({
-        payment_intent: payment.stripe_payment_intent_id,
-        amount: refundAmount,
-        reason: "requested_by_customer",
-      });
-
-      refundReference = refund.id;
-      refundMethod = "stripe";
-    } catch (err) {
-      return NextResponse.json(
-        { error: `Stripe refund failed: ${err instanceof Error ? err.message : "Unknown error"}` },
-        { status: 500 }
-      );
-    }
-  } else if (payment?.gateway === "mtn_momo" || payment?.gateway === "airtel_money") {
-    // Mobile money refunds are typically manual — create a payout record
-    refundMethod = payment.gateway;
-    refundReference = `REFUND-${Date.now().toString(36).toUpperCase()}`;
-  } else {
-    refundMethod = "manual";
-    refundReference = `MANUAL-${Date.now().toString(36).toUpperCase()}`;
-  }
-
-  // Record refund transaction
-  await serviceClient.from("payment_transactions").insert({
-    purchase_order_id: order.purchase_order_id,
-    gateway: refundMethod,
-    amount: refundAmount,
-    currency: order.currency,
-    status: refundMethod === "stripe" ? "refunded" : "processing",
-    gateway_transaction_id: refundReference,
-    raw_request: { type, reason, originalOrderId: supplierOrderId },
-  });
-
-  // Update order status
-  const newStatus = type === "full" ? "refunded" : order.status;
-  await serviceClient
-    .from("supplier_orders")
-    .update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", supplierOrderId);
-
-  // Log in order history
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("id")
-    .eq("auth_id", user.id)
-    .single();
-
-  await serviceClient.from("order_status_history").insert({
-    supplier_order_id: supplierOrderId,
-    old_status: order.status,
-    new_status: newStatus,
-    changed_by: profile?.id || null,
-    note: `Refund ${type}: ${reason}. Amount: ${order.currency} ${(refundAmount / 100).toFixed(2)}. Ref: ${refundReference}`,
-  });
-
-  return NextResponse.json({
-    success: true,
-    refundAmount,
-    currency: order.currency,
-    refundMethod,
-    refundReference,
+  const result = await processRefund({
+    supplierOrderId,
+    reason,
+    amount,
     type,
+    adminProfileId: admin.profile.id,
   });
+
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  return NextResponse.json({ ...result, type });
 }
 
 /**

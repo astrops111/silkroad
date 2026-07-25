@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllAIFeatures, toggleAIFeature, updateAIFeatureConfig } from "@/lib/ai/feature-flags";
-import { requireAdmin, isAuthError } from "@/lib/auth/guard";
+import { requireSuperAdmin, isAuthError } from "@/lib/auth/guard";
 
 /**
  * GET /api/admin/ai-features — List all AI feature flags
  */
 export async function GET() {
-  const auth = await requireAdmin();
+  const auth = await requireSuperAdmin();
   if (isAuthError(auth)) return auth;
 
   const features = await getAllAIFeatures();
@@ -18,7 +18,7 @@ export async function GET() {
  * Body: { featureId, enabled?, config? }
  */
 export async function PATCH(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireSuperAdmin();
   if (isAuthError(auth)) return auth;
 
   const { featureId, enabled, config } = await request.json();
@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest) {
 
   // Toggle enabled/disabled
   if (typeof enabled === "boolean") {
-    const result = await toggleAIFeature(featureId, enabled, "admin");
+    const result = await toggleAIFeature(featureId, enabled, auth.profile.id);
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest) {
 
   // Update config
   if (config && typeof config === "object") {
-    const result = await updateAIFeatureConfig(featureId, config, "admin");
+    const result = await updateAIFeatureConfig(featureId, config, auth.profile.id);
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }

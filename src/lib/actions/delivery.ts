@@ -68,7 +68,10 @@ export async function confirmDelivery(
   const settlementResult = await calculateSettlement(supplierOrderId);
 
   if (!settlementResult.success) {
-    // Settlement failed but delivery is confirmed — admin will handle manually
+    // Settlement failed but delivery is confirmed — admin will handle manually.
+    // Log so this doesn't disappear silently; the DB trigger on 'delivered'
+    // also enqueues a settlement.triggered retry after the dispute window.
+    console.error(`[confirmDelivery] settlement calculation failed for ${supplierOrderId}:`, settlementResult.error);
     return { success: true, data: { settlementId: "" } };
   }
 

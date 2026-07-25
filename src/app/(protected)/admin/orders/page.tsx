@@ -1,243 +1,189 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Search,
-  Filter,
   ChevronDown,
-  MoreHorizontal,
   Download,
   Eye,
   Clock,
   CheckCircle2,
   XCircle,
   Truck,
-  Package,
+  AlertCircle,
+  RotateCcw,
   CreditCard,
   Smartphone,
   Landmark,
   Users,
-  Calendar,
+  Loader2,
+  Package,
+  RefreshCw,
+  ChevronLeft,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Types & data                                                       */
+/*  Types                                                              */
 /* ------------------------------------------------------------------ */
-type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "processing"
-  | "shipped"
-  | "delivered"
-  | "cancelled";
-
-type PaymentMethod =
-  | "mtn_momo"
-  | "airtel_money"
-  | "mpesa"
-  | "stripe"
-  | "bank_transfer"
-  | "alipay";
-
-interface Order {
+interface OrderRow {
   id: string;
-  orderNumber: string;
-  buyer: string;
-  buyerCountry: string;
-  suppliers: string[];
-  total: number;
+  order_number: string;
+  subtotal: number;
+  total_shipping: number;
+  total_tax: number;
+  grand_total: number;
   currency: string;
-  paymentMethod: PaymentMethod;
-  status: OrderStatus;
-  date: string;
+  status: string | null;
+  market_region: string | null;
+  buyer_company_name: string | null;
+  created_at: string;
+  buyer_user_id: string;
+  user_profiles: { full_name: string | null; email: string | null; country_code: string | null } | null;
+  supplierCount: number;
+  paymentGateway: string | null;
 }
 
-const orders: Order[] = [
-  {
-    id: "1",
-    orderNumber: "ORD-2025-4871",
-    buyer: "TechHub Ghana Ltd.",
-    buyerCountry: "\uD83C\uDDEC\uD83C\uDDED",
-    suppliers: ["Shenzhen TechParts Co."],
-    total: 12400,
-    currency: "USD",
-    paymentMethod: "mtn_momo",
-    status: "confirmed",
-    date: "2025-04-16",
-  },
-  {
-    id: "2",
-    orderNumber: "ORD-2025-4870",
-    buyer: "Kampala Retail Group",
-    buyerCountry: "\uD83C\uDDFA\uD83C\uDDEC",
-    suppliers: ["Guangzhou Huawei Electronics Ltd.", "Dongguan Plastics Manufacturing"],
-    total: 28750,
-    currency: "USD",
-    paymentMethod: "airtel_money",
-    status: "processing",
-    date: "2025-04-15",
-  },
-  {
-    id: "3",
-    orderNumber: "ORD-2025-4869",
-    buyer: "Shanghai Imports Trading",
-    buyerCountry: "\uD83C\uDDE8\uD83C\uDDF3",
-    suppliers: ["Kigali Coffee Collective"],
-    total: 8200,
-    currency: "USD",
-    paymentMethod: "alipay",
-    status: "shipped",
-    date: "2025-04-14",
-  },
-  {
-    id: "4",
-    orderNumber: "ORD-2025-4868",
-    buyer: "Dar es Salaam Wholesale",
-    buyerCountry: "\uD83C\uDDF9\uD83C\uDDFF",
-    suppliers: ["Shenzhen TechParts Co."],
-    total: 5430,
-    currency: "USD",
-    paymentMethod: "mpesa",
-    status: "delivered",
-    date: "2025-04-12",
-  },
-  {
-    id: "5",
-    orderNumber: "ORD-2025-4867",
-    buyer: "Guangzhou Import Co.",
-    buyerCountry: "\uD83C\uDDE8\uD83C\uDDF3",
-    suppliers: ["Nairobi Fresh Produce Co-op", "Addis Ababa Textiles PLC"],
-    total: 15900,
-    currency: "USD",
-    paymentMethod: "bank_transfer",
-    status: "pending",
-    date: "2025-04-16",
-  },
-  {
-    id: "6",
-    orderNumber: "ORD-2025-4866",
-    buyer: "Lagos MegaStore",
-    buyerCountry: "\uD83C\uDDF3\uD83C\uDDEC",
-    suppliers: ["Guangzhou Huawei Electronics Ltd."],
-    total: 41200,
-    currency: "USD",
-    paymentMethod: "stripe",
-    status: "confirmed",
-    date: "2025-04-13",
-  },
-  {
-    id: "7",
-    orderNumber: "ORD-2025-4865",
-    buyer: "Mombasa Traders Ltd.",
-    buyerCountry: "\uD83C\uDDF0\uD83C\uDDEA",
-    suppliers: ["Shenzhen TechParts Co.", "Dongguan Plastics Manufacturing", "Guangzhou Huawei Electronics Ltd."],
-    total: 67800,
-    currency: "USD",
-    paymentMethod: "mtn_momo",
-    status: "processing",
-    date: "2025-04-11",
-  },
-  {
-    id: "8",
-    orderNumber: "ORD-2025-4864",
-    buyer: "Casablanca Imports",
-    buyerCountry: "\uD83C\uDDF2\uD83C\uDDE6",
-    suppliers: ["Guangzhou Huawei Electronics Ltd."],
-    total: 9100,
-    currency: "USD",
-    paymentMethod: "stripe",
-    status: "cancelled",
-    date: "2025-04-10",
-  },
-];
-
 /* ------------------------------------------------------------------ */
-/*  Config maps                                                        */
+/*  Config maps — mirrors b2b_order_status / payment_gateway enums     */
 /* ------------------------------------------------------------------ */
-const statusConfig: Record<
-  OrderStatus,
-  { label: string; color: string; bg: string }
-> = {
-  pending: {
-    label: "Pending",
-    color: "var(--warning)",
-    bg: "color-mix(in srgb, var(--warning) 10%, transparent)",
-  },
-  confirmed: {
-    label: "Confirmed",
-    color: "var(--indigo)",
-    bg: "color-mix(in srgb, var(--indigo) 10%, transparent)",
-  },
-  processing: {
-    label: "Processing",
-    color: "var(--amber-dark)",
-    bg: "color-mix(in srgb, var(--amber) 12%, transparent)",
-  },
-  shipped: {
-    label: "Shipped",
-    color: "var(--info)",
-    bg: "color-mix(in srgb, var(--info) 10%, transparent)",
-  },
-  delivered: {
-    label: "Delivered",
-    color: "var(--success)",
-    bg: "color-mix(in srgb, var(--success) 10%, transparent)",
-  },
-  cancelled: {
-    label: "Cancelled",
-    color: "var(--danger)",
-    bg: "color-mix(in srgb, var(--danger) 10%, transparent)",
-  },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
+  draft:                 { label: "Draft",                 color: "var(--text-tertiary)", bg: "var(--surface-secondary)", icon: Clock },
+  pending_approval:      { label: "Pending Approval",      color: "var(--warning)", bg: "color-mix(in srgb, var(--warning) 10%, transparent)", icon: Clock },
+  pending_payment:       { label: "Pending Payment",       color: "var(--warning)", bg: "color-mix(in srgb, var(--warning) 10%, transparent)", icon: Clock },
+  deposit_paid:          { label: "Deposit Paid",          color: "var(--indigo)", bg: "color-mix(in srgb, var(--indigo) 10%, transparent)", icon: CheckCircle2 },
+  paid:                  { label: "Paid",                  color: "var(--indigo)", bg: "color-mix(in srgb, var(--indigo) 10%, transparent)", icon: CheckCircle2 },
+  confirmed:              { label: "Confirmed",             color: "var(--indigo)", bg: "color-mix(in srgb, var(--indigo) 10%, transparent)", icon: CheckCircle2 },
+  in_production:         { label: "In Production",         color: "var(--amber-dark)", bg: "color-mix(in srgb, var(--amber) 12%, transparent)", icon: AlertCircle },
+  quality_check:         { label: "Quality Check",         color: "var(--amber-dark)", bg: "color-mix(in srgb, var(--amber) 12%, transparent)", icon: AlertCircle },
+  ready_to_ship:         { label: "Ready to Ship",         color: "var(--info)", bg: "color-mix(in srgb, var(--info) 10%, transparent)", icon: Truck },
+  assigned_to_logistics: { label: "Assigned to Logistics", color: "var(--info)", bg: "color-mix(in srgb, var(--info) 10%, transparent)", icon: Truck },
+  dispatched:            { label: "Dispatched",            color: "var(--info)", bg: "color-mix(in srgb, var(--info) 10%, transparent)", icon: Truck },
+  in_transit:            { label: "In Transit",            color: "var(--info)", bg: "color-mix(in srgb, var(--info) 10%, transparent)", icon: Truck },
+  out_for_delivery:      { label: "Out for Delivery",      color: "var(--info)", bg: "color-mix(in srgb, var(--info) 10%, transparent)", icon: Truck },
+  delivered:             { label: "Delivered",             color: "var(--success)", bg: "color-mix(in srgb, var(--success) 10%, transparent)", icon: CheckCircle2 },
+  completed:             { label: "Completed",             color: "var(--success)", bg: "color-mix(in srgb, var(--success) 10%, transparent)", icon: CheckCircle2 },
+  cancelled:             { label: "Cancelled",             color: "var(--danger)", bg: "color-mix(in srgb, var(--danger) 10%, transparent)", icon: XCircle },
+  disputed:              { label: "Disputed",              color: "var(--danger)", bg: "color-mix(in srgb, var(--danger) 10%, transparent)", icon: AlertCircle },
+  refund_requested:      { label: "Refund Requested",      color: "var(--warning)", bg: "color-mix(in srgb, var(--warning) 10%, transparent)", icon: RotateCcw },
+  refunded:              { label: "Refunded",              color: "var(--text-tertiary)", bg: "var(--surface-secondary)", icon: RotateCcw },
 };
 
-const paymentMethodConfig: Record<
-  PaymentMethod,
-  { label: string; icon: typeof CreditCard; color: string }
-> = {
-  mtn_momo: { label: "MTN MoMo", icon: Smartphone, color: "#FFCC00" },
-  airtel_money: { label: "Airtel Money", icon: Smartphone, color: "#ED1C24" },
-  mpesa: { label: "M-Pesa", icon: Smartphone, color: "#4CAF50" },
-  stripe: { label: "Stripe", icon: CreditCard, color: "#635BFF" },
-  bank_transfer: { label: "Bank Transfer", icon: Landmark, color: "var(--text-tertiary)" },
-  alipay: { label: "Alipay", icon: CreditCard, color: "#1677FF" },
+function statusMeta(status: string | null) {
+  return status ? STATUS_CONFIG[status] ?? { label: status, color: "var(--text-tertiary)", bg: "var(--surface-secondary)", icon: Clock } : { label: "Unknown", color: "var(--text-tertiary)", bg: "var(--surface-secondary)", icon: Clock };
+}
+
+const PAYMENT_CONFIG: Record<string, { label: string; icon: typeof CreditCard }> = {
+  mtn_momo:        { label: "MTN MoMo", icon: Smartphone },
+  airtel_money:    { label: "Airtel Money", icon: Smartphone },
+  tigo_cash:       { label: "Tigo Cash", icon: Smartphone },
+  mpesa:           { label: "M-Pesa", icon: Smartphone },
+  stripe:          { label: "Stripe", icon: CreditCard },
+  alipay:          { label: "Alipay", icon: CreditCard },
+  wechat_pay:      { label: "WeChat Pay", icon: CreditCard },
+  bank_transfer:   { label: "Bank Transfer", icon: Landmark },
+  escrow:          { label: "Escrow", icon: Landmark },
+  platform_wallet: { label: "Platform Wallet", icon: CreditCard },
+  xtransfer:       { label: "XTransfer", icon: Landmark },
+  flutterwave:     { label: "Flutterwave", icon: CreditCard },
 };
 
+const COUNTRY_FLAGS: Record<string, string> = {
+  GH: "🇬🇭", NG: "🇳🇬", KE: "🇰🇪", UG: "🇺🇬", TZ: "🇹🇿", RW: "🇷🇼",
+  ET: "🇪🇹", ZA: "🇿🇦", CM: "🇨🇲", SN: "🇸🇳", CI: "🇨🇮", CD: "🇨🇩",
+  MZ: "🇲🇿", ZM: "🇿🇲", ZW: "🇿🇼", EG: "🇪🇬", MA: "🇲🇦", CN: "🇨🇳",
+  TW: "🇹🇼", US: "🇺🇸", GB: "🇬🇧", JP: "🇯🇵", KR: "🇰🇷", VN: "🇻🇳",
+  TH: "🇹🇭", MY: "🇲🇾", ID: "🇮🇩", SG: "🇸🇬", PH: "🇵🇭",
+};
+
+function money(cents: number, currency: string) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD", minimumFractionDigits: 0 }).format((cents || 0) / 100);
+}
+
+function exportCsv(rows: OrderRow[]) {
+  const header = ["Order Number", "Buyer", "Country", "Suppliers", "Total", "Currency", "Payment", "Status", "Date"];
+  const lines = rows.map((o) => [
+    o.order_number,
+    o.buyer_company_name || o.user_profiles?.full_name || "",
+    o.user_profiles?.country_code || "",
+    String(o.supplierCount),
+    ((o.grand_total || 0) / 100).toFixed(2),
+    o.currency,
+    o.paymentGateway || "",
+    o.status || "",
+    o.created_at,
+  ]);
+  const csv = [header, ...lines].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const LIMIT = 25;
+
 /* ------------------------------------------------------------------ */
-/*  Page                                                               */
+/*  Page                                                                */
 /* ------------------------------------------------------------------ */
 export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = orders.filter((o) => {
-    const matchesSearch =
-      o.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-      o.buyer.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || o.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (search) params.set("search", search);
+    params.set("limit", String(LIMIT));
+    params.set("offset", String(offset));
+    try {
+      const res = await fetch(`/api/admin/orders?${params}`);
+      const data = await res.json();
+      setOrders(data.orders || []);
+      setTotal(data.total || 0);
+    } catch (err) {
+      console.error("Failed to fetch orders:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, search, offset]);
+
+  useEffect(() => {
+    const debounce = setTimeout(fetchOrders, search ? 300 : 0);
+    return () => clearTimeout(debounce);
+  }, [fetchOrders]);
+
+  useEffect(() => { setOffset(0); }, [statusFilter, search]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-2xl font-bold tracking-tight"
-            style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
-          >
+          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>
             Orders
           </h1>
           <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>
             All platform orders across suppliers and buyers
           </p>
         </div>
-        <button className="btn-outline !py-2 !px-4 !text-sm">
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={fetchOrders} title="Refresh" className="p-2 rounded-xl transition-colors"
+            style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", color: "var(--text-tertiary)" }}>
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => exportCsv(orders)} disabled={orders.length === 0} className="btn-outline !py-2 !px-4 !text-sm">
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -248,49 +194,18 @@ export default function OrdersPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="appearance-none pl-4 pr-9 py-2.5 rounded-xl text-sm font-medium cursor-pointer outline-none"
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-subtle)",
-              color: "var(--text-secondary)",
-              fontFamily: "var(--font-body)",
-            }}
+            style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}
           >
             <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            {Object.entries(STATUS_CONFIG).map(([value, cfg]) => (
+              <option key={value} value={value}>{cfg.label}</option>
+            ))}
           </select>
-          <ChevronDown
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-            style={{ color: "var(--text-tertiary)" }}
-          />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
         </div>
 
-        {/* Date range placeholder */}
-        <button
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-subtle)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <Calendar className="w-4 h-4" />
-          Apr 10 - Apr 17, 2025
-          <ChevronDown className="w-3 h-3" />
-        </button>
-
         {/* Search */}
-        <div
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl flex-1 max-w-sm"
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-subtle)",
-          }}
-        >
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl flex-1 max-w-sm" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
           <Search className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
           <input
             type="text"
@@ -304,181 +219,115 @@ export default function OrdersPage() {
       </div>
 
       {/* Table */}
-      <div
-        className="rounded-2xl border overflow-hidden"
-        style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                {[
-                  "Order",
-                  "Buyer",
-                  "Supplier(s)",
-                  "Total",
-                  "Payment",
-                  "Status",
-                  "Date",
-                  "",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider"
-                    style={{ color: "var(--text-tertiary)" }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((o) => {
-                const status = statusConfig[o.status];
-                const payment = paymentMethodConfig[o.paymentMethod];
-                const PayIcon = payment.icon;
+      <div className="rounded-2xl border overflow-hidden" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--amber)" }} />
+            <span className="ml-3 text-sm" style={{ color: "var(--text-tertiary)" }}>Loading orders...</span>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Package className="w-12 h-12 mb-3" style={{ color: "var(--text-tertiary)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>No orders found</p>
+            <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
+              {search ? "Try a different search term" : "Orders will appear here once buyers check out"}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {["Order", "Buyer", "Supplier(s)", "Total", "Payment", "Status", "Date", ""].map((h) => (
+                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o) => {
+                  const status = statusMeta(o.status);
+                  const payment = o.paymentGateway ? PAYMENT_CONFIG[o.paymentGateway] : null;
+                  const PayIcon = payment?.icon;
+                  const buyerName = o.buyer_company_name || o.user_profiles?.full_name || "Unknown Buyer";
+                  const flag = o.user_profiles?.country_code ? COUNTRY_FLAGS[o.user_profiles.country_code] || "" : "";
 
-                return (
-                  <tr
-                    key={o.id}
-                    className="transition-colors"
-                    style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "var(--surface-secondary)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
-                  >
-                    {/* Order number */}
-                    <td className="px-5 py-4">
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {o.orderNumber}
-                      </span>
-                    </td>
-
-                    {/* Buyer */}
-                    <td className="px-5 py-4">
-                      <div>
-                        <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                          {o.buyerCountry} {o.buyer}
+                  return (
+                    <tr key={o.id} className="transition-colors" style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{o.order_number}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{flag} {buyerName}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: "color-mix(in srgb, var(--indigo) 10%, transparent)", color: "var(--indigo)" }}>
+                          <Users className="w-3 h-3" />
+                          {o.supplierCount}
                         </span>
-                      </div>
-                    </td>
-
-                    {/* Suppliers */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                          {o.suppliers[0]}
-                        </span>
-                        {o.suppliers.length > 1 && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                            style={{
-                              background: "color-mix(in srgb, var(--indigo) 10%, transparent)",
-                              color: "var(--indigo)",
-                            }}
-                          >
-                            <Users className="w-3 h-3" />
-                            +{o.suppliers.length - 1}
-                          </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{money(o.grand_total, o.currency)}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {payment ? (
+                          <div className="flex items-center gap-2">
+                            {PayIcon && <PayIcon className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />}
+                            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{payment.label}</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm" style={{ color: "var(--text-tertiary)" }}>—</span>
                         )}
-                      </div>
-                    </td>
-
-                    {/* Total */}
-                    <td className="px-5 py-4">
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        ${o.total.toLocaleString()}
-                      </span>
-                      <span className="text-xs ml-1" style={{ color: "var(--text-tertiary)" }}>
-                        {o.currency}
-                      </span>
-                    </td>
-
-                    {/* Payment */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <PayIcon className="w-4 h-4" style={{ color: payment.color }} />
-                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                          {payment.label}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ color: status.color, background: status.bg }}>
+                          <status.icon className="w-3 h-3" />
+                          {status.label}
                         </span>
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-5 py-4">
-                      <span
-                        className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold"
-                        style={{ color: status.color, background: status.bg }}
-                      >
-                        {status.label}
-                      </span>
-                    </td>
-
-                    {/* Date */}
-                    <td className="px-5 py-4">
-                      <span className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-                        {new Date(o.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1">
-                        <Link
-                          href={`/admin/orders/${o.id}`}
-                          className="p-2 rounded-lg transition-colors hover:bg-[var(--surface-secondary)] inline-flex items-center"
-                          style={{ color: "var(--text-tertiary)" }}
-                        >
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+                          {new Date(o.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link href={`/admin/orders/${o.id}`} className="p-2 rounded-lg transition-colors hover:bg-[var(--surface-secondary)] inline-flex items-center" style={{ color: "var(--text-tertiary)" }}>
                           <Eye className="w-4 h-4" />
                         </Link>
-                        <button
-                          className="p-2 rounded-lg transition-colors hover:bg-[var(--surface-secondary)]"
-                          style={{ color: "var(--text-tertiary)" }}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Pagination */}
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderTop: "1px solid var(--border-subtle)" }}
-        >
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-            Showing {filtered.length} of {orders.length} orders
+            Showing {total === 0 ? 0 : offset + 1}-{Math.min(offset + LIMIT, total)} of {total} orders
           </p>
           <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((p) => (
-              <button
-                key={p}
-                className="w-8 h-8 rounded-lg text-xs font-medium transition-colors"
-                style={{
-                  background: p === 1 ? "var(--obsidian)" : "transparent",
-                  color: p === 1 ? "var(--ivory)" : "var(--text-tertiary)",
-                }}
-              >
-                {p}
-              </button>
-            ))}
+            <button
+              onClick={() => setOffset((o) => Math.max(0, o - LIMIT))}
+              disabled={offset === 0}
+              className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-30"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setOffset((o) => o + LIMIT)}
+              disabled={offset + LIMIT >= total}
+              className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-30"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              <ChevronDown className="w-4 h-4 -rotate-90" />
+            </button>
           </div>
         </div>
       </div>

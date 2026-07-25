@@ -93,13 +93,13 @@ export async function getBuyerTopSuppliers(companyId: string, limit = 5): Promis
 
   const { data: supplierOrders } = await supabase
     .from("supplier_orders")
-    .select("supplier_company_id, total_amount, purchase_orders!inner(buyer_company_id)")
+    .select("supplier_id, total_amount, purchase_orders!inner(buyer_company_id)")
     .eq("purchase_orders.buyer_company_id", companyId)
     .in("status", ["paid", "confirmed", "in_production", "delivered", "completed"]);
 
   const supplierMap = new Map<string, { total: number; count: number }>();
   for (const so of supplierOrders ?? []) {
-    const id = so.supplier_company_id;
+    const id = so.supplier_id;
     const existing = supplierMap.get(id) ?? { total: 0, count: 0 };
     existing.total += so.total_amount ?? 0;
     existing.count += 1;
@@ -138,12 +138,12 @@ export async function getSupplierKpis(companyId: string) {
   const { count: totalOrders } = await supabase
     .from("supplier_orders")
     .select("*", { count: "exact", head: true })
-    .eq("supplier_company_id", companyId);
+    .eq("supplier_id", companyId);
 
   const { data: revenueData } = await supabase
     .from("supplier_orders")
     .select("total_amount")
-    .eq("supplier_company_id", companyId)
+    .eq("supplier_id", companyId)
     .in("status", ["paid", "confirmed", "in_production", "delivered", "completed"]);
 
   const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
@@ -180,7 +180,7 @@ export async function getSupplierMonthlyRevenue(companyId: string, months = 12):
   const { data: orders } = await supabase
     .from("supplier_orders")
     .select("total_amount, created_at")
-    .eq("supplier_company_id", companyId)
+    .eq("supplier_id", companyId)
     .gte("created_at", since.toISOString())
     .in("status", ["paid", "confirmed", "in_production", "delivered", "completed"]);
 
@@ -203,14 +203,14 @@ export async function getSupplierTopProducts(companyId: string, limit = 5) {
 
   const { data: items } = await supabase
     .from("supplier_order_items")
-    .select("product_id, product_name, quantity, total_price, supplier_orders!inner(supplier_company_id)")
-    .eq("supplier_orders.supplier_company_id", companyId);
+    .select("product_id, product_name, quantity, subtotal, supplier_orders!inner(supplier_id)")
+    .eq("supplier_orders.supplier_id", companyId);
 
   const productMap = new Map<string, { name: string; revenue: number; units: number }>();
   for (const item of items ?? []) {
     const id = item.product_id;
     const existing = productMap.get(id) ?? { name: item.product_name, revenue: 0, units: 0 };
-    existing.revenue += item.total_price ?? 0;
+    existing.revenue += item.subtotal ?? 0;
     existing.units += item.quantity ?? 0;
     productMap.set(id, existing);
   }

@@ -6352,6 +6352,71 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_settings: {
+        Row: {
+          commission_rate: number
+          default_currency: string
+          dispute_window_days: number
+          gateways: Json
+          maintenance_mode: boolean
+          max_order_value: number
+          min_order_value: number
+          notify_on_dispute: boolean
+          notify_on_new_order: boolean
+          notify_on_payment_fail: boolean
+          notify_on_supplier_apply: boolean
+          quote_ttl_days: number
+          singleton: boolean
+          supported_currencies: string[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          commission_rate?: number
+          default_currency?: string
+          dispute_window_days?: number
+          gateways?: Json
+          maintenance_mode?: boolean
+          max_order_value?: number
+          min_order_value?: number
+          notify_on_dispute?: boolean
+          notify_on_new_order?: boolean
+          notify_on_payment_fail?: boolean
+          notify_on_supplier_apply?: boolean
+          quote_ttl_days?: number
+          singleton?: boolean
+          supported_currencies?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          commission_rate?: number
+          default_currency?: string
+          dispute_window_days?: number
+          gateways?: Json
+          maintenance_mode?: boolean
+          max_order_value?: number
+          min_order_value?: number
+          notify_on_dispute?: boolean
+          notify_on_new_order?: boolean
+          notify_on_payment_fail?: boolean
+          notify_on_supplier_apply?: boolean
+          quote_ttl_days?: number
+          singleton?: boolean
+          supported_currencies?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipeline_events: {
         Row: {
           attempt_count: number
@@ -6879,6 +6944,7 @@ export type Database = {
           name: string
           option_shade: string | null
           option_size: string | null
+          option_variant3: string | null
           price_override: number | null
           product_id: string
           sku: string | null
@@ -6896,6 +6962,7 @@ export type Database = {
           name: string
           option_shade?: string | null
           option_size?: string | null
+          option_variant3?: string | null
           price_override?: number | null
           product_id: string
           sku?: string | null
@@ -6913,6 +6980,7 @@ export type Database = {
           name?: string
           option_shade?: string | null
           option_size?: string | null
+          option_variant3?: string | null
           price_override?: number | null
           product_id?: string
           sku?: string | null

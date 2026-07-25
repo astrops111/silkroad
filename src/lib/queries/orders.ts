@@ -43,7 +43,7 @@ export async function getSupplierOrders(
   let query = supabase
     .from("supplier_orders")
     .select("*, supplier_order_items (*)", { count: "exact" })
-    .eq("supplier_company_id", companyId)
+    .eq("supplier_id", companyId)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
