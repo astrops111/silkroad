@@ -32,10 +32,11 @@ export async function GET(
   const { data: rfq, error } = await supabase
     .from("rfqs")
     .select(
-      `id, rfq_number, title, description, category, quantity, unit,
-       target_price, currency, delivery_country, delivery_city,
+      `id, rfq_number, title, description, category_id, quantity, unit,
+       target_price, target_currency, delivery_country, delivery_city,
        required_by, deadline, status, is_public, awarded_quotation_id,
        buyer_company_name, created_at, updated_at,
+       categories ( name ),
        rfq_items (
          id, product_name, description, quantity, unit,
          target_unit_price, specifications, hs_code, sort_order
@@ -58,5 +59,12 @@ export async function GET(
     return NextResponse.json({ error: "RFQ not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ rfq });
+  const { categories, target_currency, ...rest } = rfq as typeof rfq & {
+    categories: { name: string } | null;
+    target_currency: string;
+  };
+
+  return NextResponse.json({
+    rfq: { ...rest, category: categories?.name ?? null, currency: target_currency },
+  });
 }

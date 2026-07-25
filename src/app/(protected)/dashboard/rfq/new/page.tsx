@@ -25,6 +25,11 @@ interface LineItem {
 
 const UNITS = ["pieces", "boxes", "kg", "tons", "meters", "cartons"];
 const CURRENCIES = ["USD", "GHS", "KES", "NGN", "ZAR", "CNY"];
+const DESTINATION_COUNTRIES = [
+  "NG", "GH", "KE", "TZ", "ZA", "ET", "EG", "CM", "CI", "SN", "UG", "ZM", "CD", "MA",
+  "MZ", "RW", "BJ", "AO", "MW", "ZW",
+].map((code) => ({ code, name: new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -79,25 +84,24 @@ export default function NewRFQPage() {
       const body = {
         title: form.title,
         description: form.description || undefined,
-        category: form.category || undefined,
         quantity: parseFloat(form.quantity),
         unit: form.unit,
-        target_price: form.target_price
+        targetPrice: form.target_price
           ? parseFloat(form.target_price)
           : undefined,
         currency: form.currency,
-        delivery_country: form.delivery_country || undefined,
-        delivery_city: form.delivery_city || undefined,
-        required_by: form.required_by || undefined,
+        deliveryCountry: form.delivery_country || undefined,
+        deliveryCity: form.delivery_city || undefined,
+        requiredBy: form.required_by || undefined,
         deadline: form.deadline || undefined,
-        sample_required: form.sample_required,
-        line_items: lineItems
+        sampleRequired: form.sample_required,
+        items: lineItems
           .filter((li) => li.product_name && li.quantity)
           .map((li) => ({
-            product_name: li.product_name,
+            productName: li.product_name,
             quantity: parseFloat(li.quantity),
             unit: li.unit,
-            target_unit_price: li.target_unit_price
+            targetUnitPrice: li.target_unit_price
               ? parseFloat(li.target_unit_price)
               : undefined,
           })),
@@ -264,13 +268,18 @@ export default function NewRFQPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Delivery Country</label>
-              <input
-                type="text"
+              <select
                 value={form.delivery_country}
                 onChange={(e) => update("delivery_country", e.target.value)}
-                placeholder="e.g. Ghana"
                 className={inputCls}
-              />
+              >
+                <option value="">Select country…</option>
+                {DESTINATION_COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelCls}>Delivery City</label>

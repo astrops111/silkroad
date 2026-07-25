@@ -32,7 +32,7 @@ interface RFQSummary {
   target_price?: number;
   currency: string;
   category?: string;
-  deadline: string;
+  deadline: string | null;
   required_by?: string;
   sample_required?: boolean;
 }
@@ -50,10 +50,10 @@ const PAYMENT_TERMS = [
 ];
 
 const TRADE_TERMS = [
-  { value: "FOB", label: "FOB (Free on Board)" },
-  { value: "CIF", label: "CIF (Cost, Insurance & Freight)" },
-  { value: "EXW", label: "EXW (Ex Works)" },
-  { value: "DDP", label: "DDP (Delivered Duty Paid)" },
+  { value: "fob", label: "FOB (Free on Board)" },
+  { value: "cif", label: "CIF (Cost, Insurance & Freight)" },
+  { value: "exw", label: "EXW (Ex Works)" },
+  { value: "ddp", label: "DDP (Delivered Duty Paid)" },
 ];
 
 const CURRENCIES = ["USD", "GHS", "KES", "NGN", "ZAR", "CNY"];
@@ -74,7 +74,7 @@ export default function SubmitQuotePage() {
     total_amount: "",
     currency: "USD",
     payment_terms: "net_30",
-    trade_term: "FOB",
+    trade_term: "fob",
     lead_time_days: "",
     validity_days: "30",
     moq: "",
@@ -261,11 +261,13 @@ export default function SubmitQuotePage() {
                 Deadline
               </div>
               <div className="text-sm font-semibold text-[var(--amber-dark)]">
-                {new Date(rfq.deadline).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
+                {rfq.deadline
+                  ? new Date(rfq.deadline).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "No deadline set"}
               </div>
             </div>
           </div>

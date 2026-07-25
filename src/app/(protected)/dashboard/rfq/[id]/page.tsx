@@ -132,6 +132,17 @@ function fmt(amount: number, currency: string) {
   }).format(amount / 100);
 }
 
+// rfqs.target_price / rfq_items.target_unit_price are stored as plain
+// (major-unit) amounts, unlike quotation amounts which are in cents — do not
+// route these through fmt().
+function fmtPlain(amount: number, currency: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", {
@@ -516,7 +527,7 @@ export default function RFQDetailPage() {
             <div>
               <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-widest mb-0.5">Target Price</p>
               <p className="text-[var(--obsidian)]">
-                {rfq.target_price ? fmt(rfq.target_price, rfq.currency) : "—"}
+                {rfq.target_price ? fmtPlain(rfq.target_price, rfq.currency) : "—"}
               </p>
             </div>
             <div>
@@ -584,7 +595,7 @@ export default function RFQDetailPage() {
                         <td className="py-3 pr-4 text-[var(--text-secondary)]">{item.quantity.toLocaleString()}</td>
                         <td className="py-3 pr-4 text-[var(--text-secondary)]">{item.unit}</td>
                         <td className="py-3 pr-4 text-[var(--text-secondary)]">
-                          {item.target_unit_price ? fmt(item.target_unit_price, rfq.currency) : "—"}
+                          {item.target_unit_price ? fmtPlain(item.target_unit_price, rfq.currency) : "—"}
                         </td>
                         <td className="py-3 text-[var(--text-tertiary)] text-xs">{item.hs_code ?? "—"}</td>
                       </tr>

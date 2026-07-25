@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { calculateOrderTax } from "@/lib/tax";
 import { onOrderCreated } from "@/lib/email/events";
 import { findDealByRfq, attachToDealThread } from "@/lib/deals/threads";
@@ -100,8 +100,16 @@ export async function POST(request: NextRequest) {
   const orderNumber = `ORD-${date}-${rand}`;
   const soNumber = `${orderNumber}-S1`;
 
+  // Ownership + award status already verified above via the RLS-scoped
+  // client. The writes below are cross-party (the buyer is creating a row
+  // scoped to the supplier's company) — supplier_orders' RLS insert policy
+  // only allows the supplier company or an admin, so it would otherwise
+  // reject every buyer-initiated conversion. Use the service client for
+  // these privileged writes now that authorization is established.
+  const serviceClient = createServiceClient();
+
   // Create purchase order
-  const { data: purchaseOrder, error: poError } = await supabase
+  const { data: purchaseOrder, error: poError } = await serviceClient
     .from("purchase_orders")
     .insert({
       order_number: orderNumber,
@@ -124,7 +132,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Create supplier order
-  const { data: supplierOrder, error: soError } = await supabase
+  const { data: supplierOrder, error: soError } = await serviceClient
     .from("supplier_orders")
     .insert({
       purchase_order_id: purchaseOrder.id,
@@ -174,11 +182,11 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    await supabase.from("supplier_order_items").insert(orderItems);
+    await serviceClient.from("supplier_order_items").insert(orderItems);
   }
 
   // Update RFQ status to converted
-  await supabase
+  await serviceClient
     .from("rfqs")
     .update({
       status: "converted",
