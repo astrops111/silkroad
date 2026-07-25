@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
 
 /**
@@ -114,23 +114,56 @@ export async function POST(
   }
 
   // ── Create supplier_orders ────────────────────────────────────────────────
-  const supplierOrderInserts = Object.values(supplierMap).map((group) => ({
-    purchase_order_id: purchaseOrder.id,
-    supplier_id:       group.supplierId,
-    order_number:      `${orderNumber}-${group.supplierId.slice(0, 6).toUpperCase()}`,
-    subtotal:          group.subtotal,
-    shipping_fee:      0,
-    tax:               0,
-    grand_total:       group.subtotal,
-    currency:          quote.currency ?? "USD",
-    status:            "pending_payment",
-    items:             group.items,
-    payment_gateway:   "xtransfer",
-  }));
+  // supplier_orders' RLS insert policy only allows the owning supplier
+  // company or an admin, so the buyer-initiated insert below would
+  // otherwise be rejected. Ownership of the quote/purchase order was
+  // already verified above via the RLS-scoped client, so it's safe to use
+  // the service client for this cross-party write (same pattern as
+  // /api/rfqs/convert).
+  const serviceClient = createServiceClient();
 
-  if (supplierOrderInserts.length > 0) {
-    const { error: soErr } = await supabase.from("supplier_orders").insert(supplierOrderInserts);
-    if (soErr) console.error("[quotes/accept] supplier_orders insert failed:", soErr);
+  for (const group of Object.values(supplierMap)) {
+    const { data: supplierOrder, error: soErr } = await serviceClient
+      .from("supplier_orders")
+      .insert({
+        purchase_order_id: purchaseOrder.id,
+        supplier_id:       group.supplierId,
+        order_number:      `${orderNumber}-${group.supplierId.slice(0, 6).toUpperCase()}`,
+        subtotal:          group.subtotal,
+        shipping_fee:      0,
+        tax_amount:        0,
+        total_amount:      group.subtotal,
+        currency:          quote.currency ?? "USD",
+        status:            "pending_payment",
+        payment_gateway:   null,
+      })
+      .select("id")
+      .single();
+
+    if (soErr || !supplierOrder) {
+      console.error("[quotes/accept] supplier_orders insert failed:", soErr);
+      return NextResponse.json({ error: "Failed to create supplier order" }, { status: 500 });
+    }
+
+    const orderItems = group.items.map((item) => ({
+      supplier_order_id: supplierOrder.id,
+      product_id:         item.productId || "00000000-0000-0000-0000-000000000000",
+      variant_id:         item.variantId || null,
+      product_name:       item.productName ?? "",
+      variant_name:       item.variantName || null,
+      unit_price:         item.unitPrice ?? 0,
+      quantity:           item.quantity ?? 1,
+      subtotal:           (item.unitPrice ?? 0) * (item.quantity ?? 1),
+      currency:           item.currency ?? quote.currency ?? "USD",
+    }));
+
+    if (orderItems.length > 0) {
+      const { error: itemsErr } = await serviceClient.from("supplier_order_items").insert(orderItems);
+      if (itemsErr) {
+        console.error("[quotes/accept] supplier_order_items insert failed:", itemsErr);
+        return NextResponse.json({ error: "Failed to create supplier order items" }, { status: 500 });
+      }
+    }
   }
 
   // ── Mark quote as accepted ────────────────────────────────────────────────
