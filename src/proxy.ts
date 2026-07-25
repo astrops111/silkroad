@@ -12,10 +12,13 @@ const publicRoutes = [
   "/cookies",
   "/commodities",
   "/marketplace",
+  "/brands",
   "/request",
   "/request-export",
   "/suppliers",
   "/resources",
+  "/sell",
+  "/help",
   "/auth/login",
   "/auth/register",
   "/auth/forgot-password",
@@ -29,6 +32,7 @@ const publicRoutes = [
 
 const publicPrefixes = [
   "/marketplace/",
+  "/brands/",
   "/suppliers/",
   "/resources/",
   "/commodities/",
@@ -97,7 +101,7 @@ function generateNonce(): string {
 
 const STRICT_CSP_ENABLED = process.env.DISABLE_STRICT_CSP !== "true";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const nonce = STRICT_CSP_ENABLED ? generateNonce() : null;
   const csp = nonce ? buildCspHeader(nonce) : null;
 

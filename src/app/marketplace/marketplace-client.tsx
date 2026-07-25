@@ -11,7 +11,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { imageForSlug } from "@/lib/category-images";
 import { regionMeta, tradeMeta } from "@/lib/product-labels";
 import { MARKETPLACE_COUNTRIES } from "@/lib/countries";
-import type { RegionPoolingRule, ShippingGroupFacet } from "@/lib/queries/marketplace";
+import type { RegionPoolingRule, ShippingGroupFacet, UseCaseFacet } from "@/lib/queries/marketplace";
 import {
   SlidersHorizontal,
   Grid3X3,
@@ -35,6 +35,7 @@ export interface MarketplaceSubcategory {
   slug: string;
   name: string;
   nameLocal: string | null;
+  productCount: number;
 }
 
 export interface MarketplaceTopCategory {
@@ -224,7 +225,7 @@ const PRODUCTS: MarketplaceProduct[] = [
    SUBCATEGORY TICKER — auto-scrolling, seamless loop, pause on hover
    ============================================================ */
 function SubcategoryGrid({
-  subcategories,
+  subcategories: allSubcategories,
   activeCategorySlug,
   activeSubSlug,
 }: {
@@ -232,7 +233,13 @@ function SubcategoryGrid({
   activeCategorySlug: string;
   activeSubSlug: string | null;
 }) {
+  // Hide subcategories with no matching listings — unless it's the one
+  // currently selected, so the active filter never silently disappears.
+  const subcategories = allSubcategories.filter(
+    (s) => s.productCount > 0 || s.slug === activeSubSlug
+  );
   const locale = useLocale();
+  const t = useTranslations("marketing.marketplace");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -322,6 +329,9 @@ function SubcategoryGrid({
         <div className="absolute inset-x-0 bottom-0 p-2">
           <p className="text-xs sm:text-[13px] font-semibold text-white leading-tight line-clamp-2">
             {label}
+          </p>
+          <p className="text-[10px] text-white/70 mt-0.5">
+            {t("productsCount", { count: sub.productCount })}
           </p>
         </div>
       </Link>
@@ -523,7 +533,9 @@ function FilterSidebar({
   activeSubSlug,
   topCategories,
   subcategoriesByParent,
+  leavesByParent = {},
   brandFacets,
+  useFacets = [],
   countryFacets,
   activeCountry,
   countryHrefFor,
@@ -537,7 +549,9 @@ function FilterSidebar({
   activeSubSlug: string | null;
   topCategories: MarketplaceTopCategory[];
   subcategoriesByParent: Record<string, MarketplaceSubcategory[]>;
+  leavesByParent?: Record<string, MarketplaceSubcategory[]>;
   brandFacets: Record<string, number>;
+  useFacets?: UseCaseFacet[];
   countryFacets: Record<string, number>;
   activeCountry: (typeof MARKETPLACE_COUNTRIES)[number] | null;
   countryHrefFor: (code: string | null) => string;
@@ -552,9 +566,27 @@ function FilterSidebar({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     () => new Set(activeCategorySlug ? [activeCategorySlug] : [])
   );
+  // Level-1 subcategories whose leaf children should render expanded —
+  // seeded with whichever sub currently owns the active leaf, if any.
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(() => {
+    if (!activeSubSlug) return new Set();
+    const owner = Object.entries(leavesByParent).find(([, leaves]) =>
+      leaves.some((leaf) => leaf.slug === activeSubSlug)
+    );
+    return new Set(owner ? [owner[0]] : []);
+  });
 
   const toggleExpanded = (slug: string) => {
     setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  };
+
+  const toggleSubExpanded = (slug: string) => {
+    setExpandedSubs((prev) => {
       const next = new Set(prev);
       if (next.has(slug)) next.delete(slug);
       else next.add(slug);
@@ -593,6 +625,21 @@ function FilterSidebar({
     else next.add(brand);
     if (next.size > 0) params.set("brand", Array.from(next).join(","));
     else params.delete("brand");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
+
+  const activeUses = new Set(
+    (searchParams.get("use") ?? "").split(",").filter(Boolean)
+  );
+
+  const buildUseHref = (slug: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const next = new Set(activeUses);
+    if (next.has(slug)) next.delete(slug);
+    else next.add(slug);
+    if (next.size > 0) params.set("use", Array.from(next).join(","));
+    else params.delete("use");
     const qs = params.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
@@ -658,12 +705,18 @@ function FilterSidebar({
               {t("categoryHeading")}
             </h4>
             <div className="space-y-1">
-              {CATEGORIES.map((cat) => {
+              {CATEGORIES.filter((cat) => {
+                if (!cat.slug) return true; // "All Categories" always shown
+                if (cat.slug === activeCategorySlug) return true; // never hide the active filter
+                return (categoryCountBySlug.get(cat.slug) ?? 0) > 0;
+              }).map((cat) => {
                 const isActive = (cat.slug ?? null) === activeCategorySlug;
                 const count = cat.slug
                   ? categoryCountBySlug.get(cat.slug) ?? 0
                   : totalCategoryCount;
-                const subs = cat.slug ? subcategoriesByParent[cat.slug] ?? [] : [];
+                const subs = (cat.slug ? subcategoriesByParent[cat.slug] ?? [] : []).filter(
+                  (s) => s.productCount > 0 || s.slug === activeSubSlug
+                );
                 const isExpanded = !!cat.slug && expandedCategories.has(cat.slug);
                 return (
                   <div key={cat.key}>
@@ -705,20 +758,67 @@ function FilterSidebar({
                             locale === "zh" && sub.nameLocal ? sub.nameLocal : sub.name;
                           const subActive =
                             cat.slug === activeCategorySlug && sub.slug === activeSubSlug;
+                          const leaves = (leavesByParent[sub.slug] ?? []).filter(
+                            (l) => l.productCount > 0 || l.slug === activeSubSlug
+                          );
+                          const subExpanded = leaves.length > 0 && expandedSubs.has(sub.slug);
                           return (
-                            <Link
-                              key={sub.id}
-                              href={buildSubHref(cat.slug as string, sub.slug)}
-                              onClick={onClose}
-                              scroll={false} prefetch={false}
-                              className={`block px-3 py-1.5 text-[13px] rounded-lg transition-colors truncate ${
-                                subActive
-                                  ? "text-[var(--amber-dark)] font-semibold"
-                                  : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]"
-                              }`}
-                            >
-                              {subLabel}
-                            </Link>
+                            <div key={sub.id}>
+                              <div className="flex items-center">
+                                <Link
+                                  href={buildSubHref(cat.slug as string, sub.slug)}
+                                  onClick={onClose}
+                                  scroll={false} prefetch={false}
+                                  className={`flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                                    subActive
+                                      ? "text-[var(--amber-dark)] font-semibold"
+                                      : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]"
+                                  }`}
+                                >
+                                  <span className="truncate">{subLabel}</span>
+                                  <span className="text-[11px] text-[var(--text-tertiary)] shrink-0">{sub.productCount}</span>
+                                </Link>
+                                {leaves.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSubExpanded(sub.slug)}
+                                    aria-expanded={subExpanded}
+                                    aria-label={subExpanded ? "Collapse subcategories" : "Expand subcategories"}
+                                    className="shrink-0 p-1.5 mr-0.5 rounded-lg hover:bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"
+                                  >
+                                    <ChevronDown
+                                      className={`w-3 h-3 transition-transform ${subExpanded ? "rotate-180" : ""}`}
+                                    />
+                                  </button>
+                                )}
+                              </div>
+                              {subExpanded && (
+                                <div className="ml-3 pl-3 border-l border-[var(--border-subtle)] space-y-0.5 mt-0.5 mb-1">
+                                  {leaves.map((leaf) => {
+                                    const leafLabel =
+                                      locale === "zh" && leaf.nameLocal ? leaf.nameLocal : leaf.name;
+                                    const leafActive =
+                                      cat.slug === activeCategorySlug && leaf.slug === activeSubSlug;
+                                    return (
+                                      <Link
+                                        key={leaf.id}
+                                        href={buildSubHref(cat.slug as string, leaf.slug)}
+                                        onClick={onClose}
+                                        scroll={false} prefetch={false}
+                                        className={`flex items-center justify-between gap-2 px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                                          leafActive
+                                            ? "text-[var(--amber-dark)] font-semibold"
+                                            : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]"
+                                        }`}
+                                      >
+                                        <span className="truncate">{leafLabel}</span>
+                                        <span className="text-[11px] text-[var(--text-tertiary)] shrink-0">{leaf.productCount}</span>
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
@@ -750,7 +850,9 @@ function FilterSidebar({
                   {MARKETPLACE_COUNTRIES.reduce((sum, code) => sum + (countryFacets[code] ?? 0), 0)}
                 </span>
               </Link>
-              {MARKETPLACE_COUNTRIES.map((code) => {
+              {MARKETPLACE_COUNTRIES.filter(
+                (code) => (countryFacets[code] ?? 0) > 0 || code === activeCountry
+              ).map((code) => {
                 const meta = regionMeta(code);
                 const isActive = code === activeCountry;
                 const regionGroups = groupFacets[code] ?? [];
@@ -861,6 +963,39 @@ function FilterSidebar({
                         {checked && <div className="w-2.5 h-2.5 rounded-sm bg-[var(--amber)]" />}
                       </div>
                       <span className="flex-1 truncate">{brand}</span>
+                      <span className="text-xs text-[var(--text-tertiary)]">{count}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Use */}
+          {useFacets.length > 0 && (
+            <div className="mb-8">
+              <h4 className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mb-4">
+                {t("useHeading")}
+              </h4>
+              <div className="space-y-1">
+                {useFacets.map(({ slug, name, count }) => {
+                  const checked = activeUses.has(slug);
+                  return (
+                    <Link
+                      key={slug}
+                      href={buildUseHref(slug)}
+                      onClick={onClose}
+                      scroll={false} prefetch={false}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--surface-secondary)] transition-colors"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                          checked ? "border-[var(--amber)]" : "border-[var(--border-strong)]"
+                        }`}
+                      >
+                        {checked && <div className="w-2.5 h-2.5 rounded-sm bg-[var(--amber)]" />}
+                      </div>
+                      <span className="flex-1 truncate">{name}</span>
                       <span className="text-xs text-[var(--text-tertiary)]">{count}</span>
                     </Link>
                   );
@@ -1170,8 +1305,10 @@ export function MarketplaceClient({
   subcategories = [],
   countryFacets = {},
   brandFacets = {},
+  useFacets = [],
   topCategories = [],
   subcategoriesByParent = {},
+  leavesByParent = {},
   totalProductCount,
   poolingRules = {},
   groupFacets = {},
@@ -1180,8 +1317,10 @@ export function MarketplaceClient({
   subcategories?: MarketplaceSubcategory[];
   countryFacets?: Record<string, number>;
   brandFacets?: Record<string, number>;
+  useFacets?: UseCaseFacet[];
   topCategories?: MarketplaceTopCategory[];
   subcategoriesByParent?: Record<string, MarketplaceSubcategory[]>;
+  leavesByParent?: Record<string, MarketplaceSubcategory[]>;
   totalProductCount?: number;
   poolingRules?: Record<string, RegionPoolingRule[]>;
   groupFacets?: Record<string, ShippingGroupFacet[]>;
@@ -1287,7 +1426,9 @@ export function MarketplaceClient({
               {t("countryAll")}
               <span className="text-xs opacity-70">({totalCountryCount})</span>
             </Link>
-            {REGION_BAR_ORDER.map((code) => {
+            {REGION_BAR_ORDER.filter(
+              (code) => (countryFacets[code] ?? 0) > 0 || code === activeCountry
+            ).map((code) => {
               const meta = regionMeta(code);
               const active = code === activeCountry;
               return (
@@ -1372,7 +1513,9 @@ export function MarketplaceClient({
               activeSubSlug={subSlug}
               topCategories={topCategories}
               subcategoriesByParent={subcategoriesByParent}
+              leavesByParent={leavesByParent}
               brandFacets={brandFacets}
+              useFacets={useFacets}
               countryFacets={countryFacets}
               activeCountry={activeCountry}
               countryHrefFor={countryHrefFor}

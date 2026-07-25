@@ -26,6 +26,10 @@ interface SearchFilters {
   priceMax?: number;
   moqMax?: number;
   brands?: string[];
+  /** Slugs of use_case labels (see getUseCaseFacets) — "Gaming", "Business /
+   *  Office", etc. Bypasses the origin RPC path, same as shippingGroupId,
+   *  since search_product_ids doesn't know about label joins. */
+  useCaseSlugs?: string[];
   /** Restrict to one shipping group (MOA pool / groupage batch). Bypasses the
    *  origin RPC path — the group already pins the origin. */
   shippingGroupId?: string;
@@ -191,6 +195,26 @@ export async function getShippingGroupFacets(): Promise<Record<string, ShippingG
   return getShippingGroupFacetsCached();
 }
 
+// Product ids carrying any of the given use_case label slugs (e.g.
+// ["gaming", "business-office"] -> every product tagged with either).
+async function resolveProductIdsByUseCase(
+  supabase: ReturnType<typeof createServiceClient>,
+  slugs: string[]
+): Promise<string[]> {
+  const { data: labelRows } = await supabase
+    .from("labels")
+    .select("id")
+    .eq("kind", "use_case")
+    .in("slug", slugs);
+  const labelIds = (labelRows ?? []).map((l) => l.id);
+  if (labelIds.length === 0) return [];
+
+  const pairs = await fetchAllRows<{ product_id: string }>((from, to) =>
+    supabase.from("product_labels").select("product_id").in("label_id", labelIds).range(from, to)
+  );
+  return [...new Set(pairs.map((p) => p.product_id))];
+}
+
 const searchProductsCached = unstable_cache(
   async (filters: SearchFilters) => {
     const supabase = createServiceClient();
@@ -198,7 +222,24 @@ const searchProductsCached = unstable_cache(
     const limit = filters.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    if (!filters.shippingGroupId && filters.originCountries && filters.originCountries.length > 0) {
+    let useCaseProductIds: string[] | undefined;
+    if (filters.useCaseSlugs && filters.useCaseSlugs.length > 0) {
+      useCaseProductIds = await resolveProductIdsByUseCase(supabase, filters.useCaseSlugs);
+      if (useCaseProductIds.length === 0) {
+        return { products: [], total: 0, totalPages: 0, page, error: undefined };
+      }
+    }
+
+    // The origin RPC (search_product_ids) has no concept of label joins, so
+    // a use-case filter falls through to the direct query path below, which
+    // approximates origin filtering via products.origin_country directly
+    // (skipping the RPC's company-country fallback resolution).
+    if (
+      !filters.shippingGroupId &&
+      !useCaseProductIds &&
+      filters.originCountries &&
+      filters.originCountries.length > 0
+    ) {
       return searchProductsByOrigin(supabase, filters, page, limit, offset);
     }
 
@@ -242,6 +283,13 @@ const searchProductsCached = unstable_cache(
 
     if (filters.brands && filters.brands.length > 0) {
       query = query.in("brand", filters.brands);
+    }
+
+    if (useCaseProductIds) {
+      query = query.in("id", useCaseProductIds);
+      if (filters.originCountries && filters.originCountries.length > 0) {
+        query = query.in("origin_country", filters.originCountries);
+      }
     }
 
     if (filters.shippingGroupId) {
@@ -394,7 +442,7 @@ async function fetchAllRows<T>(
 }
 
 const getCountryFacetsCached = unstable_cache(
-  async (): Promise<Record<string, number>> => {
+  async (categoryIds?: string[]): Promise<Record<string, number>> => {
     const supabase = createServiceClient();
     // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
     // products, so both queries must be paginated or counts are silently
@@ -403,14 +451,15 @@ const getCountryFacetsCached = unstable_cache(
       fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
         supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
       ),
-      fetchAllRows<{ id: string }>((from, to) =>
-        supabase
+      fetchAllRows<{ id: string }>((from, to) => {
+        let q = supabase
           .from("products")
           .select("id")
           .eq("moderation_status", "approved")
-          .eq("is_active", true)
-          .range(from, to)
-      ),
+          .eq("is_active", true);
+        if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
+        return q.range(from, to);
+      }),
     ]);
 
     const activeIds = new Set(activeProducts.map((p) => p.id));
@@ -430,22 +479,24 @@ const getCountryFacetsCached = unstable_cache(
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
-export async function getCountryFacets(): Promise<Record<string, number>> {
-  return getCountryFacetsCached();
+/** Region filter facet, optionally scoped to a category selection. */
+export async function getCountryFacets(categoryIds?: string[]): Promise<Record<string, number>> {
+  return getCountryFacetsCached(categoryIds);
 }
 
 const getBrandFacetsCached = unstable_cache(
-  async (): Promise<Record<string, number>> => {
+  async (categoryIds?: string[]): Promise<Record<string, number>> => {
     const supabase = createServiceClient();
-    const rows = await fetchAllRows<{ brand: string | null }>((from, to) =>
-      supabase
+    const rows = await fetchAllRows<{ brand: string | null }>((from, to) => {
+      let q = supabase
         .from("products")
         .select("brand")
         .eq("moderation_status", "approved")
         .eq("is_active", true)
-        .not("brand", "is", null)
-        .range(from, to)
-    );
+        .not("brand", "is", null);
+      if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
+      return q.range(from, to);
+    });
 
     const counts: Record<string, number> = {};
     for (const row of rows) {
@@ -459,8 +510,60 @@ const getBrandFacetsCached = unstable_cache(
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
-export async function getBrandFacets(): Promise<Record<string, number>> {
-  return getBrandFacetsCached();
+/** Brand filter facet, optionally scoped to a category selection (so
+ *  browsing Consumer Electronics doesn't surface unrelated Beauty brands). */
+export async function getBrandFacets(categoryIds?: string[]): Promise<Record<string, number>> {
+  return getBrandFacetsCached(categoryIds);
+}
+
+export type UseCaseFacet = { slug: string; name: string; count: number };
+
+const getUseCaseFacetsCached = unstable_cache(
+  async (categoryIds?: string[]): Promise<UseCaseFacet[]> => {
+    const supabase = createServiceClient();
+    const { data: labelRows } = await supabase
+      .from("labels")
+      .select("id, slug, name")
+      .eq("kind", "use_case");
+    const labels = labelRows ?? [];
+    if (labels.length === 0) return [];
+    const labelIds = labels.map((l) => l.id);
+
+    const [pairs, activeProducts] = await Promise.all([
+      fetchAllRows<{ product_id: string; label_id: string }>((from, to) =>
+        supabase.from("product_labels").select("product_id, label_id").in("label_id", labelIds).range(from, to)
+      ),
+      fetchAllRows<{ id: string }>((from, to) => {
+        let q = supabase
+          .from("products")
+          .select("id")
+          .eq("moderation_status", "approved")
+          .eq("is_active", true);
+        if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
+        return q.range(from, to);
+      }),
+    ]);
+
+    const activeIds = new Set(activeProducts.map((p) => p.id));
+    const counts: Record<string, number> = {};
+    for (const pair of pairs) {
+      if (!activeIds.has(pair.product_id)) continue;
+      counts[pair.label_id] = (counts[pair.label_id] ?? 0) + 1;
+    }
+
+    return labels
+      .map((l) => ({ slug: l.slug, name: l.name, count: counts[l.id] ?? 0 }))
+      .filter((f) => f.count > 0)
+      .sort((a, b) => b.count - a.count);
+  },
+  ["marketplace-use-case-facets"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
+/** "Use" filter facet — buyer-facing labels like Gaming / Business & Office,
+ *  optionally scoped to a category selection. */
+export async function getUseCaseFacets(categoryIds?: string[]): Promise<UseCaseFacet[]> {
+  return getUseCaseFacetsCached(categoryIds);
 }
 
 export async function getFeaturedProducts(limit = 8) {

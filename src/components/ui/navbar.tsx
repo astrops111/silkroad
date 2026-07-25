@@ -403,7 +403,7 @@ export function Navbar() {
             {/* Utility cluster */}
             <div className="flex items-center gap-1 ml-auto md:ml-0">
               <Link
-                href="/messages"
+                href="/dashboard/messages"
                 aria-label={t("inbox")}
                 className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
@@ -412,7 +412,7 @@ export function Navbar() {
               </Link>
 
               <Link
-                href="/saved"
+                href="/dashboard/saved"
                 aria-label={t("saved")}
                 className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
@@ -637,7 +637,7 @@ export function Navbar() {
               {t("accountHeading")}
             </p>
             <Link
-              href="/messages"
+              href="/dashboard/messages"
               className="flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
               onClick={() => setMobileOpen(false)}
             >
@@ -645,7 +645,7 @@ export function Navbar() {
               {t("inbox")}
             </Link>
             <Link
-              href="/saved"
+              href="/dashboard/saved"
               className="flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
               onClick={() => setMobileOpen(false)}
             >

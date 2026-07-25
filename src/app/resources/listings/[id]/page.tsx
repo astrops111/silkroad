@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getResourceListing } from "@/lib/queries/resources";
 import { getCallerTierStatus } from "@/lib/auth/tier";
+import { ContactSupplierButton } from "@/components/chat/ContactSupplierButton";
 
 export default async function ResourceListingDetail({
   params,
@@ -164,12 +165,14 @@ export default async function ResourceListingDetail({
                 {t("ctaRfqLocked")}
               </Link>
             )}
-            <Link
-              href={`/messages/new?to=${listing.tenant_id}`}
-              className="px-5 py-2.5 rounded-md border border-white/20 hover:bg-white/5"
-            >
-              {t("ctaContact")}
-            </Link>
+            <ContactSupplierButton
+              supplierCompanyId={listing.tenant_id}
+              supplierName={listing.companies?.name ?? listing.name_en}
+              contextType="product_inquiry"
+              contextId={listing.id}
+              contextTitle={listing.name_en}
+              className="!text-white !border-white/20 hover:!bg-white/5 !rounded-md !normal-case"
+            />
           </div>
         </div>
       </div>

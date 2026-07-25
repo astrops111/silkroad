@@ -1,7 +1,8 @@
-import { searchProducts, getCountryFacets, getBrandFacets, getPoolingInfoByProductIds, getPoolingRulesByCountry, getShippingGroupFacets } from "@/lib/queries/marketplace";
+import { searchProducts, getCountryFacets, getBrandFacets, getUseCaseFacets, getPoolingInfoByProductIds, getPoolingRulesByCountry, getShippingGroupFacets } from "@/lib/queries/marketplace";
 import {
   getTopLevelCategoriesWithCount,
   getCategories,
+  getCategoryProductCounts,
   type Category,
 } from "@/lib/queries/categories";
 import { applyMarkup } from "@/lib/pricing";
@@ -53,12 +54,17 @@ export const MARKETPLACE_DEFAULT_PAGE_SIZE = 50;
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; country?: string; brand?: string; limit?: string; group?: string }>;
+  searchParams: Promise<{ category?: string; sub?: string; country?: string; brand?: string; use?: string; limit?: string; group?: string }>;
 }) {
   const sp = await searchParams;
   const activeCategorySlug = sp.category ?? null;
+  // The deepest selected descendant slug — may be a level-1 subcategory
+  // (e.g. "computer-peripherals") or a level-2 leaf (e.g. "peripherals-mice").
+  // Slugs are globally unique, so one param covers both depths.
+  const activeSubSlug = sp.sub ?? null;
   const activeCountry = isMarketplaceCountry(sp.country) ? sp.country.toUpperCase() : null;
   const activeBrands = sp.brand ? sp.brand.split(",").filter(Boolean) : undefined;
+  const activeUseCases = sp.use ? sp.use.split(",").filter(Boolean) : undefined;
   const activeGroupId =
     sp.group && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sp.group)
       ? sp.group
@@ -72,11 +78,10 @@ export default async function MarketplacePage({
   let subcategories: MarketplaceSubcategory[] = [];
   let categoryIds: string[] | undefined;
   let totalProductCount: number | undefined;
-  const [countryFacets, brandFacets, allTopCategories, allCategories, poolingRules, groupFacets] = await Promise.all([
-    getCountryFacets(),
-    getBrandFacets(),
+  const [allTopCategories, allCategories, directCounts, poolingRules, groupFacets] = await Promise.all([
     getTopLevelCategoriesWithCount(),
     getCategories(),
+    getCategoryProductCounts(),
     getPoolingRulesByCountry(),
     getShippingGroupFacets(),
   ]);
@@ -91,44 +96,67 @@ export default async function MarketplacePage({
       productCount: c.productCount,
     }));
 
-  // Level-1 subcategories grouped by their top-level parent's slug, so the
-  // sidebar can expand any category in place without an extra navigation.
+  // Rolled-up count for a category id: its own direct products plus every
+  // descendant's — same total shown for top categories, extended down to
+  // subcategories/leaves so the sidebar tree can show a count at every level.
+  const rollupCount = (id: string) =>
+    collectDescendantIds(id, allCategories).reduce((sum, cid) => sum + (directCounts[cid] ?? 0), 0);
+
+  // Level-1 subcategories grouped by their top-level parent's slug, and
+  // level-2 leaves grouped by their level-1 parent's slug — lets the sidebar
+  // expand any category in place, two levels deep, without extra navigation.
   const categoryIdToSlug = new Map(allCategories.map((c) => [c.id, c.slug]));
-  const subcategoriesByParent: Record<
-    string,
-    { id: string; slug: string; name: string; nameLocal: string | null }[]
-  > = {};
+  const subcategoriesByParent: Record<string, MarketplaceSubcategory[]> = {};
+  const leavesByParent: Record<string, MarketplaceSubcategory[]> = {};
   for (const c of allCategories) {
-    if (c.level !== 1 || !c.parent_id) continue;
+    if (!c.parent_id || (c.level !== 1 && c.level !== 2)) continue;
     const parentSlug = categoryIdToSlug.get(c.parent_id);
     if (!parentSlug) continue;
-    (subcategoriesByParent[parentSlug] ??= []).push({
+    const target = c.level === 1 ? subcategoriesByParent : leavesByParent;
+    (target[parentSlug] ??= []).push({
       id: c.id,
       slug: c.slug,
       name: c.name,
       nameLocal: c.name_local,
+      productCount: rollupCount(c.id),
     });
   }
 
   if (activeCategorySlug) {
     const parentCat = allCategories.find((c) => c.slug === activeCategorySlug);
     if (parentCat) {
-      const directChildren = allCategories.filter((c) => c.parent_id === parentCat.id);
+      // activeSubSlug may name a level-1 subcategory or a level-2 leaf
+      // (slugs are globally unique) — whichever it resolves to becomes the
+      // filter scope; falls back to the top category itself.
+      const scopeCat =
+        (activeSubSlug && allCategories.find((c) => c.slug === activeSubSlug)) || parentCat;
+      const directChildren = allCategories.filter((c) => c.parent_id === scopeCat.id);
       subcategories = directChildren.map((s) => ({
         id: s.id,
         slug: s.slug,
         name: s.name,
         nameLocal: s.name_local,
+        productCount: rollupCount(s.id),
       }));
-      categoryIds = collectDescendantIds(parentCat.id, allCategories);
+      categoryIds = collectDescendantIds(scopeCat.id, allCategories);
     }
   }
+
+  // Brand/Use/Region facets are scoped to the current category selection so
+  // e.g. browsing Consumer Electronics doesn't list unrelated Beauty brands
+  // or regions with zero Consumer Electronics listings.
+  const [brandFacets, useFacets, countryFacets] = await Promise.all([
+    getBrandFacets(categoryIds),
+    getUseCaseFacets(categoryIds),
+    getCountryFacets(categoryIds),
+  ]);
 
   try {
     const result = await searchProducts({
       categoryIds,
       originCountries: activeCountry ? [activeCountry] : undefined,
       brands: activeBrands,
+      useCaseSlugs: activeUseCases,
       shippingGroupId: activeGroupId ?? undefined,
       sort: "name",
       limit: pageSize,
@@ -190,8 +218,10 @@ export default async function MarketplacePage({
         subcategories={subcategories}
         countryFacets={countryFacets}
         brandFacets={brandFacets}
+        useFacets={useFacets}
         topCategories={topCategories}
         subcategoriesByParent={subcategoriesByParent}
+        leavesByParent={leavesByParent}
         totalProductCount={totalProductCount}
         poolingRules={poolingRules}
         groupFacets={groupFacets}
