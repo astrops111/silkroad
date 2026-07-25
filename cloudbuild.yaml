@@ -38,6 +38,13 @@ steps:
       # --set-env-vars would wipe them on every deploy.
       - '--update-env-vars'
       - 'NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY},NEXT_PUBLIC_APP_URL=https://silkroad-africa-798904783325.asia-east1.run.app,NEXT_PUBLIC_APP_NAME="SilkRoad Africa"'
+      # The service previously had these as plain --update-env-vars; Cloud Run
+      # refuses to flip an existing env var to a secret reference in place
+      # ("already been set with a different type"), so drop the old plain
+      # vars in the same deploy before attaching the secret-backed ones.
+      # Harmless once already converted — removing a var that isn't set is a no-op.
+      - '--remove-env-vars'
+      - 'SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET'
       # Pulled directly from Secret Manager at runtime by Cloud Run itself —
       # never passed through Cloud Build substitutions or logs.
       - '--update-secrets'
