@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { xtransferGateway } from "@/lib/payments/gateways/xtransfer";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { handleGatewayRefund, sumSucceededPaymentAmount } from "@/lib/payments/webhook-events";
+import { resolveOrderStatusAfterSuccess } from "@/lib/payments/deposit";
 
 /**
  * POST /api/webhooks/xtransfer
@@ -65,6 +67,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ received: true });
     }
 
+    // Wire recall / mobile-money reversal — can arrive for an already
+    // "succeeded" transaction, so this must run BEFORE the idempotency skip.
+    if (result.status === "refunded" && tx.purchase_order_id) {
+      await handleGatewayRefund(supabase, {
+        gateway: "xtransfer",
+        txId: tx.id,
+        purchaseOrderId: tx.purchase_order_id,
+        rawEvent: rawPayload,
+      });
+      return NextResponse.json({ received: true });
+    }
+
     if (tx.status === "succeeded" || tx.status === "failed") {
       return NextResponse.json({ received: true }); // idempotency
     }
@@ -82,14 +96,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .from("payment_transactions")
         .update({ status: "succeeded", updated_at: now })
         .eq("id", tx.id);
+
+      const { data: poRM } = await supabase
+        .from("purchase_orders")
+        .select("grand_total")
+        .eq("id", tx.purchase_order_id)
+        .single();
+      const totalSucceededRM = poRM ? await sumSucceededPaymentAmount(supabase, tx.purchase_order_id) : (tx.amount as number);
+      const nextStatusRM = poRM ? resolveOrderStatusAfterSuccess(totalSucceededRM, poRM.grand_total as number) : "paid";
+
       await supabase
         .from("purchase_orders")
-        .update({ status: "paid", updated_at: now })
+        .update({ status: nextStatusRM, updated_at: now })
         .eq("id", tx.purchase_order_id);
       await supabase
         .from("supplier_orders")
-        .update({ status: "paid", updated_at: now })
+        .update({ status: nextStatusRM, updated_at: now })
         .eq("purchase_order_id", tx.purchase_order_id);
+      if (nextStatusRM === "deposit_paid") {
+        await supabase.from("payment_transactions").update({ deposit_paid_at: now }).eq("id", tx.id);
+      }
       console.log("[webhooks/xtransfer] Request Money paid — order:", tx.purchase_order_id, rawPayload.requestId);
 
       // Buyer confirmation email — XTransfer is the primary gateway
@@ -123,6 +149,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ received: true });
     }
 
+    // Wire recall — can arrive for an already "succeeded" collection, so
+    // this must run BEFORE the idempotency skip.
+    if (result.status === "refunded" && tx.purchase_order_id) {
+      await handleGatewayRefund(supabase, {
+        gateway: "xtransfer",
+        txId: tx.id,
+        purchaseOrderId: tx.purchase_order_id,
+        rawEvent: rawPayload,
+      });
+      return NextResponse.json({ received: true });
+    }
+
     // Idempotency — skip already-terminal transactions
     if (tx.status === "succeeded" || tx.status === "failed") {
       return NextResponse.json({ received: true });
@@ -143,15 +181,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .update({ status: "succeeded", updated_at: now })
         .eq("id", tx.id);
 
+      const { data: poCol } = await supabase
+        .from("purchase_orders")
+        .select("grand_total")
+        .eq("id", tx.purchase_order_id)
+        .single();
+      const totalSucceededCol = poCol ? await sumSucceededPaymentAmount(supabase, tx.purchase_order_id) : (tx.amount as number);
+      const nextStatusCol = poCol ? resolveOrderStatusAfterSuccess(totalSucceededCol, poCol.grand_total as number) : "paid";
+
       await supabase
         .from("purchase_orders")
-        .update({ status: "paid", updated_at: now })
+        .update({ status: nextStatusCol, updated_at: now })
         .eq("id", tx.purchase_order_id);
 
       await supabase
         .from("supplier_orders")
-        .update({ status: "paid", updated_at: now })
+        .update({ status: nextStatusCol, updated_at: now })
         .eq("purchase_order_id", tx.purchase_order_id);
+
+      if (nextStatusCol === "deposit_paid") {
+        await supabase.from("payment_transactions").update({ deposit_paid_at: now }).eq("id", tx.id);
+      }
 
       console.log("[webhooks/xtransfer] Collection received — order paid:", tx.purchase_order_id, rawPayload.referenceNo);
 

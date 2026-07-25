@@ -158,6 +158,36 @@ export function formatCompactPrice(
 }
 
 /**
+ * Convert an amount to USD and, if the buyer's selected display currency
+ * differs from USD, also convert it to that currency. USD is always the
+ * primary figure; the display-currency figure (if any) is secondary.
+ * e.g. primary "$1,200.00", secondary "KSh 155,400" (omitted when
+ * displayCurrency is USD).
+ */
+export function formatDualCurrency(
+  amount: number,
+  sourceCurrency: string,
+  displayCurrency: string,
+  locale: string = "en",
+  compact: boolean = false
+): { primary: string; secondary: string | null } {
+  const usdAmount = convertSync(amount, sourceCurrency, "USD");
+  const primary = compact
+    ? formatCompactPrice(usdAmount, "USD", locale)
+    : formatPrice(usdAmount, "USD", locale);
+
+  if (displayCurrency === "USD") {
+    return { primary, secondary: null };
+  }
+
+  const convertedAmount = convertSync(amount, sourceCurrency, displayCurrency);
+  const secondary = compact
+    ? formatCompactPrice(convertedAmount, displayCurrency, locale)
+    : formatPrice(convertedAmount, displayCurrency, locale);
+  return { primary, secondary };
+}
+
+/**
  * Format a price range.
  * e.g. "$10.00 – $25.00"
  */

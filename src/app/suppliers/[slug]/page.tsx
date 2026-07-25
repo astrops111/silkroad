@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
 import { getStorefrontBySlug } from "@/lib/queries/storefront";
+import { getCurrentUser } from "@/lib/queries/user";
+import { canBuy, canSupply } from "@/lib/company-access";
 import { StorefrontClient } from "./storefront-client";
 
 interface PageProps {
@@ -7,6 +10,17 @@ interface PageProps {
 
 export default async function SupplierStorefrontPage({ params }: PageProps) {
   const { slug } = await params;
+
+  // Supplier storefronts are hidden from buyer-only accounts — buyers
+  // source through the marketplace/RFQ flow, not by browsing suppliers.
+  // Accounts that can also supply (type "supplier" or "both") keep access.
+  const user = await getCurrentUser();
+  const memberships = user?.company_members ?? [];
+  const isBuyerOnly =
+    memberships.some((m) => canBuy(m.companies?.type)) &&
+    !memberships.some((m) => canSupply(m.companies?.type));
+  if (isBuyerOnly) redirect("/marketplace");
+
   let supplierData = null;
 
   try {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { alipayGateway } from "@/lib/payments";
+import { sumSucceededPaymentAmount } from "@/lib/payments/webhook-events";
+import { resolveOrderStatusAfterSuccess } from "@/lib/payments/deposit";
 
 /**
  * POST /api/webhooks/alipay — Handle Alipay async notification
@@ -63,15 +65,27 @@ export async function POST(request: NextRequest) {
   // On success, update orders
   if (status.status === "succeeded") {
     if (tx?.purchase_order_id) {
+      const { data: po } = await supabase
+        .from("purchase_orders")
+        .select("grand_total")
+        .eq("id", tx.purchase_order_id)
+        .single();
+      const totalSucceeded = po ? await sumSucceededPaymentAmount(supabase, tx.purchase_order_id) : (tx.amount as number);
+      const nextStatus = po ? resolveOrderStatusAfterSuccess(totalSucceeded, po.grand_total as number) : "paid";
+
       await supabase
         .from("purchase_orders")
-        .update({ status: "paid" })
+        .update({ status: nextStatus })
         .eq("id", tx.purchase_order_id);
 
       await supabase
         .from("supplier_orders")
-        .update({ status: "paid" })
+        .update({ status: nextStatus })
         .eq("purchase_order_id", tx.purchase_order_id);
+
+      if (nextStatus === "deposit_paid") {
+        await supabase.from("payment_transactions").update({ deposit_paid_at: new Date().toISOString() }).eq("id", tx.id);
+      }
     }
   }
 

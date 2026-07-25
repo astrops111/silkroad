@@ -154,10 +154,60 @@ export const stripeGateway: PaymentGateway = {
       };
     }
 
+    // A refund issued outside our own processRefund() flow (e.g. directly
+    // from the Stripe dashboard) — sync payment_transactions back to it.
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      return {
+        transactionId: (charge.payment_intent as string) ?? "",
+        status: "refunded",
+        amount: charge.amount_refunded,
+        currency: charge.currency?.toUpperCase(),
+        rawResponse: charge,
+        eventType: event.type,
+      };
+    }
+
+    // Card-network chargeback opened — reuse the buyer-dispute table +
+    // settlement-blocking machinery (see src/lib/payments/webhook-events.ts).
+    if (event.type === "charge.dispute.created") {
+      const dispute = event.data.object as Stripe.Dispute;
+      return {
+        transactionId: (dispute.payment_intent as string) ?? "",
+        status: "disputed",
+        amount: dispute.amount,
+        currency: dispute.currency?.toUpperCase(),
+        gatewayDisputeId: dispute.id,
+        disputeReason: dispute.reason,
+        rawResponse: dispute,
+        eventType: event.type,
+      };
+    }
+
+    // Dispute reached a terminal state. "lost" means Stripe has debited the
+    // funds for good — treat exactly like a refund. "won" just means the
+    // dispute record should be resolved (handled by the webhook route,
+    // which sees this via disputeReason/eventType); no money moved.
+    if (event.type === "charge.dispute.closed") {
+      const dispute = event.data.object as Stripe.Dispute;
+      const lost = dispute.status === "lost";
+      return {
+        transactionId: (dispute.payment_intent as string) ?? "",
+        status: lost ? "refunded" : "disputed",
+        amount: dispute.amount,
+        currency: dispute.currency?.toUpperCase(),
+        gatewayDisputeId: dispute.id,
+        disputeReason: dispute.status,
+        rawResponse: dispute,
+        eventType: event.type,
+      };
+    }
+
     return {
       transactionId: "",
       status: "pending",
       rawResponse: event,
+      eventType: event.type,
     };
   },
 

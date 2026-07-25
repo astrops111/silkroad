@@ -5,10 +5,14 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Building2, Smartphone, CreditCard,
-  Loader2, CheckCircle2,
+  Loader2, CheckCircle2, FileClock,
 } from "lucide-react";
+import PaymentTermsSelector from "@/components/checkout/PaymentTermsSelector";
+import type { PaymentTermsResult } from "@/lib/payments/payment-terms";
+import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 
 type PaymentMethod = "flutterwave" | "xtransfer" | "xtransfer_mobile" | "mtn_momo" | "airtel_money" | "stripe";
+type Step = "loading" | "terms" | "pay" | "confirming" | "instructions" | "success" | "invoiced" | "already_paid" | "unavailable";
 
 interface WireInstructions {
   reference: string;
@@ -52,31 +56,66 @@ const PAYMENT_METHODS: {
   { id: "airtel_money",     name: "Airtel Money",             icon: Smartphone, description: "Via Flutterwave.", badge: "fallback" },
 ];
 
-export default function QuotePayPage({ params }: { params: Promise<{ id: string }> }) {
+export default function OrderPayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const orderId = id;
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId") ?? "";
 
+  const [step, setStep] = useState<Step>("loading");
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("flutterwave");
   const [buyerCountry, setBuyerCountry] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pollStatus, setPollStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step, setStep] = useState<"pay" | "confirming" | "instructions" | "success">("pay");
   const [wireInstructions, setWireInstructions] = useState<WireInstructions | null>(null);
   const [totalAmount, setTotalAmount] = useState<number | null>(null);
   const [currency, setCurrency] = useState("USD");
   const [error, setError] = useState<string | null>(null);
 
+  const [grandTotal, setGrandTotal] = useState<number | null>(null);
+  const [buyerStats, setBuyerStats] = useState({ verified: false, totalOrders: 0, totalSpend: 0 });
+  const [invoiceDueDate, setInvoiceDueDate] = useState<string | null>(null);
+  const [termsError, setTermsError] = useState<string | null>(null);
+  const [submittingTerms, setSubmittingTerms] = useState(false);
+
   useEffect(() => {
-    if (!id) return;
-    fetch(`/api/quotes/${id}`)
+    if (!orderId) return;
+    fetch(`/api/orders/${orderId}`)
       .then((r) => r.json())
       .then((d) => {
-        setTotalAmount(d.quote?.total_amount ?? null);
-        setCurrency(d.quote?.currency ?? "USD");
-      });
-  }, [id]);
+        const order = d.order;
+        if (!order) {
+          setStep("unavailable");
+          return;
+        }
+        setCurrency(order.currency ?? "USD");
+        setGrandTotal(order.grand_total ?? null);
+        setBuyerStats(d.buyerStats ?? { verified: false, totalOrders: 0, totalSpend: 0 });
+
+        const existingTerms = order.metadata?.paymentTerms as PaymentTermsResult | undefined;
+
+        if (order.status === "deposit_paid" && existingTerms?.deposit) {
+          // Balance leg — terms are already locked in, go straight to gateway selection.
+          setTotalAmount(existingTerms.deposit.balanceAmount);
+          setStep("pay");
+        } else if (order.status === "pending_payment" && !CHECKOUT_FEATURES.paymentTerms) {
+          // Payment-terms UI temporarily hidden — go straight to immediate/full payment.
+          // resolveChargeAmount() already defaults to the full amount when no
+          // paymentTerms metadata is set, so skipping the PATCH call here is safe.
+          setTotalAmount(order.grand_total ?? null);
+          setStep("pay");
+        } else if (order.status === "pending_payment") {
+          setStep("terms");
+        } else if (["paid", "confirmed", "in_production", "quality_check", "ready_to_ship",
+                    "assigned_to_logistics", "dispatched", "in_transit", "out_for_delivery",
+                    "delivered", "completed"].includes(order.status)) {
+          setStep("already_paid");
+        } else {
+          setStep("unavailable");
+        }
+      })
+      .catch(() => setStep("unavailable"));
+  }, [orderId]);
 
   // Flutterwave's hosted card checkout redirects back here with ?status=&tx_ref=
   useEffect(() => {
@@ -102,6 +141,35 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleTermsSelect(result: PaymentTermsResult) {
+    setSubmittingTerms(true);
+    setTermsError(null);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/payment-terms`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentTerms: result.type,
+          depositPercent: result.deposit?.depositPercent,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to set payment terms");
+
+      if (data.requiresPayment) {
+        setTotalAmount(data.paymentTerms.payNowAmount);
+        setStep("pay");
+      } else {
+        setInvoiceDueDate(data.paymentTerms.invoiceDueDate ?? null);
+        setStep("invoiced");
+      }
+    } catch (e) {
+      setTermsError((e as Error).message);
+    } finally {
+      setSubmittingTerms(false);
+    }
+  }
 
   const handleCountryChange = (country: string) => {
     setBuyerCountry(country);
@@ -176,7 +244,7 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
         if (data.status === "succeeded") setStep("success");
 
       } else if (selectedPayment === "flutterwave") {
-        const returnUrl = `${window.location.origin}/quotes/${id}/pay?orderId=${orderId}`;
+        const returnUrl = `${window.location.origin}/orders/${orderId}/pay`;
         const res = await fetch("/api/payments/flutterwave", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -218,6 +286,101 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
       setStep("pay");
     }
   };
+
+  if (step === "loading") {
+    return (
+      <div className="min-h-screen bg-[var(--surface-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--text-tertiary)" }} />
+      </div>
+    );
+  }
+
+  if (step === "unavailable") {
+    return (
+      <div className="min-h-screen bg-[var(--surface-secondary)] flex items-center justify-center">
+        <div className="max-w-[420px] text-center px-6">
+          <p className="text-[var(--text-secondary)] mb-6">This order can&apos;t be paid right now.</p>
+          <Link href="/dashboard/orders" className="btn-primary">View Orders</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "already_paid") {
+    return (
+      <div className="min-h-screen bg-[var(--surface-secondary)] flex items-center justify-center">
+        <div className="max-w-[420px] text-center px-6">
+          <CheckCircle2 className="w-14 h-14 mx-auto mb-4 text-[var(--success)]" />
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2" style={{ fontFamily: "var(--font-display)" }}>
+            This order is already paid
+          </h2>
+          <Link href="/dashboard/orders" className="btn-primary mt-4 inline-block">View Orders</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "invoiced") {
+    return (
+      <div className="min-h-screen bg-[var(--surface-secondary)] flex items-center justify-center">
+        <div className="max-w-[480px] w-full mx-auto px-6 py-20 text-center">
+          <div className="w-20 h-20 rounded-full bg-[var(--amber)]/10 flex items-center justify-center mx-auto mb-6">
+            <FileClock className="w-10 h-10 text-[var(--amber-dark)]" />
+          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: "var(--font-display)" }}>
+            Invoice sent
+          </h2>
+          <p className="text-[var(--text-secondary)] mb-8">
+            No payment is due now. Your order is confirmed on credit terms
+            {invoiceDueDate ? ` — payment is due by ${new Date(invoiceDueDate).toLocaleDateString(undefined, { dateStyle: "long" })}` : ""}.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/dashboard/orders" className="btn-primary">View Orders</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "terms") {
+    return (
+      <div className="min-h-screen bg-[var(--surface-secondary)]">
+        <div className="max-w-[640px] mx-auto px-6 py-10">
+          <div className="flex items-center gap-4 mb-8">
+            <Link href="/dashboard/orders" className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <h1 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+              How would you like to pay?
+            </h1>
+          </div>
+
+          {termsError && (
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{termsError}</div>
+          )}
+
+          <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6">
+            {grandTotal != null && (
+              <PaymentTermsSelector
+                totalAmount={grandTotal}
+                currency={currency}
+                buyerVerified={buyerStats.verified}
+                totalOrders={buyerStats.totalOrders}
+                totalSpend={buyerStats.totalSpend}
+                onSelect={handleTermsSelect}
+              />
+            )}
+          </div>
+
+          {submittingTerms && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[var(--text-tertiary)]">
+              <Loader2 className="w-4 h-4 animate-spin" /> Setting up payment…
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (step === "success") {
     return (
@@ -317,7 +480,7 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
     <div className="min-h-screen bg-[var(--surface-secondary)]">
       <div className="max-w-[640px] mx-auto px-6 py-10">
         <div className="flex items-center gap-4 mb-8">
-          <Link href={`/quotes/${id}`} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+          <Link href="/dashboard/orders" className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>Payment</h1>
@@ -329,7 +492,7 @@ export default function QuotePayPage({ params }: { params: Promise<{ id: string 
 
         <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-subtle)] p-6 mb-6">
           <div className="flex items-center justify-between">
-            <span className="text-[var(--text-secondary)]">Total Landed Cost</span>
+            <span className="text-[var(--text-secondary)]">Amount Due Now</span>
             <span className="text-2xl font-bold text-[var(--amber-dark)]" style={{ fontFamily: "var(--font-display)" }}>
               {totalAmount != null ? `${currency} ${(totalAmount / 100).toFixed(2)}` : "—"}
             </span>

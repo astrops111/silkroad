@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ShoppingCart,
@@ -18,6 +19,8 @@ import {
   Clock,
   AlertTriangle,
 } from "lucide-react";
+import { useRegion } from "@/lib/providers/region-provider";
+import { formatDualCurrency } from "@/lib/currency/formatter";
 
 /* ============================================================
    TYPES
@@ -60,26 +63,6 @@ interface DashboardData {
 /* ============================================================
    HELPERS
    ============================================================ */
-function formatCurrency(amount: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount / 100);
-}
-
-function formatCurrencyCompact(amount: number, currency = "USD"): string {
-  const value = amount / 100;
-  if (value >= 1_000_000) {
-    return `${new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value / 1_000_000).replace(/\.0$/, "")}M`;
-  }
-  if (value >= 1_000) {
-    return `${new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 1 }).format(value / 1_000).replace(/\.0$/, "")}K`;
-  }
-  return formatCurrency(amount, currency);
-}
-
 function timeAgo(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
@@ -145,6 +128,9 @@ function StatusBadge({ status, map }: { status: string; map: Record<string, { la
    KPI CARDS
    ============================================================ */
 function KpiCards({ kpis }: { kpis: DashboardData["kpis"] }) {
+  const region = useRegion();
+  const spend = formatDualCurrency(kpis.totalSpend, "USD", region.currency, "en", true);
+
   const cards = [
     {
       label: "Total Orders",
@@ -169,7 +155,8 @@ function KpiCards({ kpis }: { kpis: DashboardData["kpis"] }) {
     },
     {
       label: "Total Spend",
-      value: formatCurrencyCompact(kpis.totalSpend),
+      value: spend.primary,
+      secondary: spend.secondary,
       sub: "all time",
       icon: CreditCard,
       accent: "var(--success)",
@@ -198,7 +185,9 @@ function KpiCards({ kpis }: { kpis: DashboardData["kpis"] }) {
             {card.value}
           </div>
           <div className="text-xs text-[var(--text-tertiary)] mt-1">{card.label}</div>
-          <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5 opacity-60">{card.sub}</div>
+          <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5 opacity-60">
+            {card.secondary ? `~${card.secondary}` : card.sub}
+          </div>
         </div>
       ))}
     </div>
@@ -209,6 +198,7 @@ function KpiCards({ kpis }: { kpis: DashboardData["kpis"] }) {
    MONTHLY SPEND CHART
    ============================================================ */
 function MonthlySpendChart({ data }: { data: DashboardData["monthlySpend"] }) {
+  const region = useRegion();
   const maxSpend = Math.max(...data.map((d) => d.spend), 1);
 
   return (
@@ -231,10 +221,16 @@ function MonthlySpendChart({ data }: { data: DashboardData["monthlySpend"] }) {
           <div className="flex items-end gap-3" style={{ height: 180 }}>
             {data.map((item) => {
               const pct = (item.spend / maxSpend) * 100;
+              const spend = formatDualCurrency(item.spend, "USD", region.currency, "en", true);
               return (
                 <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-                  <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                    {formatCurrencyCompact(item.spend)}
+                  <span className="text-[11px] font-semibold text-[var(--text-secondary)] text-center">
+                    {spend.primary}
+                    {spend.secondary && (
+                      <span className="block text-[9px] font-normal text-[var(--text-tertiary)] opacity-70">
+                        ~{spend.secondary}
+                      </span>
+                    )}
                   </span>
                   <div className="w-full flex justify-center" style={{ height: 140 }}>
                     <div
@@ -340,6 +336,8 @@ function QuickActions({ kpis }: { kpis: DashboardData["kpis"] }) {
    RECENT ORDERS TABLE
    ============================================================ */
 function RecentOrders({ orders }: { orders: DashboardData["recentOrders"] }) {
+  const router = useRouter();
+  const region = useRegion();
   return (
     <div className="rounded-xl bg-[var(--surface-primary)] border border-[var(--border-subtle)] overflow-hidden">
       <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
@@ -382,9 +380,12 @@ function RecentOrders({ orders }: { orders: DashboardData["recentOrders"] }) {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {orders.map((order) => {
+                const price = formatDualCurrency(order.total, order.currency, region.currency);
+                return (
                 <tr
                   key={order.id}
+                  onClick={() => router.push(`/dashboard/orders/${order.id}`)}
                   className="border-b border-[var(--border-subtle)] last:border-b-0 hover:bg-[var(--surface-secondary)]/50 transition-colors cursor-pointer"
                 >
                   <td className="px-6 py-4">
@@ -397,8 +398,13 @@ function RecentOrders({ orders }: { orders: DashboardData["recentOrders"] }) {
                       className="text-sm font-semibold text-[var(--obsidian)]"
                       style={{ fontFamily: "var(--font-display)" }}
                     >
-                      {formatCurrency(order.total, order.currency)}
+                      {price.primary}
                     </span>
+                    {price.secondary && (
+                      <span className="block text-[11px] text-[var(--text-tertiary)]">
+                        ~{price.secondary}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm text-[var(--text-secondary)]">
@@ -414,7 +420,8 @@ function RecentOrders({ orders }: { orders: DashboardData["recentOrders"] }) {
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

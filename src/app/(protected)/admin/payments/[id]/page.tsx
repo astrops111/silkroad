@@ -20,6 +20,8 @@ interface PaymentDetail {
   amount: number;
   currency: string;
   status: PaymentStatus;
+  payment_terms?: string | null;
+  balance_due_at?: string | null;
   created_at: string;
   updated_at: string | null;
   expires_at: string | null;
@@ -55,6 +57,7 @@ export default function PaymentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [payment, setPayment] = useState<PaymentDetail | null | undefined>(undefined);
   const [refunding, setRefunding] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   async function load() {
     const res = await fetch(`/api/admin/payments?id=${id}`);
@@ -112,6 +115,25 @@ export default function PaymentDetailPage() {
     load();
   }
 
+  async function handleMarkReconciled() {
+    if (!payment) return;
+    if (!window.confirm("Confirm the wire transfer has actually landed for this invoice?")) return;
+    setReconciling(true);
+    const res = await fetch("/api/admin/payments", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: payment.id, action: "mark_reconciled" }),
+    });
+    const data = await res.json();
+    setReconciling(false);
+    if (!res.ok) {
+      toast.error(data.error || "Failed to mark reconciled");
+      return;
+    }
+    toast.success("Payment marked reconciled");
+    load();
+  }
+
   function copyReference() {
     if (payment?.gateway_transaction_id) {
       navigator.clipboard.writeText(payment.gateway_transaction_id);
@@ -166,17 +188,36 @@ export default function PaymentDetailPage() {
         </div>
       </div>
 
-      {payment.status === "succeeded" && (
-        <button
-          onClick={handleRefund}
-          disabled={refunding}
-          className="px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50"
-          style={{ background: "color-mix(in srgb, var(--indigo) 10%, transparent)", color: "var(--indigo)" }}
-        >
-          {refunding ? <Loader2 className="w-4 h-4 inline animate-spin mr-1.5" /> : null}
-          Issue Full Refund
-        </button>
-      )}
+      <div className="flex gap-3">
+        {payment.status === "succeeded" && (
+          <button
+            onClick={handleRefund}
+            disabled={refunding}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50"
+            style={{ background: "color-mix(in srgb, var(--indigo) 10%, transparent)", color: "var(--indigo)" }}
+          >
+            {refunding ? <Loader2 className="w-4 h-4 inline animate-spin mr-1.5" /> : null}
+            Issue Full Refund
+          </button>
+        )}
+
+        {payment.status === "processing" && payment.gateway === "bank_transfer" && (
+          <button
+            onClick={handleMarkReconciled}
+            disabled={reconciling}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50"
+            style={{ background: "color-mix(in srgb, var(--success) 10%, transparent)", color: "var(--success)" }}
+          >
+            {reconciling ? <Loader2 className="w-4 h-4 inline animate-spin mr-1.5" /> : null}
+            Mark Reconciled
+            {payment.balance_due_at && (
+              <span className="ml-1.5 font-normal opacity-70">
+                (due {new Date(payment.balance_due_at).toLocaleDateString()})
+              </span>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

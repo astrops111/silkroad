@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
+import { useEffect, useRef, useState } from "react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { RegionPicker } from "@/components/ui/region-picker";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -13,13 +15,137 @@ import {
   CreditCard,
   BarChart3,
   Settings,
-  Bell,
   Search,
-  Globe,
+  Loader2,
   LogOut,
   Sparkles,
   ClipboardList,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
+
+type SearchHit = { id: string; title: string; subtitle: string; href: string };
+type SearchResults = { orders: SearchHit[]; products: SearchHit[] };
+
+function HeaderSearch() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResults>({ orders: [], products: [] });
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      if (q.length < 2) {
+        setResults({ orders: [], products: [] });
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      fetch(`/api/dashboard/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : { orders: [], products: [] }))
+        .then((data: SearchResults) => setResults(data))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, []);
+
+  const hasQuery = query.trim().length >= 2;
+  const hasResults = results.orders.length > 0 || results.products.length > 0;
+
+  return (
+    <div className="relative hidden md:block" ref={ref}>
+      <div className="flex items-center h-9 w-72 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)] px-3 focus-within:border-[var(--amber)] transition-colors">
+        {loading ? (
+          <Loader2 className="w-3.5 h-3.5 text-[var(--text-tertiary)] animate-spin shrink-0" />
+        ) : (
+          <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
+        )}
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Search orders, products..."
+          className="w-full bg-transparent px-2.5 text-sm outline-none placeholder:text-[var(--text-tertiary)]"
+        />
+      </div>
+
+      {open && hasQuery && (
+        <div className="absolute left-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-xl bg-[var(--surface-primary)] border border-[var(--border-subtle)] shadow-xl z-50 overflow-hidden">
+          {!loading && !hasResults ? (
+            <div className="px-4 py-6 text-center text-sm text-[var(--text-tertiary)]">
+              No results for &ldquo;{query.trim()}&rdquo;
+            </div>
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              {results.orders.length > 0 && (
+                <div>
+                  <div className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-[var(--text-tertiary)]">
+                    Orders
+                  </div>
+                  {results.orders.map((hit) => (
+                    <Link
+                      key={hit.id}
+                      href={hit.href}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-[var(--surface-secondary)] transition-colors"
+                    >
+                      <span className="font-medium text-[var(--text-primary)] truncate">{hit.title}</span>
+                      <span className="text-xs text-[var(--text-tertiary)] shrink-0 capitalize">{hit.subtitle}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {results.products.length > 0 && (
+                <div>
+                  <div className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-[var(--text-tertiary)]">
+                    Products
+                  </div>
+                  {results.products.map((hit) => (
+                    <Link
+                      key={hit.id}
+                      href={hit.href}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-[var(--surface-secondary)] transition-colors"
+                    >
+                      <span className="font-medium text-[var(--text-primary)] truncate">{hit.title}</span>
+                      <span className="text-xs text-[var(--text-tertiary)] shrink-0 truncate max-w-[40%]">{hit.subtitle}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const BUYER_NAV = [
   { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
@@ -31,6 +157,7 @@ const BUYER_NAV = [
   { icon: MessageSquare, label: "Messages", href: "/dashboard/messages" },
   { icon: Heart, label: "Saved Items", href: "/dashboard/saved" },
   { icon: CreditCard, label: "Payments", href: "/dashboard/payments" },
+  { icon: FileText, label: "Invoices", href: "/dashboard/invoices" },
   { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
@@ -61,18 +188,23 @@ export function DashboardShell({
   companyType,
 }: DashboardShellProps) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
   const navItems = companyType === "supplier" ? SUPPLIER_NAV : BUYER_NAV;
   const dashboardLabel =
     companyType === "supplier" ? "Supplier Portal" : "Buyer Dashboard";
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-[var(--obsidian)] min-h-screen shrink-0">
+      {/* Sidebar — visible by default at every screen size; collapses only when the user toggles it */}
+      <aside
+        className={`flex flex-col bg-[var(--obsidian)] min-h-screen shrink-0 transition-[width] duration-200 ${
+          collapsed ? "w-20" : "w-64"
+        }`}
+      >
         {/* Logo */}
-        <div className="p-6 border-b border-white/[0.06]">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--amber)] to-[var(--amber-dark)] flex items-center justify-center">
+        <div className="p-6 border-b border-white/[0.06] flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--amber)] to-[var(--amber-dark)] flex items-center justify-center shrink-0">
               <span
                 className="font-black text-[var(--obsidian)] text-sm"
                 style={{ fontFamily: "var(--font-display)" }}
@@ -80,17 +212,19 @@ export function DashboardShell({
                 SR
               </span>
             </div>
-            <div>
-              <span
-                className="text-[15px] font-bold text-[var(--ivory)] tracking-tight leading-none"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                Silk Road Africa
-              </span>
-              <span className="block text-[10px] text-[var(--amber)] font-medium tracking-[0.12em] uppercase mt-0.5">
-                {dashboardLabel}
-              </span>
-            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <span
+                  className="text-[15px] font-bold text-[var(--ivory)] tracking-tight leading-none block truncate"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Silk Road Africa
+                </span>
+                <span className="block text-[10px] text-[var(--amber)] font-medium tracking-[0.12em] uppercase mt-0.5">
+                  {dashboardLabel}
+                </span>
+              </div>
+            )}
           </Link>
         </div>
 
@@ -106,38 +240,65 @@ export function DashboardShell({
               <Link
                 key={item.href}
                 href={item.href}
+                title={collapsed ? item.label : undefined}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  collapsed ? "justify-center px-0" : ""
+                } ${
                   isActive
                     ? "bg-white/[0.08] text-[var(--ivory)]"
                     : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
                 }`}
               >
-                <item.icon className="w-[18px] h-[18px]" />
-                <span className="flex-1">{item.label}</span>
+                <item.icon className="w-[18px] h-[18px] shrink-0" />
+                {!collapsed && <span className="flex-1">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
+        {/* Collapse toggle */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setCollapsed((v) => !v)}
+            className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors ${
+              collapsed ? "justify-center px-0" : ""
+            }`}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="w-[18px] h-[18px] shrink-0" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-[18px] h-[18px] shrink-0" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* User */}
         <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-9 h-9 rounded-full bg-[var(--terracotta)]/20 border border-[var(--terracotta)]/30 flex items-center justify-center text-xs font-bold text-[var(--terracotta-light)]">
+          <div className={`flex items-center gap-3 px-4 py-3 ${collapsed ? "justify-center px-0" : ""}`}>
+            <div className="w-9 h-9 rounded-full bg-[var(--terracotta)]/20 border border-[var(--terracotta)]/30 flex items-center justify-center text-xs font-bold text-[var(--terracotta-light)] shrink-0">
               {userInitials}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-[var(--ivory)] truncate">
-                {userName}
-              </div>
-              <div className="text-xs text-white/30">{companyName}</div>
-            </div>
-            <a
-              href="/auth/logout"
-              className="p-1.5 text-white/25 hover:text-white/50 transition-colors"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </a>
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-[var(--ivory)] truncate">
+                    {userName}
+                  </div>
+                  <div className="text-xs text-white/30">{companyName}</div>
+                </div>
+                <a
+                  href="/auth/logout"
+                  className="p-1.5 text-white/25 hover:text-white/50 transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </a>
+              </>
+            )}
           </div>
         </div>
       </aside>
@@ -157,21 +318,11 @@ export function DashboardShell({
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center h-9 w-72 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)] px-3 focus-within:border-[var(--amber)] transition-colors">
-                <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                <input
-                  type="text"
-                  placeholder="Search orders, products..."
-                  className="w-full bg-transparent px-2.5 text-sm outline-none placeholder:text-[var(--text-tertiary)]"
-                />
-              </div>
+              <HeaderSearch />
 
-              <NotificationDropdown variant="light" />
+              <NotificationBell />
 
-              <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] transition-colors">
-                <Globe className="w-4 h-4" />
-                EN
-              </button>
+              <RegionPicker variant="full" />
             </div>
           </div>
         </header>

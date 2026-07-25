@@ -31,8 +31,7 @@ export async function GET(request: NextRequest) {
       purchase_order_id, supplier_order_id,
       buyer:opened_by_company_id ( name ),
       supplier:supplier_company_id ( name ),
-      openedBy:opened_by_user_id ( full_name, email ),
-      order:purchase_order_id ( order_number )
+      openedBy:opened_by_user_id ( full_name, email )
       `,
       { count: "exact" }
     )
@@ -59,7 +58,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ disputes: disputes || [], total: count || 0, limit, offset });
+  // No FK between disputes.purchase_order_id and purchase_orders (partitioned,
+  // composite PK) — PostgREST can't embed it, fetch order numbers separately.
+  const poIds = [...new Set((disputes ?? []).map((d) => d.purchase_order_id).filter((v): v is string => !!v))];
+  const { data: orders } = poIds.length
+    ? await supabase.from("purchase_orders").select("id, order_number").in("id", poIds)
+    : { data: [] as { id: string; order_number: string }[] };
+  const orderNumberById = new Map((orders ?? []).map((o) => [o.id, o.order_number]));
+
+  const disputesWithOrder = (disputes ?? []).map((d) => ({
+    ...d,
+    order: d.purchase_order_id ? { order_number: orderNumberById.get(d.purchase_order_id) ?? null } : null,
+  }));
+
+  return NextResponse.json({ disputes: disputesWithOrder, total: count || 0, limit, offset });
 }
 
 const RESOLUTIONS = ["full_pay_supplier", "partial_refund_buyer", "full_refund_buyer", "replacement", "dismissed"] as const;

@@ -30,8 +30,10 @@ const PostBodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
-  const role = user?.company_members?.[0]?.role;
-  if (!role || !(ADMIN_ROLES as readonly string[]).includes(role)) {
+  const isAdminCaller = user?.company_members?.some((m) =>
+    (ADMIN_ROLES as readonly string[]).includes(m.role)
+  );
+  if (!isAdminCaller) {
     return NextResponse.json({ error: "Forbidden — admin role required" }, { status: 403 });
   }
 
@@ -73,11 +75,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "companyId is required" }, { status: 400 });
   }
 
-  const role = user.company_members?.[0]?.role;
-  const isAdmin = role && (ADMIN_ROLES as readonly string[]).includes(role);
-  const userCompanyId = user.company_members?.[0]?.company_id;
+  const isAdmin = user.company_members?.some((m) =>
+    (ADMIN_ROLES as readonly string[]).includes(m.role)
+  );
+  const hasCompanyMembership = user.company_members?.some((m) => m.company_id === companyId);
 
-  if (!isAdmin && userCompanyId !== companyId) {
+  if (!isAdmin && !hasCompanyMembership) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

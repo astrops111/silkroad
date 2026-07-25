@@ -93,8 +93,7 @@ export async function getStorefrontBySlug(slug: string): Promise<StorefrontData 
     .eq("supplier_id", company.id)
     .eq("moderation_status", "approved")
     .eq("is_active", true)
-    .order("is_featured", { ascending: false })
-    .order("created_at", { ascending: false })
+    .order("name", { ascending: true })
     .limit(12);
 
   // Fetch reviews

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { flutterwaveGateway } from "@/lib/payments/gateways/flutterwave";
 import { convertToLocalCurrency } from "@/lib/payments/currency";
 import { formatMoney, toDisplayAmount } from "@/lib/payments/currency-config";
+import { resolveChargeAmount } from "@/lib/payments/deposit";
+import { sumSucceededPaymentAmount } from "@/lib/payments/webhook-events";
 
 /**
  * POST /api/payments/flutterwave — Initiate a Flutterwave charge
@@ -38,21 +40,24 @@ export async function POST(request: NextRequest) {
 
   const { data: order } = await supabase
     .from("purchase_orders")
-    .select("id, status, grand_total")
+    .select("id, status, grand_total, metadata")
     .eq("id", orderId)
     .eq("buyer_user_id", profile.id)
     .single();
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.status !== "pending_payment")
+  if (order.status !== "pending_payment" && order.status !== "deposit_paid")
     return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 400 });
+
+  // Deposit-aware: chargeAmount is the deposit, the remaining balance, or
+  // the full grand_total, depending on payment terms + what's already landed.
+  const priorSucceeded = await sumSucceededPaymentAmount(supabase, orderId);
+  const { chargeAmount, leg } = resolveChargeAmount(order, priorSucceeded);
 
   // Validate client-supplied amount against DB source of truth
   const requestAmount = Number(amount);
-  if (Math.abs(requestAmount - order.grand_total) > 1) {
+  if (Math.abs(requestAmount - chargeAmount) > 1) {
     return NextResponse.json({ error: "Amount does not match order total" }, { status: 400 });
   }
-  // Always charge the DB-sourced amount, never the client-supplied value
-  const chargeAmount = order.grand_total;
 
   const countryCode = buyerCountry || profile.country_code || "GH";
   const isMobileMoney = !!phoneNumber;
@@ -101,6 +106,8 @@ export async function POST(request: NextRequest) {
       buyerCountry: countryCode,
     } : null,
     expires_at: result.expiresAt?.toISOString(),
+    payment_terms: leg === "deposit" || leg === "balance" ? "deposit_balance" : "immediate",
+    deposit_amount: leg === "deposit" ? (conversion ? conversion.localAmount : chargeAmount) : null,
   });
 
   return NextResponse.json({

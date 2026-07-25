@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { alipayGateway } from "@/lib/payments";
 import { convertCurrency } from "@/lib/payments/currency";
+import { resolveChargeAmount } from "@/lib/payments/deposit";
+import { sumSucceededPaymentAmount } from "@/lib/payments/webhook-events";
 
 /**
  * POST /api/payments/alipay — Create Alipay payment
@@ -32,26 +34,32 @@ export async function POST(request: NextRequest) {
 
   const { data: order } = await supabase
     .from("purchase_orders")
-    .select("id, status, grand_total, currency")
+    .select("id, status, grand_total, currency, metadata")
     .eq("id", orderId)
     .eq("buyer_user_id", profile.id)
     .single();
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.status !== "pending_payment")
+  if (order.status !== "pending_payment" && order.status !== "deposit_paid")
     return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 400 });
+
+  // Deposit-aware: resolve the deposit/balance/full amount in the ORDER's
+  // own currency first, then convert to CNY — same order of operations as
+  // the original grand_total-only conversion below.
+  const priorSucceededOrderCcy = await sumSucceededPaymentAmount(supabase, orderId);
+  const { chargeAmount: chargeAmountOrderCcy, leg } = resolveChargeAmount(order, priorSucceededOrderCcy);
 
   // Validate client-supplied amount against DB source of truth (in order currency)
   const requestAmount = Number(amount);
-  if (Math.abs(requestAmount - order.grand_total) > 1) {
+  if (Math.abs(requestAmount - chargeAmountOrderCcy) > 1) {
     return NextResponse.json({ error: "Amount does not match order total" }, { status: 400 });
   }
 
-  // Alipay always settles in CNY — convert the DB-sourced amount, never the client-supplied value
+  // Alipay always settles in CNY — convert the resolved amount, never the client-supplied value
   const orderCurrency = order.currency || "USD";
   const { convertedAmount: chargeAmount, exchangeRate } =
     orderCurrency === "CNY"
-      ? { convertedAmount: order.grand_total, exchangeRate: 1 }
-      : await convertCurrency(order.grand_total, orderCurrency, "CNY");
+      ? { convertedAmount: chargeAmountOrderCcy, exchangeRate: 1 }
+      : await convertCurrency(chargeAmountOrderCcy, orderCurrency, "CNY");
 
   const result = await alipayGateway.createPayment({
     orderId,
@@ -75,6 +83,8 @@ export async function POST(request: NextRequest) {
     status: result.status,
     raw_response: result.rawResponse,
     expires_at: result.expiresAt?.toISOString(),
+    payment_terms: leg === "deposit" || leg === "balance" ? "deposit_balance" : "immediate",
+    deposit_amount: leg === "deposit" ? chargeAmount : null,
   });
 
   return NextResponse.json({

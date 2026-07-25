@@ -111,16 +111,14 @@ export async function GET(request: NextRequest) {
       .eq("company_id", companyId)
       .single(),
 
-    // Recent orders (last 10)
+    // Recent orders (last 10). No FK between supplier_orders and
+    // purchase_orders (both are RANGE-partitioned by created_at with a
+    // composite PK) — buyer info is fetched and merged in separately below.
     supabase
       .from("supplier_orders")
       .select(`
-        id, order_number, subtotal, tax_amount, total_amount, currency,
-        status, shipping_method, created_at,
-        purchase_orders!supplier_orders_purchase_order_id_fkey (
-          buyer_company_name, buyer_user_id,
-          user_profiles!purchase_orders_buyer_user_id_fkey ( full_name, country_code )
-        )
+        id, order_number, purchase_order_id, subtotal, tax_amount, total_amount, currency,
+        status, shipping_method, created_at
       `)
       .eq("supplier_id", companyId)
       .order("created_at", { ascending: false })
@@ -162,6 +160,24 @@ export async function GET(request: NextRequest) {
       .gte("created_at", new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString())
       .order("created_at", { ascending: true }),
   ]);
+
+  // Buyer info for recent orders — fetched separately since supplier_orders
+  // has no FK to purchase_orders (see comment on the query above).
+  const recentPoIds = [...new Set((recentOrdersResult.data ?? []).map((o) => o.purchase_order_id))];
+  const { data: recentPos } = recentPoIds.length
+    ? await supabase.from("purchase_orders").select("id, buyer_company_name, buyer_user_id").in("id", recentPoIds)
+    : { data: [] as { id: string; buyer_company_name: string | null; buyer_user_id: string }[] };
+  const recentBuyerIds = [...new Set((recentPos ?? []).map((po) => po.buyer_user_id).filter(Boolean))];
+  const { data: recentBuyers } = recentBuyerIds.length
+    ? await supabase.from("user_profiles").select("id, full_name, country_code").in("id", recentBuyerIds)
+    : { data: [] as { id: string; full_name: string | null; country_code: string | null }[] };
+  const recentBuyerById = new Map((recentBuyers ?? []).map((b) => [b.id, b]));
+  const poById = new Map(
+    (recentPos ?? []).map((po) => [
+      po.id,
+      { buyer_company_name: po.buyer_company_name, buyer: recentBuyerById.get(po.buyer_user_id) ?? null },
+    ])
+  );
 
   // ============================================================
   // Calculate KPIs
@@ -234,15 +250,12 @@ export async function GET(request: NextRequest) {
       openRfqs: openRfqsResult.count || 0,
     },
     recentOrders: (recentOrdersResult.data || []).map((o) => {
-      const po = o.purchase_orders as unknown as {
-        buyer_company_name: string;
-        user_profiles: { full_name: string; country_code: string } | null;
-      } | null;
+      const po = poById.get(o.purchase_order_id) ?? null;
       return {
         id: o.id,
         orderNumber: o.order_number,
-        buyerName: po?.buyer_company_name || po?.user_profiles?.full_name || "Unknown Buyer",
-        buyerCountry: po?.user_profiles?.country_code || null,
+        buyerName: po?.buyer_company_name || po?.buyer?.full_name || "Unknown Buyer",
+        buyerCountry: po?.buyer?.country_code || null,
         total: o.total_amount,
         currency: o.currency,
         status: o.status,

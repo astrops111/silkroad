@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
     const qItems = items.map((item: {
       rfqItemId?: string; productName: string; description?: string;
       quantity: number; unit?: string; unitPrice: number;
-      productId?: string; leadTimeDays?: number; moq?: number;
+      productId?: string; variantId?: string; leadTimeDays?: number; moq?: number;
     }, idx: number) => ({
       quotation_id: quotation.id,
       rfq_item_id: item.rfqItemId || null,
@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
       unit_price: item.unitPrice,
       total_price: item.unitPrice * item.quantity,
       product_id: item.productId || null,
+      variant_id: item.variantId || null,
       lead_time_days: item.leadTimeDays || null,
       moq: item.moq || null,
       sort_order: idx,

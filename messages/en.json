@@ -319,7 +319,7 @@
       "searchPlaceholder": "Search products, suppliers, or keywords...",
       "searchButton": "Search",
       "sortLabel": "Sort:",
-      "sortBestMatch": "Best Match",
+      "sortAlphabetical": "Alphabetical (A-Z)",
       "sortPriceLowHigh": "Price: Low to High",
       "sortPriceHighLow": "Price: High to Low",
       "sortNewest": "Newest",

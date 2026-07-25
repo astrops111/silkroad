@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useRegion } from "@/lib/providers/region-provider";
+import { formatDualCurrency } from "@/lib/currency/formatter";
 
 /* ─────────────────────────────────────────────────────────── types */
 
@@ -57,14 +59,6 @@ const STATUS_CONFIG: Record<
   completed:       { label: "Completed",      variant: "default",    icon: CheckCircle2 },
 };
 
-function formatPrice(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
-
 function primaryProduct(order: Order): string {
   const allItems = order.supplier_orders.flatMap((so) => so.supplier_order_items);
   if (allItems.length === 0) return "—";
@@ -83,6 +77,7 @@ function primarySupplier(order: Order): string {
 /* ─────────────────────────────────────────────────────────── page */
 
 export default function BuyerOrdersPage() {
+  const region = useRegion();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -171,6 +166,7 @@ export default function BuyerOrdersPage() {
               <tbody>
                 {orders.map((order) => {
                   const config = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.paid;
+                  const price = formatDualCurrency(order.grand_total, order.currency, region.currency);
                   return (
                     <tr
                       key={order.id}
@@ -193,8 +189,13 @@ export default function BuyerOrdersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-sm font-semibold text-[var(--obsidian)]">
-                          {formatPrice(order.grand_total, order.currency)}
+                          {price.primary}
                         </span>
+                        {price.secondary && (
+                          <span className="block text-[11px] text-[var(--text-tertiary)]">
+                            ~{price.secondary}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <Badge variant={config.variant} className="flex items-center gap-1 w-fit">

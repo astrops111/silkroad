@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const tradeTerm = searchParams.get("tradeTerm");
   const verified = searchParams.get("verified");
   const featured = searchParams.get("featured");
-  const sort = searchParams.get("sort") || "relevance";
+  const sort = searchParams.get("sort") || "name";
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "24", 10), 1), 100);
   const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
 
@@ -139,14 +139,13 @@ export async function GET(request: NextRequest) {
       query = query.order("moq", { ascending: true });
       break;
     case "relevance":
+      // For text search, Supabase sorts by relevance by default.
+      // For non-search relevance requests, fall through to name order.
+      if (q) break;
+      // falls through
+    case "name":
     default:
-      // For text search, Supabase sorts by relevance by default
-      // For non-search, sort by featured first then newest
-      if (!q) {
-        query = query
-          .order("is_featured", { ascending: false })
-          .order("created_at", { ascending: false });
-      }
+      query = query.order("name", { ascending: true });
       break;
   }
 

@@ -202,6 +202,15 @@ export const tigoCashGateway: PaymentGateway = {
     const refId = (data.transactionRefId || data.referenceId || data.MFSTransactionID) as string;
     const status = ((data.status || data.transactionStatus || "") as string).toUpperCase();
 
+    // Best-effort — like the amount-verification gap noted below, Tigo Cash's
+    // mobile-money rails have no real chargeback/dispute concept, and there's
+    // no confirmed public doc for a reversal callback shape. REVERSED is a
+    // defensive guess at the most likely status string for a disbursement
+    // reversal; anything unrecognized falls through to "failed" as before.
+    if (status === "REVERSED") {
+      return { transactionId: refId || "", status: "refunded", rawResponse: data, eventType: status };
+    }
+
     return {
       transactionId: refId || "",
       status: status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED"

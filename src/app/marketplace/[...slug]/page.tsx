@@ -156,6 +156,7 @@ export default async function ProductDetailPage({
         name: v.name,
         optionSize: v.option_size ?? null,
         optionShade: v.option_shade ?? null,
+        optionVariant3: v.option_variant3 ?? null,
         janCode: v.jan_code ?? product.jan_code ?? null,
         moq: v.moq ?? product.moq ?? 1,
         boxPackQty: v.box_pack_qty ?? product.box_pack_qty ?? null,

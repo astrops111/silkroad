@@ -31,15 +31,25 @@ export async function submitReview(
   if (!profile) return { success: false, error: "Profile not found" };
 
   // Derive reviewer/supplier company IDs server-side from the order itself —
-  // never trust client-supplied IDs for who's reviewing whom.
+  // never trust client-supplied IDs for who's reviewing whom. Two-step fetch:
+  // supplier_orders and purchase_orders have no FK between them (both
+  // partitioned by created_at with a composite PK), so PostgREST can't embed
+  // across them.
   const { data: order } = await supabase
     .from("supplier_orders")
-    .select("status, supplier_id, purchase_orders!inner(buyer_company_id, buyer_user_id)")
+    .select("status, supplier_id, purchase_order_id")
     .eq("id", supplierOrderId)
     .single();
 
-  const purchaseOrder = order?.purchase_orders?.[0];
-  if (!order || !purchaseOrder) return { success: false, error: "Order not found" };
+  if (!order) return { success: false, error: "Order not found" };
+
+  const { data: purchaseOrder } = await supabase
+    .from("purchase_orders")
+    .select("buyer_company_id, buyer_user_id")
+    .eq("id", order.purchase_order_id)
+    .single();
+
+  if (!purchaseOrder) return { success: false, error: "Order not found" };
   if (purchaseOrder.buyer_user_id !== profile.id) {
     return { success: false, error: "You do not have access to this order" };
   }

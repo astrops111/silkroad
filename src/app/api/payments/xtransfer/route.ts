@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { xtransferGateway } from "@/lib/payments/gateways/xtransfer";
+import { resolveChargeAmount } from "@/lib/payments/deposit";
+import { sumSucceededPaymentAmount } from "@/lib/payments/webhook-events";
 
 /**
  * POST /api/payments/xtransfer
@@ -66,23 +68,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { data: order } = await supabase
     .from("purchase_orders")
-    .select("id, order_number, status, grand_total")
+    .select("id, order_number, status, grand_total, metadata")
     .eq("id", orderId)
     .eq("buyer_user_id", profile.id)
     .single();
 
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.status !== "pending_payment") {
+  if (order.status !== "pending_payment" && order.status !== "deposit_paid") {
     return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 409 });
   }
 
+  // Deposit-aware: chargeAmount is the deposit, the remaining balance, or
+  // the full grand_total, depending on payment terms + what's already landed.
+  const priorSucceeded = await sumSucceededPaymentAmount(supabase, orderId);
+  const { chargeAmount, leg } = resolveChargeAmount(order, priorSucceeded);
+
   // H2: validate client-supplied amount against DB source of truth
   const requestAmount = Number(amount);
-  if (Math.abs(requestAmount - order.grand_total) > 1) {
+  if (Math.abs(requestAmount - chargeAmount) > 1) {
     return NextResponse.json({ error: "Amount does not match order total" }, { status: 400 });
   }
-  // Always charge the DB-sourced amount, never the client-supplied value
-  const chargeAmount = order.grand_total;
 
   let result: Awaited<ReturnType<typeof xtransferGateway.createPayment>>;
   try {
@@ -113,6 +118,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     ...(phoneNumber ? { mobile_money_phone: phoneNumber } : {}),
     expires_at: result.expiresAt?.toISOString(),
     raw_response: result.rawResponse,
+    payment_terms: leg === "deposit" || leg === "balance" ? "deposit_balance" : "immediate",
+    deposit_amount: leg === "deposit" ? chargeAmount : null,
   });
 
   if (txError) {

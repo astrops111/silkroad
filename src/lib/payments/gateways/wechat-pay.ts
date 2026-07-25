@@ -324,10 +324,30 @@ export const wechatPayGateway: PaymentGateway = {
       };
     }
 
+    // Refund notification (v3 API dictionary — REFUND.SUCCESS/.ABNORMAL/.CLOSED).
+    // Only SUCCESS means money actually moved; the other two are terminal but
+    // not a refund, so they fall through to the generic "failed" branch below.
+    if (eventType === "REFUND.SUCCESS") {
+      const outTradeNo = resource.out_trade_no as string;
+      const amount = resource.amount as { total: number; refund: number; currency?: string } | undefined;
+
+      return {
+        // out_trade_no (not WeChat's own transaction_id) is what
+        // wechat_transaction_id actually stores — see createPayment/webhook route.
+        transactionId: outTradeNo || "",
+        status: "refunded",
+        amount: amount?.refund ?? amount?.total,
+        currency: amount?.currency || "CNY",
+        rawResponse: data,
+        eventType,
+      };
+    }
+
     return {
       transactionId: (resource.out_trade_no as string) || "",
       status: "failed",
       rawResponse: data,
+      eventType,
     };
   },
 };

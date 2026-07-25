@@ -284,6 +284,16 @@ export const alipayGateway: PaymentGateway = {
     }
   },
 
+  // NOTE(refund/dispute webhooks): the classic alipay.trade.* API this
+  // gateway uses does not reliably push a refund or dispute notification
+  // to notify_url — Alipay's async refund push (notifyRefund) belongs to
+  // a separate API family (Antom/global), not this one. Refund status is
+  // only observable here by polling alipay.trade.query/checkStatus, which
+  // src/app/api/cron/reconcile-payments/route.ts already does for stuck
+  // pending/processing transactions. Fabricating a refund/dispute event
+  // type here would be guessing at a payload shape that doesn't exist —
+  // left as a known gap rather than invented, same as Tigo's TODO(H1)
+  // amount-verification gap below.
   async handleWebhook(payload: unknown): Promise<PaymentStatusResult> {
     const params = payload as Record<string, string>;
 

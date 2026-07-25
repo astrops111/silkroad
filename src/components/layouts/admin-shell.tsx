@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -31,6 +32,8 @@ import {
   UserCircle2,
   ClipboardCheck,
   Mail,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 const navSections = [
@@ -131,39 +134,47 @@ interface AdminShellProps {
 
 export function AdminShell({ children, userName, userInitials, role }: AdminShellProps) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
 
   const roleLabel = role === "admin_super" ? "Super Admin" : role === "admin_moderator" ? "Moderator" : "Support";
+  const sidebarWidth = collapsed ? "5rem" : "16rem";
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
+      {/* Sidebar — visible by default; collapses only when the user toggles it */}
       <aside
-        className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col shrink-0"
-        style={{ background: "var(--obsidian)" }}
+        className="fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 transition-[width] duration-200"
+        style={{ background: "var(--obsidian)", width: sidebarWidth }}
       >
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 px-6 border-b border-white/[0.06]">
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shrink-0"
             style={{ background: "var(--amber)", color: "var(--obsidian)", fontFamily: "var(--font-display)" }}
           >
             SR
           </div>
-          <span className="text-base font-bold tracking-tight" style={{ color: "var(--ivory)", fontFamily: "var(--font-display)" }}>
-            Silk Road Africa
-          </span>
-          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(216,159,46,0.15)", color: "var(--amber)" }}>
-            Admin
-          </span>
+          {!collapsed && (
+            <>
+              <span className="text-base font-bold tracking-tight truncate" style={{ color: "var(--ivory)", fontFamily: "var(--font-display)" }}>
+                Silk Road Africa
+              </span>
+              <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "rgba(216,159,46,0.15)", color: "var(--amber)" }}>
+                Admin
+              </span>
+            </>
+          )}
         </div>
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
           {navSections.map((section) => (
             <div key={section.label}>
-              <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/25">
-                {section.label}
-              </p>
+              {!collapsed && (
+                <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/25">
+                  {section.label}
+                </p>
+              )}
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
                   const isActive = pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href.split("?")[0]));
@@ -171,7 +182,8 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
+                        title={collapsed ? item.name : undefined}
+                        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${collapsed ? "justify-center px-0" : ""}`}
                         style={{
                           color: isActive ? "var(--amber)" : "rgba(245,240,232,0.5)",
                           background: isActive ? "rgba(216,159,46,0.08)" : "transparent",
@@ -181,7 +193,7 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: "var(--amber)" }} />
                         )}
                         <item.icon className="w-[18px] h-[18px] shrink-0" />
-                        {item.name}
+                        {!collapsed && item.name}
                       </Link>
                     </li>
                   );
@@ -191,12 +203,30 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
           ))}
         </nav>
 
+        {/* Collapse toggle */}
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => setCollapsed((v) => !v)}
+            className={`flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${collapsed ? "justify-center px-0" : ""}`}
+            style={{ color: "rgba(245,240,232,0.5)" }}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeftOpen className="w-[18px] h-[18px] shrink-0" /> : (
+              <>
+                <PanelLeftClose className="w-[18px] h-[18px] shrink-0" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Super Admin Panel — visible only to admin_super */}
         {role === "admin_super" && (
           <div className="px-3 pb-2">
             <Link
               href="/admin/system"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
+              title={collapsed ? "Super Admin Panel" : undefined}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${collapsed ? "justify-center px-0" : ""}`}
               style={{
                 background: "linear-gradient(135deg, rgba(216,159,46,0.08), rgba(184,60,48,0.08))",
                 color: "var(--amber)",
@@ -204,32 +234,36 @@ export function AdminShell({ children, userName, userInitials, role }: AdminShel
               }}
             >
               <Crown className="w-[18px] h-[18px] shrink-0" />
-              Super Admin Panel
+              {!collapsed && "Super Admin Panel"}
             </Link>
           </div>
         )}
 
         {/* User */}
         <div className="border-t border-white/[0.06] p-4">
-          <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "rgba(216,159,46,0.15)", color: "var(--amber)" }}>
               {userInitials}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: "var(--ivory)" }}>
-                {userName}
-              </p>
-              <p className="text-[11px] text-white/30 truncate">{roleLabel}</p>
-            </div>
-            <a href="/auth/logout" className="ml-auto p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors" style={{ color: "rgba(245,240,232,0.35)" }}>
-              <LogOut className="w-4 h-4" />
-            </a>
+            {!collapsed && (
+              <>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: "var(--ivory)" }}>
+                    {userName}
+                  </p>
+                  <p className="text-[11px] text-white/30 truncate">{roleLabel}</p>
+                </div>
+                <a href="/auth/logout" className="ml-auto p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors" style={{ color: "rgba(245,240,232,0.35)" }}>
+                  <LogOut className="w-4 h-4" />
+                </a>
+              </>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Main */}
-      <div className="flex-1 ml-64" style={{ background: "var(--surface-secondary)" }}>
+      <div className="flex-1 transition-[margin] duration-200" style={{ background: "var(--surface-secondary)", marginLeft: sidebarWidth }}>
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b px-8" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg w-80" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-subtle)" }}>

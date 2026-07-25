@@ -31,42 +31,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Messages are required" }, { status: 400 });
     }
 
-    // Optional: look up order data if order number provided
+    // Optional: look up order data if order number provided. Manual fetch
+    // instead of a PostgREST embed — purchase_orders/supplier_orders/
+    // payment_transactions have no FK between them (all RANGE-partitioned by
+    // created_at with a composite PK), so PostgREST can't embed across them.
     let orderData: OrderLookup | null = null;
     if (orderNumber) {
       const supabase = await createClient();
       const { data: order } = await supabase
         .from("purchase_orders")
-        .select(`
-          order_number, status, total_amount, currency, created_at,
-          supplier_orders (
-            id, status,
-            companies:supplier_id (name),
-            b2b_shipments (status, tracking_number, estimated_delivery_at)
-          ),
-          payment_transactions (status, gateway)
-        `)
+        .select("id, order_number, status, grand_total, currency, created_at")
         .eq("order_number", orderNumber)
+        .eq("buyer_user_id", auth.profileId)
         .single();
 
       if (order) {
-        const supplierOrder = (order.supplier_orders as Array<Record<string, unknown>>)?.[0];
-        const shipment = supplierOrder?.b2b_shipments as Array<Record<string, unknown>> | undefined;
-        const payment = (order.payment_transactions as Array<Record<string, unknown>>)?.[0];
+        const { data: supplierOrders } = await supabase
+          .from("supplier_orders")
+          .select("id, status, supplier_id")
+          .eq("purchase_order_id", order.id);
+
+        const supplierOrder = supplierOrders?.[0];
+
+        const [{ data: company }, { data: shipments }, { data: payments }] = await Promise.all([
+          supplierOrder
+            ? supabase.from("companies").select("name").eq("id", supplierOrder.supplier_id).single()
+            : Promise.resolve({ data: null as { name: string } | null }),
+          supplierOrder
+            ? supabase
+                .from("b2b_shipments")
+                .select("status, tracking_number, estimated_delivery_at")
+                .eq("supplier_order_id", supplierOrder.id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+            : Promise.resolve({ data: [] as { status: string; tracking_number: string; estimated_delivery_at: string }[] }),
+          supabase
+            .from("payment_transactions")
+            .select("status, gateway")
+            .eq("purchase_order_id", order.id)
+            .order("created_at", { ascending: false })
+            .limit(1),
+        ]);
+
+        const shipment = shipments?.[0];
+        const payment = payments?.[0];
 
         orderData = {
           order_number: order.order_number,
           status: order.status,
-          total_amount: ((order.total_amount as number) / 100).toFixed(2),
-          currency: order.currency as string,
-          created_at: order.created_at as string,
-          items_count: (order.supplier_orders as Array<unknown>)?.length || 0,
-          supplier_name: (supplierOrder?.companies as Record<string, string>)?.name,
-          shipment_status: (shipment?.[0] as Record<string, string>)?.status,
-          tracking_number: (shipment?.[0] as Record<string, string>)?.tracking_number,
-          estimated_delivery: (shipment?.[0] as Record<string, string>)?.estimated_delivery_at,
-          payment_status: payment?.status as string,
-          payment_method: payment?.gateway as string,
+          total_amount: (order.grand_total / 100).toFixed(2),
+          currency: order.currency,
+          created_at: order.created_at,
+          items_count: supplierOrders?.length || 0,
+          supplier_name: company?.name,
+          shipment_status: shipment?.status,
+          tracking_number: shipment?.tracking_number,
+          estimated_delivery: shipment?.estimated_delivery_at,
+          payment_status: payment?.status,
+          payment_method: payment?.gateway,
         };
       }
     }

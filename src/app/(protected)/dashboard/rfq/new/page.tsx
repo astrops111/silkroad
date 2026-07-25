@@ -12,6 +12,7 @@ import {
   Send,
   Save,
 } from "lucide-react";
+import { DESTINATION_COUNTRIES } from "@/lib/constants/countries";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -25,11 +26,6 @@ interface LineItem {
 
 const UNITS = ["pieces", "boxes", "kg", "tons", "meters", "cartons"];
 const CURRENCIES = ["USD", "GHS", "KES", "NGN", "ZAR", "CNY"];
-const DESTINATION_COUNTRIES = [
-  "NG", "GH", "KE", "TZ", "ZA", "ET", "EG", "CM", "CI", "SN", "UG", "ZM", "CD", "MA",
-  "MZ", "RW", "BJ", "AO", "MW", "ZW",
-].map((code) => ({ code, name: new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code }))
-  .sort((a, b) => a.name.localeCompare(b.name));
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */

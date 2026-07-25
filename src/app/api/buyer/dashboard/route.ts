@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { convertSync } from "@/lib/currency/formatter";
 
 /**
  * GET /api/buyer/dashboard — Buyer dashboard stats + recent data
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     // Total spend
     supabase
       .from("purchase_orders")
-      .select("grand_total")
+      .select("grand_total, currency")
       .eq("buyer_user_id", profile.id)
       .in("status", ["paid", "confirmed", "shipped", "delivered", "completed"]),
 
@@ -103,15 +104,17 @@ export async function GET(request: NextRequest) {
     // Monthly spend (last 6 months)
     supabase
       .from("purchase_orders")
-      .select("grand_total, created_at")
+      .select("grand_total, currency, created_at")
       .eq("buyer_user_id", profile.id)
       .in("status", ["paid", "confirmed", "shipped", "delivered", "completed"])
       .gte("created_at", new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString())
       .order("created_at", { ascending: true }),
   ]);
 
+  // Orders can be placed in different currencies — normalize to USD before
+  // summing so the total isn't a meaningless mix of currency units.
   const totalSpend = (totalSpendResult.data || []).reduce(
-    (sum, o) => sum + (o.grand_total || 0), 0
+    (sum, o) => sum + convertSync(o.grand_total || 0, o.currency, "USD"), 0
   );
 
   const unreadMessages = (unreadMessagesResult.data || []).reduce(
@@ -126,7 +129,7 @@ export async function GET(request: NextRequest) {
     const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const monthTotal = (monthlySpendResult.data || [])
       .filter((o) => o.created_at.startsWith(monthKey))
-      .reduce((sum, o) => sum + (o.grand_total || 0), 0);
+      .reduce((sum, o) => sum + convertSync(o.grand_total || 0, o.currency, "USD"), 0);
     monthlySpend.push({ month: `${monthNames[d.getMonth()]}`, spend: monthTotal });
   }
 

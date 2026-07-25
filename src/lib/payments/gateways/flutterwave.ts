@@ -230,9 +230,30 @@ export const flutterwaveGateway: PaymentGateway = {
     const event = data.event as string;
     const tx = data.data as Record<string, unknown>;
 
-    // Only handle charge events
+    // Chargeback webhook — Flutterwave's full event vocabulary for this
+    // isn't fully published (confirmed "chargeback.declined" exists via
+    // their docs/help center; other sub-states are best-effort here).
+    // Prefer tx_ref (matches our stored gateway_transaction_id) but the
+    // chargeback payload may only carry flw_ref/id — if so, the webhook
+    // route just won't find a matching payment_transaction and no-ops
+    // safely, same as any other unmatched-transaction case.
+    if (event?.startsWith("chargeback.")) {
+      const cb = tx;
+      return {
+        transactionId: (cb?.tx_ref as string) ?? (cb?.flw_ref as string) ?? "",
+        status: "disputed",
+        amount: cb?.amount as number,
+        currency: cb?.currency as string,
+        gatewayDisputeId: cb?.id != null ? String(cb.id) : undefined,
+        disputeReason: (cb?.stage as string) ?? (cb?.status as string),
+        rawResponse: data,
+        eventType: event,
+      };
+    }
+
+    // Only handle charge events beyond this point
     if (!event?.startsWith("charge.")) {
-      return { transactionId: "", status: "pending", rawResponse: data };
+      return { transactionId: "", status: "pending", rawResponse: data, eventType: event };
     }
 
     const txRef = tx?.tx_ref as string;

@@ -20,6 +20,15 @@ import {
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
+interface RFQItem {
+  id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit: string | null;
+}
+
 interface RFQSummary {
   id: string;
   rfq_number: string;
@@ -35,12 +44,16 @@ interface RFQSummary {
   deadline: string | null;
   required_by?: string;
   sample_required?: boolean;
+  rfq_items?: RFQItem[];
 }
 
 interface QuoteLineItem {
   product_name: string;
   quantity: string;
   unit_price: string;
+  rfq_item_id?: string;
+  product_id?: string | null;
+  variant_id?: string | null;
 }
 
 const PAYMENT_TERMS = [
@@ -94,12 +107,28 @@ export default function SubmitQuotePage() {
         const res = await fetch(`/api/rfqs/${rfqId}`);
         if (res.ok) {
           const data = await res.json();
-          setRfq(data.rfq ?? data);
-          if (data.rfq?.currency || data.currency) {
+          const rfqData: RFQSummary | undefined = data.rfq ?? data;
+          setRfq(rfqData ?? null);
+          if (rfqData?.currency) {
             setForm((prev) => ({
               ...prev,
-              currency: data.rfq?.currency ?? data.currency ?? prev.currency,
+              currency: rfqData.currency ?? prev.currency,
             }));
+          }
+          // Carry the buyer's catalog item(s) forward as a starting point —
+          // otherwise the supplier retypes them as free text and the quote
+          // loses its product/variant linkage entirely.
+          if (rfqData?.rfq_items?.length) {
+            setLineItems(
+              rfqData.rfq_items.map((ri) => ({
+                product_name: ri.product_name,
+                quantity: String(ri.quantity),
+                unit_price: "",
+                rfq_item_id: ri.id,
+                product_id: ri.product_id,
+                variant_id: ri.variant_id,
+              }))
+            );
           }
         }
       } catch {
@@ -176,6 +205,9 @@ export default function SubmitQuotePage() {
             quantity: parseFloat(li.quantity),
             unitPrice: Math.round(parseFloat(li.unit_price) * 100),
             unit: rfq?.unit || "pieces",
+            rfqItemId: li.rfq_item_id,
+            productId: li.product_id ?? undefined,
+            variantId: li.variant_id ?? undefined,
           })),
         submit,
       };

@@ -151,6 +151,12 @@ function mapStatus(xtStatus: string): PaymentStatusResult["status"] {
     case "SUCCESS":   return "succeeded";
     case "FAILED":
     case "CANCELLED": return "failed";
+    // Best-effort — no public docs for XTransfer's B2B partner API confirm
+    // these exact status strings for a wire recall/reversal; REFUNDED and
+    // REVERSED are the most plausible names given the SUCCESS/FAILED/CANCELLED
+    // convention already used here.
+    case "REFUNDED":
+    case "REVERSED":  return "refunded";
     default:          return "processing";
   }
 }

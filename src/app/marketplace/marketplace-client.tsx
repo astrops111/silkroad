@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -9,8 +9,12 @@ import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { Tooltip } from "@/components/ui/tooltip";
 import { imageForSlug } from "@/lib/category-images";
+import { useSavedStore } from "@/stores/saved";
 import { regionMeta, tradeMeta } from "@/lib/product-labels";
 import { MARKETPLACE_COUNTRIES } from "@/lib/countries";
+import { useRegion } from "@/lib/providers/region-provider";
+import { convertSync } from "@/lib/currency/formatter";
+import { getSupportedCurrencies } from "@/lib/currency/converter";
 import type { RegionPoolingRule, ShippingGroupFacet, UseCaseFacet } from "@/lib/queries/marketplace";
 import {
   SlidersHorizontal,
@@ -50,6 +54,9 @@ export interface MarketplaceProduct {
   /** Canonical SEO URL for the product, built server-side. Falls back to the
    *  id URL (mock data), which 301-redirects to the canonical path. */
   href?: string;
+  supplierId?: string;
+  supplierName?: string;
+  currency?: string;
   name: string;
   originCountry: string | null;
   tradeTerm: string | null;
@@ -97,6 +104,8 @@ const CATEGORIES = [
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
 const DEFAULT_PAGE_SIZE = 50;
+const SORT_OPTIONS = ["name", "price_asc", "price_desc", "newest", "popular"] as const;
+const DEFAULT_SORT = "name";
 
 const PRODUCTS: MarketplaceProduct[] = [
   {
@@ -518,9 +527,25 @@ function TopCategoryTicker({
   );
 }
 
+function formatCompactAmount(amount: number) {
+  if (amount >= 1000) return `${(amount / 1000).toFixed(amount >= 10000 ? 0 : 1)}K`;
+  return amount.toFixed(amount < 10 ? 2 : 0);
+}
+
 function formatPrice(price: number) {
-  if (price >= 1000) return `$${(price / 1000).toFixed(price >= 10000 ? 0 : 1)}K`;
-  return `$${price.toFixed(price < 10 ? 2 : 0)}`;
+  return `$${formatCompactAmount(price)}`;
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = Object.fromEntries(
+  getSupportedCurrencies().map((c) => [c.code, c.symbol])
+);
+
+/** Converted-currency label shown beside the USD price, e.g. "≈ ¥8,660 CNY". Null when the buyer's selected currency is USD. */
+function formatPriceConversion(usdAmount: number, displayCurrency: string): string | null {
+  if (displayCurrency === "USD") return null;
+  const converted = convertSync(usdAmount, "USD", displayCurrency);
+  const symbol = CURRENCY_SYMBOLS[displayCurrency] ?? "";
+  return `≈ ${symbol}${formatCompactAmount(converted)} ${displayCurrency} (estimated conversion)`;
 }
 
 /* ============================================================
@@ -531,7 +556,7 @@ function FilterSidebar({
   onClose,
   activeCategorySlug,
   activeSubSlug,
-  topCategories,
+  categoryFacetCounts = {},
   subcategoriesByParent,
   leavesByParent = {},
   brandFacets,
@@ -547,7 +572,10 @@ function FilterSidebar({
   onClose: () => void;
   activeCategorySlug: string | null;
   activeSubSlug: string | null;
-  topCategories: MarketplaceTopCategory[];
+  /** Per-slug counts scoped to the active region/brand/use filters — drives
+   *  the Categories list here. Distinct from the ticker's `topCategories`,
+   *  which stays unscoped (see marketplace/page.tsx). */
+  categoryFacetCounts?: Record<string, number>;
   subcategoriesByParent: Record<string, MarketplaceSubcategory[]>;
   leavesByParent?: Record<string, MarketplaceSubcategory[]>;
   brandFacets: Record<string, number>;
@@ -603,11 +631,9 @@ function FilterSidebar({
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
-  const categoryCountBySlug = new Map(
-    topCategories.map((c) => [c.slug, c.productCount])
-  );
-  const totalCategoryCount = topCategories.reduce(
-    (sum, c) => sum + c.productCount,
+  const categoryCountBySlug = new Map(Object.entries(categoryFacetCounts));
+  const totalCategoryCount = Object.values(categoryFacetCounts).reduce(
+    (sum, count) => sum + count,
     0
   );
 
@@ -666,25 +692,25 @@ function FilterSidebar({
       {/* Mobile overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
           onClick={onClose}
         />
       )}
 
       <aside
         className={`
-          fixed lg:sticky top-0 lg:top-[80px] left-0 z-50 lg:z-auto
-          h-screen lg:h-auto w-80 lg:w-64 shrink-0
-          bg-[var(--surface-primary)] lg:bg-transparent
-          border-r lg:border-r-0 border-[var(--border-subtle)]
+          fixed md:sticky top-0 md:top-[80px] left-0 z-50 md:z-auto
+          h-screen md:h-auto w-80 md:w-64 shrink-0
+          bg-[var(--surface-primary)] md:bg-transparent
+          border-r md:border-r-0 border-[var(--border-subtle)]
           overflow-y-auto
-          transition-transform duration-300 lg:translate-x-0
+          transition-transform duration-300 md:translate-x-0
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
       >
-        <div className="p-6 lg:p-0">
+        <div className="p-6 md:p-0">
           {/* Mobile header */}
-          <div className="flex items-center justify-between mb-6 lg:hidden">
+          <div className="flex items-center justify-between mb-6 md:hidden">
             <h3
               className="text-lg font-bold"
               style={{ fontFamily: "var(--font-display)" }}
@@ -731,10 +757,11 @@ function FilterSidebar({
                         href={buildHref(cat.slug)}
                         onClick={onClose}
                         scroll={false} prefetch={false}
-                        className="flex-1 flex items-center justify-between px-3 py-2.5 text-sm min-w-0"
+                        className="flex-1 flex items-center gap-3 px-3 py-2.5 text-sm min-w-0"
                       >
-                        <span className="truncate">{t(cat.key)}</span>
-                        <span className="text-xs text-[var(--text-tertiary)] ml-2 shrink-0">{count}</span>
+                        <span className="w-4 shrink-0" aria-hidden />
+                        <span className="flex-1 truncate">{t(cat.key)}</span>
+                        <span className="text-xs text-[var(--text-tertiary)] shrink-0">{count}</span>
                       </Link>
                       {subs.length > 0 && (
                         <button
@@ -839,14 +866,15 @@ function FilterSidebar({
                 href={countryHrefFor(null)}
                 onClick={onClose}
                 scroll={false} prefetch={false}
-                className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                className={`flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
                   !activeCountry
                     ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
                     : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                <span>{t("countryAll")}</span>
-                <span className="text-xs text-[var(--text-tertiary)]">
+                <span className="w-4 shrink-0" aria-hidden />
+                <span className="flex-1 truncate">{t("countryAll")}</span>
+                <span className="text-xs text-[var(--text-tertiary)] shrink-0">
                   {MARKETPLACE_COUNTRIES.reduce((sum, code) => sum + (countryFacets[code] ?? 0), 0)}
                 </span>
               </Link>
@@ -862,17 +890,18 @@ function FilterSidebar({
                       href={countryHrefFor(code)}
                       onClick={onClose}
                       scroll={false} prefetch={false}
-                      className={`flex items-center justify-between w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                      className={`flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
                         isActive
                           ? "bg-[var(--amber)]/8 text-[var(--amber-dark)] font-semibold"
                           : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1.5">
+                      <span className="w-4 shrink-0" aria-hidden />
+                      <span className="flex-1 inline-flex items-center gap-1.5 truncate">
                         <span aria-hidden className="text-sm leading-none">{meta.flag}</span>
                         {meta.label}
                       </span>
-                      <span className="text-xs text-[var(--text-tertiary)]">{countryFacets[code] ?? 0}</span>
+                      <span className="text-xs text-[var(--text-tertiary)] shrink-0">{countryFacets[code] ?? 0}</span>
                     </Link>
                     {/* Shipping groups (MOA pools / groupage batches) available in this region */}
                     {regionGroups.length > 0 && groupHrefFor && (
@@ -1034,22 +1063,54 @@ function FilterSidebar({
 /* ============================================================
    PRODUCT CARD
    ============================================================ */
-function ProductCard({ product }: { product: MarketplaceProduct }) {
+function ProductCard({
+  product,
+  viewMode = "grid",
+}: {
+  product: MarketplaceProduct;
+  viewMode?: "grid" | "list";
+}) {
   const region = regionMeta(product.originCountry);
   const trade = tradeMeta(product.tradeTerm);
   const isRealImage =
     product.image.startsWith("http://") ||
     product.image.startsWith("https://") ||
     product.image.startsWith("/");
+  const isList = viewMode === "list";
+  const displayCurrency = useRegion().currency;
+  const priceConversion = formatPriceConversion(product.price, displayCurrency);
+  const addSaved = useSavedStore((s) => s.addItem);
+  const removeSaved = useSavedStore((s) => s.removeItem);
+  const isSaved = useSavedStore((s) => s.isSaved(product.id));
+
+  function handleToggleSaved(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isSaved) {
+      removeSaved(product.id);
+    } else {
+      addSaved({
+        productId: product.id,
+        productName: product.name,
+        supplierId: product.supplierId ?? "",
+        supplierName: product.supplierName ?? "",
+        imageUrl: isRealImage ? product.image : null,
+        basePrice: product.price,
+        currency: product.currency ?? "USD",
+      });
+    }
+  }
 
   return (
     <Link
       href={product.href ?? `/marketplace/${product.id}`}
-      className="group card-elevated flex sm:block overflow-hidden"
+      className={`group card-elevated flex overflow-hidden ${isList ? "" : "sm:block"}`}
     >
       {/* Image area */}
       <div
-        className={`relative w-32 shrink-0 self-stretch sm:self-auto sm:w-auto sm:h-52 overflow-hidden ${
+        className={`relative w-32 shrink-0 self-stretch overflow-hidden ${
+          isList ? "sm:w-40" : "sm:self-auto sm:w-auto sm:h-52"
+        } ${
           isRealImage
             ? "bg-[var(--surface-secondary)]"
             : `bg-gradient-to-br ${product.image}`
@@ -1085,10 +1146,19 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
 
         {/* Wishlist — desktop only */}
         <button
-          className="hidden sm:flex absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:scale-110 z-10"
-          onClick={(e) => e.preventDefault()}
+          type="button"
+          aria-label={isSaved ? "Remove from wishlist" : "Save to wishlist"}
+          aria-pressed={isSaved}
+          className={`hidden sm:flex absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center transition-all hover:bg-white hover:scale-110 z-10 ${
+            isSaved ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+          onClick={handleToggleSaved}
         >
-          <Heart className="w-4 h-4 text-[var(--text-secondary)]" />
+          <Heart
+            className={`w-4 h-4 ${
+              isSaved ? "text-[var(--terracotta)] fill-[var(--terracotta)]" : "text-[var(--text-secondary)]"
+            }`}
+          />
         </button>
 
         {/* Placeholder only when there's no real image */}
@@ -1102,16 +1172,26 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col">
         {/* Price */}
-        <div className="flex items-baseline gap-1.5 mb-1 sm:mb-2">
-          <span
-            className="text-base sm:text-xl font-bold text-[var(--obsidian)]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {formatPrice(product.price)}
-          </span>
-          <span className="text-[10px] sm:text-xs text-[var(--text-tertiary)]">
-            / {product.unit}
-          </span>
+        <div className="mb-1 sm:mb-2">
+          <div className="flex items-baseline gap-1.5">
+            <span
+              className="text-base sm:text-xl font-bold text-[var(--obsidian)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {formatPrice(product.price)}
+            </span>
+            <span className="text-[10px] sm:text-xs font-medium text-[var(--text-tertiary)]">
+              USD
+            </span>
+            <span className="text-[10px] sm:text-xs text-[var(--text-tertiary)]">
+              / {product.unit}
+            </span>
+          </div>
+          {priceConversion && (
+            <p className="mt-0.5 text-[10px] sm:text-[11px] text-[var(--text-tertiary)]">
+              {priceConversion}
+            </p>
+          )}
         </div>
 
         {/* Box pack breakdown — pieces per box + per-piece price, mirrors product page */}
@@ -1307,6 +1387,7 @@ export function MarketplaceClient({
   brandFacets = {},
   useFacets = [],
   topCategories = [],
+  categoryFacetCounts = {},
   subcategoriesByParent = {},
   leavesByParent = {},
   totalProductCount,
@@ -1319,7 +1400,10 @@ export function MarketplaceClient({
   countryFacets?: Record<string, number>;
   brandFacets?: Record<string, number>;
   useFacets?: UseCaseFacet[];
+  /** Ticker's category tiles — deliberately unscoped by filters. */
   topCategories?: MarketplaceTopCategory[];
+  /** Sidebar's Categories list counts — scoped to the active filters. */
+  categoryFacetCounts?: Record<string, number>;
   subcategoriesByParent?: Record<string, MarketplaceSubcategory[]>;
   leavesByParent?: Record<string, MarketplaceSubcategory[]>;
   totalProductCount?: number;
@@ -1340,6 +1424,9 @@ export function MarketplaceClient({
   const countryParam = searchParams.get("country");
   const activeCountry = MARKETPLACE_COUNTRIES.find((c) => c === countryParam) ?? null;
   const activeGroupId = searchParams.get("group");
+  const activeBrandList = (searchParams.get("brand") ?? "").split(",").filter(Boolean);
+  const activeUseList = (searchParams.get("use") ?? "").split(",").filter(Boolean);
+  const useNameBySlug = new Map(useFacets.map((f) => [f.slug, f.name]));
   const activeCategory = CATEGORIES.find((c) => c.slug === categorySlug) ?? null;
   const activeCategoryLabel = activeCategory ? t(activeCategory.key) : "";
   const totalCountryCount = MARKETPLACE_COUNTRIES.reduce(
@@ -1387,6 +1474,21 @@ export function MarketplaceClient({
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
+  const requestedSort = searchParams.get("sort");
+  const sort = (SORT_OPTIONS as readonly string[]).includes(requestedSort ?? "")
+    ? (requestedSort as (typeof SORT_OPTIONS)[number])
+    : DEFAULT_SORT;
+
+  const handleSortChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (e.target.value === DEFAULT_SORT) params.delete("sort");
+    else params.set("sort", e.target.value);
+    // A different sort order invalidates the current page position.
+    params.delete("page");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const displayProducts = useMemo(() => {
     // Server already filtered by category/country for real DB products — only re-filter mock fallback
     const usingMock = !initialProducts || initialProducts.length === 0;
@@ -1423,12 +1525,53 @@ export function MarketplaceClient({
     return items;
   }, [currentPage, totalPages]);
 
-  const clearFilter = () => {
+  const pushParams = (params: URLSearchParams) => {
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const removeCategoryFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("category");
     params.delete("sub");
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    pushParams(params);
+  };
+
+  const removeSubFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("sub");
+    pushParams(params);
+  };
+
+  const removeCountryFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("country");
+    params.delete("group");
+    pushParams(params);
+  };
+
+  const removeBrandFilter = (brand: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const next = activeBrandList.filter((b) => b !== brand);
+    if (next.length > 0) params.set("brand", next.join(","));
+    else params.delete("brand");
+    pushParams(params);
+  };
+
+  const removeUseFilter = (slug: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const next = activeUseList.filter((u) => u !== slug);
+    if (next.length > 0) params.set("use", next.join(","));
+    else params.delete("use");
+    pushParams(params);
+  };
+
+  const clearAllFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of ["category", "sub", "country", "group", "brand", "use"]) {
+      params.delete(key);
+    }
+    pushParams(params);
   };
 
   return (
@@ -1500,7 +1643,11 @@ export function MarketplaceClient({
                 : t("subtitle")}
             </p>
 
-            {(activeCategory?.slug || subSlug) && (
+            {(activeCategory?.slug ||
+              subSlug ||
+              activeCountry ||
+              activeBrandList.length > 0 ||
+              activeUseList.length > 0) && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mr-1">
                   {t("filterChipLabel")}
@@ -1508,16 +1655,80 @@ export function MarketplaceClient({
                 {activeCategory?.slug && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--amber)]/12 border border-[var(--amber)]/25 text-[var(--amber-dark)]">
                     {activeCategoryLabel}
+                    <button
+                      type="button"
+                      onClick={removeCategoryFilter}
+                      aria-label={`Remove ${activeCategoryLabel} filter`}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </span>
                 )}
                 {subSlug && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
                     {subSlug.replace(/-/g, " ")}
+                    <button
+                      type="button"
+                      onClick={removeSubFilter}
+                      aria-label={`Remove ${subSlug.replace(/-/g, " ")} filter`}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </span>
                 )}
+                {activeCountry && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+                    <span aria-hidden className="text-sm leading-none">
+                      {regionMeta(activeCountry).flag}
+                    </span>
+                    {regionMeta(activeCountry).label}
+                    <button
+                      type="button"
+                      onClick={removeCountryFilter}
+                      aria-label={`Remove ${regionMeta(activeCountry).label} filter`}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {activeBrandList.map((brand) => (
+                  <span
+                    key={brand}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
+                  >
+                    {brand}
+                    <button
+                      type="button"
+                      onClick={() => removeBrandFilter(brand)}
+                      aria-label={`Remove ${brand} filter`}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                {activeUseList.map((slug) => (
+                  <span
+                    key={slug}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
+                  >
+                    {useNameBySlug.get(slug) ?? slug.replace(/-/g, " ")}
+                    <button
+                      type="button"
+                      onClick={() => removeUseFilter(slug)}
+                      aria-label={`Remove ${useNameBySlug.get(slug) ?? slug} filter`}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
                 <button
                   type="button"
-                  onClick={clearFilter}
+                  onClick={clearAllFilters}
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   {t("clear")}
@@ -1538,7 +1749,7 @@ export function MarketplaceClient({
               onClose={() => setFilterOpen(false)}
               activeCategorySlug={categorySlug}
               activeSubSlug={subSlug}
-              topCategories={topCategories}
+              categoryFacetCounts={categoryFacetCounts}
               subcategoriesByParent={subcategoriesByParent}
               leavesByParent={leavesByParent}
               brandFacets={brandFacets}
@@ -1568,7 +1779,7 @@ export function MarketplaceClient({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setFilterOpen(true)}
-                    className="lg:hidden flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+                    className="md:hidden flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
                   >
                     <SlidersHorizontal className="w-4 h-4" />
                     {t("filtersHeading")}
@@ -1583,12 +1794,16 @@ export function MarketplaceClient({
                     <span className="text-[var(--text-tertiary)] text-xs">
                       {t("sortLabel")}
                     </span>
-                    <select className="bg-transparent text-sm font-medium text-[var(--text-primary)] outline-none cursor-pointer">
-                      <option>{t("sortBestMatch")}</option>
-                      <option>{t("sortPriceLowHigh")}</option>
-                      <option>{t("sortPriceHighLow")}</option>
-                      <option>{t("sortNewest")}</option>
-                      <option>{t("sortMostPopular")}</option>
+                    <select
+                      value={sort}
+                      onChange={handleSortChange}
+                      className="bg-transparent text-sm font-medium text-[var(--text-primary)] outline-none cursor-pointer"
+                    >
+                      <option value="name">{t("sortAlphabetical")}</option>
+                      <option value="price_asc">{t("sortPriceLowHigh")}</option>
+                      <option value="price_desc">{t("sortPriceHighLow")}</option>
+                      <option value="newest">{t("sortNewest")}</option>
+                      <option value="popular">{t("sortMostPopular")}</option>
                     </select>
                     <ChevronDown className="w-3 h-3 text-[var(--text-tertiary)]" />
                   </div>
@@ -1640,12 +1855,12 @@ export function MarketplaceClient({
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
-                    : "flex flex-col gap-4"
+                    ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"
+                    : "flex flex-col gap-2"
                 }
               >
                 {displayProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard key={product.id} product={product} viewMode={viewMode} />
                 ))}
               </div>
 

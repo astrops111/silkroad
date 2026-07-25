@@ -61,11 +61,17 @@ export interface TransferResult {
 
 export interface PaymentStatusResult {
   transactionId: string;
-  status: "pending" | "processing" | "succeeded" | "failed" | "expired";
+  status: "pending" | "processing" | "succeeded" | "failed" | "expired" | "refunded" | "disputed";
   amount?: number;
   currency?: string;
   paidAt?: Date;
   rawResponse?: unknown;
+  // Only set when status is "disputed" — a gateway-initiated chargeback/dispute.
+  gatewayDisputeId?: string;
+  disputeReason?: string;
+  // Raw gateway event type/name, for logging when a branch is best-effort
+  // (some gateways don't have fully documented event vocabularies here).
+  eventType?: string;
 }
 
 export interface PaymentGateway {

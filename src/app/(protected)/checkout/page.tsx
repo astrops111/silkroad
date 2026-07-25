@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCartStore } from "@/stores/cart";
+import { DESTINATION_COUNTRIES } from "@/lib/constants/countries";
 import {
   ArrowLeft, Ship, Shield, Loader2, CheckCircle2,
   Package, Minus, Plus, Trash2, Truck, FileText,
@@ -27,12 +28,6 @@ const INCOTERMS = [
   { value: "fob", label: "FOB — Free on Board",        note: "You handle freight from origin port" },
   { value: "exw", label: "EXW — Ex Works",             note: "You handle all logistics" },
 ];
-
-const DESTINATION_COUNTRIES = [
-  "NG", "GH", "KE", "TZ", "ZA", "ET", "EG", "CM", "CI", "SN", "UG", "ZM", "CD", "MA",
-  "MZ", "RW", "BJ", "AO", "MW", "ZW",
-].map((code) => ({ code, name: new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code }))
-  .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function CheckoutPage() {
   const router = useRouter();

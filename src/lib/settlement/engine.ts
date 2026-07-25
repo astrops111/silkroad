@@ -23,10 +23,13 @@ async function getPlatformCommissionRate(supabase: ReturnType<typeof createServi
 export async function calculateSettlement(supplierOrderId: string) {
   const supabase = createServiceClient();
 
-  // Get the supplier order
+  // Get the supplier order. No FK exists between supplier_orders and
+  // purchase_orders (both are RANGE-partitioned by created_at with a
+  // composite PK, so PostgREST can't embed across them) — select plain
+  // columns only, no embed.
   const { data: order } = await supabase
     .from("supplier_orders")
-    .select("*, purchase_orders!inner(*)")
+    .select("*")
     .eq("id", supplierOrderId)
     .single();
 

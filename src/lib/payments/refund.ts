@@ -132,10 +132,10 @@ export async function processRefund(params: {
 
   await serviceClient.from("order_status_history").insert({
     supplier_order_id: supplierOrderId,
-    old_status: order.status,
-    new_status: newStatus,
+    from_status: order.status,
+    to_status: newStatus,
     changed_by: adminProfileId,
-    note: `Refund ${type}: ${reason}. Amount: ${payment.currency} ${(refundAmount / 100).toFixed(2)}. Ref: ${refundReference}`,
+    reason: `Refund ${type}: ${reason}. Amount: ${payment.currency} ${(refundAmount / 100).toFixed(2)}. Ref: ${refundReference}`,
   });
 
   return {

@@ -21,6 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCartStore } from "@/stores/cart";
 import { toast } from "sonner";
+import { useRegion } from "@/lib/providers/region-provider";
+import { formatDualCurrency } from "@/lib/currency/formatter";
+import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 
 /* ─────────────────────────────────────────────────────────── types */
 
@@ -81,7 +84,8 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }
 > = {
-  pending_payment: { label: "Payment Due", variant: "destructive", icon: AlertCircle },
+  pending_payment: { label: "Payment Due",  variant: "destructive", icon: AlertCircle },
+  deposit_paid:    { label: "Deposit Paid", variant: "outline",     icon: Clock },
   paid:            { label: "Paid",         variant: "secondary",  icon: CheckCircle2 },
   confirmed:       { label: "Confirmed",    variant: "secondary",  icon: CheckCircle2 },
   in_production:   { label: "In Production",variant: "secondary",  icon: Clock },
@@ -111,6 +115,7 @@ function fmtDate(iso: string) {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const region = useRegion();
   const orderId = params.id as string;
 
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
@@ -183,6 +188,7 @@ export default function OrderDetailPage() {
   );
   const canDispute = order.status === "delivered";
   const canReorder = ["delivered", "completed"].includes(order.status);
+  const grandTotal = formatDualCurrency(order.grand_total, order.currency, region.currency);
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -254,6 +260,22 @@ export default function OrderDetailPage() {
           <Link href="/dashboard/payments">
             <Button size="sm" className="shrink-0">
               Pay Now <ExternalLink className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {order.status === "deposit_paid" && CHECKOUT_FEATURES.paymentTerms && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+            <p className="text-sm font-medium text-amber-700">
+              Deposit received — the remaining balance is due before shipping.
+            </p>
+          </div>
+          <Link href={`/orders/${orderId}/pay`}>
+            <Button size="sm" className="shrink-0">
+              Pay Remaining Balance <ExternalLink className="w-3 h-3" />
             </Button>
           </Link>
         </div>
@@ -418,9 +440,16 @@ export default function OrderDetailPage() {
               <span>Duties &amp; taxes</span>
               <span>{fmt(order.total_tax, order.currency)}</span>
             </div>
-            <div className="flex justify-between font-bold text-base text-[var(--obsidian)] pt-2 border-t border-[var(--border-subtle)]">
+            <div className="flex justify-between items-baseline font-bold text-base text-[var(--obsidian)] pt-2 border-t border-[var(--border-subtle)]">
               <span>Grand Total</span>
-              <span>{fmt(order.grand_total, order.currency)}</span>
+              <span className="text-right">
+                {grandTotal.primary}
+                {grandTotal.secondary && (
+                  <span className="block text-xs font-normal text-[var(--text-tertiary)]">
+                    ~{grandTotal.secondary}
+                  </span>
+                )}
+              </span>
             </div>
           </div>
 
@@ -460,7 +489,7 @@ export default function OrderDetailPage() {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </Link>
-        <Link href="/dashboard/payments">
+        <Link href="/dashboard/invoices">
           <Button variant="ghost" size="sm" className="text-[var(--text-tertiary)]">
             <FileText className="w-4 h-4" />
             View Invoices

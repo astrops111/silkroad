@@ -91,11 +91,22 @@ export async function getBuyerMonthlySpend(companyId: string, months = 12): Prom
 export async function getBuyerTopSuppliers(companyId: string, limit = 5): Promise<TopSupplier[]> {
   const supabase = await createClient();
 
-  const { data: supplierOrders } = await supabase
-    .from("supplier_orders")
-    .select("supplier_id, total_amount, purchase_orders!inner(buyer_company_id)")
-    .eq("purchase_orders.buyer_company_id", companyId)
-    .in("status", ["paid", "confirmed", "in_production", "delivered", "completed"]);
+  // No FK between supplier_orders and purchase_orders (both partitioned by
+  // created_at with a composite PK) — PostgREST can't embed/filter across
+  // them, so resolve the buyer's purchase_order_ids first.
+  const { data: buyerOrders } = await supabase
+    .from("purchase_orders")
+    .select("id")
+    .eq("buyer_company_id", companyId);
+  const buyerOrderIds = (buyerOrders ?? []).map((o) => o.id);
+
+  const { data: supplierOrders } = buyerOrderIds.length
+    ? await supabase
+        .from("supplier_orders")
+        .select("supplier_id, total_amount")
+        .in("purchase_order_id", buyerOrderIds)
+        .in("status", ["paid", "confirmed", "in_production", "delivered", "completed"])
+    : { data: [] as { supplier_id: string; total_amount: number }[] };
 
   const supplierMap = new Map<string, { total: number; count: number }>();
   for (const so of supplierOrders ?? []) {
@@ -201,10 +212,21 @@ export async function getSupplierMonthlyRevenue(companyId: string, months = 12):
 export async function getSupplierTopProducts(companyId: string, limit = 5) {
   const supabase = await createClient();
 
-  const { data: items } = await supabase
-    .from("supplier_order_items")
-    .select("product_id, product_name, quantity, subtotal, supplier_orders!inner(supplier_id)")
-    .eq("supplier_orders.supplier_id", companyId);
+  // No FK between supplier_order_items and supplier_orders (supplier_orders
+  // is partitioned by created_at with a composite PK, which blocks a plain
+  // FK from a child table) — resolve this company's order ids first.
+  const { data: companyOrders } = await supabase
+    .from("supplier_orders")
+    .select("id")
+    .eq("supplier_id", companyId);
+  const companyOrderIds = (companyOrders ?? []).map((o) => o.id);
+
+  const { data: items } = companyOrderIds.length
+    ? await supabase
+        .from("supplier_order_items")
+        .select("product_id, product_name, quantity, subtotal")
+        .in("supplier_order_id", companyOrderIds)
+    : { data: [] as { product_id: string; product_name: string; quantity: number; subtotal: number }[] };
 
   const productMap = new Map<string, { name: string; revenue: number; units: number }>();
   for (const item of items ?? []) {

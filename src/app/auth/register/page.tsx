@@ -55,7 +55,6 @@ function RegisterForm() {
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -119,32 +118,7 @@ function RegisterForm() {
       return;
     }
 
-    setSuccess(true);
-  }
-
-  if (success) {
-    return (
-      <Card className="border-[var(--border-subtle)] shadow-lg">
-        <CardContent className="pt-8 text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-            <UserPlus className="size-6 text-green-600" />
-          </div>
-          <h2 className="text-xl font-semibold">Check your email</h2>
-          <p className="text-sm text-[var(--text-tertiary)]">
-            We&apos;ve sent a verification link to{" "}
-            <strong>{formState.email}</strong>. Click the link to activate your
-            account.
-          </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => router.push("/auth/login")}
-          >
-            Go to login
-          </Button>
-        </CardContent>
-      </Card>
-    );
+    router.push(`/auth/verify?email=${encodeURIComponent(formState.email)}`);
   }
 
   return (

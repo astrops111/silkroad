@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { flutterwaveGateway } from "@/lib/payments/gateways/flutterwave";
 import { logWebhookDelivery } from "@/lib/logging/webhook";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { handleGatewayRefund, handleGatewayDispute, sumSucceededPaymentAmount } from "@/lib/payments/webhook-events";
+import { resolveOrderStatusAfterSuccess } from "@/lib/payments/deposit";
 
 const FLW_HASH = process.env.FLUTTERWAVE_WEBHOOK_HASH;
 
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const event = payload.event as string;
-  if (!event?.startsWith("charge.")) {
+  if (!event?.startsWith("charge.") && !event?.startsWith("chargeback.")) {
     return NextResponse.json({ received: true });
   }
 
@@ -77,6 +79,47 @@ export async function POST(req: NextRequest) {
   if (txErr || !tx) {
     console.error("[webhooks/flutterwave] No payment_transaction for tx_ref:", txRef, txErr?.message);
     return NextResponse.json({ received: true }); // 200 stops Flutterwave retrying
+  }
+
+  // Refund/chargeback events can arrive for a transaction that's already
+  // "succeeded" — these must run BEFORE the succeeded/failed idempotency
+  // skip below, which only guards the original payment-creation path.
+  if (result.status === "refunded" && tx.purchase_order_id) {
+    await handleGatewayRefund(supabase, {
+      gateway: "flutterwave",
+      txId: tx.id,
+      purchaseOrderId: tx.purchase_order_id,
+      rawEvent: result.rawResponse,
+    });
+    await logWebhookDelivery({
+      webhookType: "flutterwave",
+      eventType: result.eventType ?? event,
+      externalEventId: txRef,
+      httpStatusCode: 200,
+      processingTimeMs: Date.now() - startTime,
+      status: "delivered",
+    });
+    return NextResponse.json({ received: true });
+  }
+
+  if (result.status === "disputed" && tx.purchase_order_id && result.gatewayDisputeId) {
+    await handleGatewayDispute(supabase, {
+      gateway: "flutterwave",
+      purchaseOrderId: tx.purchase_order_id,
+      gatewayDisputeId: result.gatewayDisputeId,
+      amount: result.amount,
+      currency: result.currency,
+      reason: result.disputeReason,
+    });
+    await logWebhookDelivery({
+      webhookType: "flutterwave",
+      eventType: result.eventType ?? event,
+      externalEventId: result.gatewayDisputeId,
+      httpStatusCode: 200,
+      processingTimeMs: Date.now() - startTime,
+      status: "delivered",
+    });
+    return NextResponse.json({ received: true });
   }
 
   if (tx.status === "succeeded" || tx.status === "failed") {
@@ -138,16 +181,29 @@ export async function POST(req: NextRequest) {
     .update({ status: "succeeded", updated_at: now, raw_response: result.rawResponse as object })
     .eq("id", tx.id);
 
+  const { data: poForStatus } = await supabase
+    .from("purchase_orders")
+    .select("grand_total")
+    .eq("id", tx.purchase_order_id)
+    .single();
+  const totalSucceeded = poForStatus ? await sumSucceededPaymentAmount(supabase, tx.purchase_order_id) : (tx.amount as number);
+  const nextStatus = poForStatus ? resolveOrderStatusAfterSuccess(totalSucceeded, poForStatus.grand_total as number) : "paid";
+
   await supabase
     .from("purchase_orders")
-    .update({ status: "paid", updated_at: now })
+    .update({ status: nextStatus, updated_at: now })
     .eq("id", tx.purchase_order_id);
 
   // DB trigger fires on this update → enqueues order.payment_confirmed
+  // for both "paid" and "deposit_paid" (see 00121_pipeline_deposit_paid_trigger.sql)
   await supabase
     .from("supplier_orders")
-    .update({ status: "paid", updated_at: now })
+    .update({ status: nextStatus, updated_at: now })
     .eq("purchase_order_id", tx.purchase_order_id);
+
+  if (nextStatus === "deposit_paid") {
+    await supabase.from("payment_transactions").update({ deposit_paid_at: now }).eq("id", tx.id);
+  }
 
   console.log("[webhooks/flutterwave] Order paid:", tx.purchase_order_id, txRef);
 

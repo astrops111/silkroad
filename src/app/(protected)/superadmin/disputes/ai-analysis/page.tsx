@@ -58,13 +58,25 @@ const CONFIDENCE_CONFIG: Record<string, { color: string; icon: typeof CheckCircl
 /* ------------------------------------------------------------------ */
 
 export default function DisputeAIAnalysisPage() {
-  const [disputeId, setDisputeId] = useState("");
+  return (
+    <Suspense>
+      <DisputeAIAnalysis />
+    </Suspense>
+  );
+}
+
+function DisputeAIAnalysis() {
+  const searchParams = useSearchParams();
+  const prefillId = searchParams.get("disputeId") ?? "";
+
+  const [disputeId, setDisputeId] = useState(prefillId);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<DisputeAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const runAnalysis = async () => {
-    if (!disputeId.trim()) {
+  const runAnalysis = async (idOverride?: string) => {
+    const id = (idOverride ?? disputeId).trim();
+    if (!id) {
       toast.error("Enter a dispute ID");
       return;
     }
@@ -77,7 +89,7 @@ export default function DisputeAIAnalysisPage() {
       const res = await fetch("/api/admin/disputes/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ disputeId: disputeId.trim() }),
+        body: JSON.stringify({ disputeId: id }),
       });
 
       const data = await res.json();
@@ -95,6 +107,13 @@ export default function DisputeAIAnalysisPage() {
       setLoading(false);
     }
   };
+
+  // Arriving from a dispute's "AI Analysis" link (?disputeId=...) — run
+  // automatically instead of making the admin re-paste the UUID.
+  useEffect(() => {
+    if (prefillId) runAnalysis(prefillId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillId]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -150,7 +169,7 @@ export default function DisputeAIAnalysisPage() {
             }}
           />
           <button
-            onClick={runAnalysis}
+            onClick={() => runAnalysis()}
             disabled={loading || !disputeId.trim()}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold"
             style={{

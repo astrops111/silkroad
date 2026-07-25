@@ -32,6 +32,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { RegionPicker } from "@/components/ui/region-picker";
+import { useCartStore } from "@/stores/cart";
 
 type Subgroup = { label: string; href: string };
 type CategoryGroup = {
@@ -195,6 +196,27 @@ export function Navbar() {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
   const categoryStripRef = useRef<HTMLDivElement>(null);
+
+  const cartCount = useCartStore((s) => s.getItemCount());
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/messages")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.conversations) return;
+        const total = data.conversations.reduce(
+          (sum: number, c: { unreadCount?: number }) => sum + (c.unreadCount ?? 0),
+          0
+        );
+        setUnreadMessages(total);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const isSell =
     pathname.startsWith("/commodities") || pathname.startsWith("/request-export");
@@ -405,10 +427,15 @@ export function Navbar() {
               <Link
                 href="/dashboard/messages"
                 aria-label={t("inbox")}
-                className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+                className="hidden md:flex relative flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 <MessageSquare className="w-5 h-5" />
                 <span className="text-[10px] mt-0.5">{t("inbox")}</span>
+                {unreadMessages > 0 && (
+                  <span className="absolute top-0.5 right-1.5 w-4 h-4 bg-[var(--terracotta)] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </span>
+                )}
               </Link>
 
               <Link
@@ -444,9 +471,11 @@ export function Navbar() {
               >
                 <ShoppingCart className="w-5 h-5" />
                 <span className="hidden md:inline text-[10px] mt-0.5">{t("cart")}</span>
-                <span className="absolute top-0.5 right-1.5 w-4 h-4 bg-[var(--terracotta)] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  3
-                </span>
+                {cartCount > 0 && (
+                  <span className="absolute top-0.5 right-1.5 w-4 h-4 bg-[var(--terracotta)] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
               </Link>
 
               <button
@@ -638,11 +667,18 @@ export function Navbar() {
             </p>
             <Link
               href="/dashboard/messages"
-              className="flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
+              className="flex items-center justify-between gap-3 px-4 py-3 text-[15px] font-medium text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
               onClick={() => setMobileOpen(false)}
             >
-              <MessageSquare className="w-4 h-4 text-[var(--text-tertiary)]" />
-              {t("inbox")}
+              <span className="flex items-center gap-3">
+                <MessageSquare className="w-4 h-4 text-[var(--text-tertiary)]" />
+                {t("inbox")}
+              </span>
+              {unreadMessages > 0 && (
+                <span className="w-5 h-5 bg-[var(--terracotta)] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                </span>
+              )}
             </Link>
             <Link
               href="/dashboard/saved"

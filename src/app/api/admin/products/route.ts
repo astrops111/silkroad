@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     `,
       { count: "exact" }
     )
-    .order("created_at", { ascending: false })
+    .order("name", { ascending: true })
     .range(offset, offset + limit - 1);
 
   if (status) {

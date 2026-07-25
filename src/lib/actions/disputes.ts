@@ -32,15 +32,23 @@ export async function openDispute(
 
   // Derive purchase order / company IDs server-side from the order itself —
   // never trust client-supplied IDs for who's opening the dispute against whom.
+  // Two-step fetch: supplier_orders and purchase_orders have no FK between
+  // them (both partitioned by created_at with a composite PK), so PostgREST
+  // can't embed across them.
   const { data: supplierOrder } = await supabase
     .from("supplier_orders")
-    .select("id, supplier_id, purchase_order_id, purchase_orders!inner(buyer_company_id, buyer_user_id)")
+    .select("id, supplier_id, purchase_order_id")
     .eq("id", supplierOrderId)
     .single();
 
   if (!supplierOrder) return { success: false, error: "Order not found" };
 
-  const purchaseOrder = supplierOrder.purchase_orders[0];
+  const { data: purchaseOrder } = await supabase
+    .from("purchase_orders")
+    .select("buyer_company_id, buyer_user_id")
+    .eq("id", supplierOrder.purchase_order_id)
+    .single();
+
   if (!purchaseOrder || purchaseOrder.buyer_user_id !== profile.id) {
     return { success: false, error: "You do not have access to this order" };
   }

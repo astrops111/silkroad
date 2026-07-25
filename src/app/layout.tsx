@@ -36,7 +36,7 @@ export default async function RootLayout({
   const dir = rtlLocales.includes(locale as Locale) ? "rtl" : "ltr";
 
   return (
-    <html lang={locale} dir={dir} className="h-full antialiased">
+    <html lang={locale} dir={dir} className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
           <Providers>

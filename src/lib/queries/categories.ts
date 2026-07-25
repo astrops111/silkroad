@@ -3,6 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import type { Tables } from "@/lib/supabase/database.types";
+import { getProductOriginMap, getProductIdsByUseCase } from "./marketplace";
 
 export type Category = Tables<"categories">;
 export type CategoryWithChildren = Category & {
@@ -111,16 +112,38 @@ export async function getAdminCategoryTree(): Promise<CategoryWithChildren[]> {
   return roots;
 }
 
-export async function getCategoryProductCounts(): Promise<Record<string, number>> {
-  return getCategoryProductCountsCached();
+export type CategoryCountScope = {
+  originCountries?: string[];
+  brands?: string[];
+  useCaseSlugs?: string[];
+};
+
+/** Per-category product counts. Pass `scope` to cross-filter against an
+ *  active region/brand/use-case selection (e.g. selecting Korea narrows
+ *  every category's count to that region) — omit it for the unfiltered
+ *  counts admin views and category tickers use. */
+export async function getCategoryProductCounts(
+  scope?: CategoryCountScope
+): Promise<Record<string, number>> {
+  return getCategoryProductCountsCached(scope?.originCountries, scope?.brands, scope?.useCaseSlugs);
 }
 
 // Full-catalog scan (category_id over 15k+ products) that previously ran on
 // every marketplace/home render — cached (300s) via the cookieless service
 // client to stop the repeated full-table egress.
 const getCategoryProductCountsCached = unstable_cache(
-  async (): Promise<Record<string, number>> => {
+  async (
+    originCountries?: string[],
+    brands?: string[],
+    useCaseSlugs?: string[]
+  ): Promise<Record<string, number>> => {
     const supabase = createServiceClient();
+    const [originMap, useCaseIds] = await Promise.all([
+      originCountries && originCountries.length > 0 ? getProductOriginMap() : Promise.resolve(null),
+      useCaseSlugs && useCaseSlugs.length > 0 ? getProductIdsByUseCase(useCaseSlugs) : Promise.resolve(null),
+    ]);
+    const useCaseSet = useCaseIds ? new Set(useCaseIds) : null;
+
     // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
     // products, so this must be paginated or counts are silently truncated.
     const counts: Record<string, number> = {};
@@ -129,13 +152,23 @@ const getCategoryProductCountsCached = unstable_cache(
     for (;;) {
       const { data } = await supabase
         .from("products")
-        .select("category_id")
+        .select("id, category_id, brand")
+        .eq("moderation_status", "approved")
+        .eq("is_active", true)
         .not("category_id", "is", null)
         .range(from, from + PAGE - 1);
       if (!data || data.length === 0) break;
-      for (const row of data) {
-        const id = (row as { category_id: string | null }).category_id;
-        if (id) counts[id] = (counts[id] ?? 0) + 1;
+      for (const row of data as { id: string; category_id: string | null; brand: string | null }[]) {
+        if (!row.category_id) continue;
+        if (originCountries && originCountries.length > 0) {
+          const country = originMap?.[row.id];
+          if (!country || !originCountries.includes(country)) continue;
+        }
+        if (brands && brands.length > 0) {
+          if (!row.brand || !brands.includes(row.brand)) continue;
+        }
+        if (useCaseSet && !useCaseSet.has(row.id)) continue;
+        counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
       }
       if (data.length < PAGE) break;
       from += PAGE;
@@ -148,10 +181,12 @@ const getCategoryProductCountsCached = unstable_cache(
 
 export type TopCategoryWithCount = Category & { productCount: number };
 
-export async function getTopLevelCategoriesWithCount(): Promise<TopCategoryWithCount[]> {
+export async function getTopLevelCategoriesWithCount(
+  scope?: CategoryCountScope
+): Promise<TopCategoryWithCount[]> {
   const [all, directCounts] = await Promise.all([
     getCategories(),
-    getCategoryProductCounts(),
+    getCategoryProductCounts(scope),
   ]);
 
   const parentOf = new Map<string, string | null>();

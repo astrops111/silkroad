@@ -114,7 +114,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/quotes/${id}/accept`, { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? "Failed to accept quote");
-      router.push(`/quotes/${id}/pay?orderId=${data.orderId}`);
+      router.push(`/orders/${data.orderId}/pay`);
     } catch (e) {
       setError((e as Error).message);
       setAccepting(false);
@@ -338,7 +338,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         {canGoToPay && (
           <div className="flex gap-3">
             <Link
-              href={`/quotes/${id}/pay?orderId=${quote.purchase_order_id}`}
+              href={`/orders/${quote.purchase_order_id}/pay`}
               className="btn-primary flex-1 text-center !py-4 text-base"
             >
               Go to Payment

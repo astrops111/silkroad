@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { getPublicSuppliers } from "@/lib/queries/supplier";
+import { getCurrentUser } from "@/lib/queries/user";
+import { canBuy, canSupply } from "@/lib/company-access";
 import { Badge } from "@/components/ui/badge";
 import {
   Star,
@@ -13,6 +16,16 @@ import {
 } from "lucide-react";
 
 export default async function SuppliersPage() {
+  // The supplier directory is hidden from buyer-only accounts — buyers
+  // source through the marketplace/RFQ flow, not by browsing suppliers.
+  // Accounts that can also supply (type "supplier" or "both") keep access.
+  const user = await getCurrentUser();
+  const memberships = user?.company_members ?? [];
+  const isBuyerOnly =
+    memberships.some((m) => canBuy(m.companies?.type)) &&
+    !memberships.some((m) => canSupply(m.companies?.type));
+  if (isBuyerOnly) redirect("/marketplace");
+
   let suppliers: {
     id: string;
     name: string;

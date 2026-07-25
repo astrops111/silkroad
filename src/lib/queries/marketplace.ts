@@ -441,36 +441,84 @@ async function fetchAllRows<T>(
   return all;
 }
 
+const getProductOriginMapCached = unstable_cache(
+  async (): Promise<Record<string, string | null>> => {
+    const supabase = createServiceClient();
+    const rows = await fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
+      supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
+    );
+    const map: Record<string, string | null> = {};
+    for (const r of rows) {
+      if (r.id) map[r.id] = r.resolved_country;
+    }
+    return map;
+  },
+  ["marketplace-origin-map"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
+/** Product id -> resolved origin country. Shared by every facet that needs to
+ *  cross-filter against an active region selection (category counts, brand,
+ *  use-case) without each re-scanning products_with_origin separately. */
+export async function getProductOriginMap(): Promise<Record<string, string | null>> {
+  return getProductOriginMapCached();
+}
+
+const getProductIdsByUseCaseCached = unstable_cache(
+  async (slugs: string[]): Promise<string[]> => {
+    const supabase = createServiceClient();
+    return resolveProductIdsByUseCase(supabase, slugs);
+  },
+  ["marketplace-usecase-product-ids"],
+  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
+);
+
+/** Product ids carrying any of the given use_case label slugs — cached so
+ *  category counts can cross-filter against an active "Use" selection too. */
+export async function getProductIdsByUseCase(slugs: string[]): Promise<string[]> {
+  if (slugs.length === 0) return [];
+  return getProductIdsByUseCaseCached(slugs);
+}
+
 const getCountryFacetsCached = unstable_cache(
-  async (categoryIds?: string[]): Promise<Record<string, number>> => {
+  async (
+    categoryIds?: string[],
+    brands?: string[],
+    useCaseSlugs?: string[]
+  ): Promise<Record<string, number>> => {
     const supabase = createServiceClient();
     // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
-    // products, so both queries must be paginated or counts are silently
+    // products, so queries must be paginated or counts are silently
     // truncated to whatever happened to be in the first page.
-    const [origins, activeProducts] = await Promise.all([
-      fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
-        supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
-      ),
-      fetchAllRows<{ id: string }>((from, to) => {
+    const [originMap, activeProducts, useCaseIds] = await Promise.all([
+      getProductOriginMapCached(),
+      fetchAllRows<{ id: string; brand: string | null }>((from, to) => {
         let q = supabase
           .from("products")
-          .select("id")
+          .select("id, brand")
           .eq("moderation_status", "approved")
           .eq("is_active", true);
         if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
+        if (brands && brands.length > 0) q = q.in("brand", brands);
         return q.range(from, to);
       }),
+      useCaseSlugs && useCaseSlugs.length > 0
+        ? resolveProductIdsByUseCase(supabase, useCaseSlugs)
+        : Promise.resolve(null),
     ]);
 
-    const activeIds = new Set(activeProducts.map((p) => p.id));
+    const useCaseSet = useCaseIds ? new Set(useCaseIds) : null;
+    const activeIds = new Set(
+      activeProducts.filter((p) => !useCaseSet || useCaseSet.has(p.id)).map((p) => p.id)
+    );
     const counts: Record<string, number> = Object.fromEntries(
       MARKETPLACE_COUNTRIES.map((code) => [code, 0])
     );
 
-    for (const row of origins) {
-      if (!row.id || !activeIds.has(row.id)) continue;
-      if (!isMarketplaceCountry(row.resolved_country)) continue;
-      counts[row.resolved_country] = (counts[row.resolved_country] ?? 0) + 1;
+    for (const [id, country] of Object.entries(originMap)) {
+      if (!activeIds.has(id)) continue;
+      if (!isMarketplaceCountry(country)) continue;
+      counts[country] = (counts[country] ?? 0) + 1;
     }
 
     return counts;
@@ -479,29 +527,51 @@ const getCountryFacetsCached = unstable_cache(
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
-/** Region filter facet, optionally scoped to a category selection. */
-export async function getCountryFacets(categoryIds?: string[]): Promise<Record<string, number>> {
-  return getCountryFacetsCached(categoryIds);
+/** Region filter facet, scoped to the current category selection plus any
+ *  active brand/use-case filters — so picking a brand or use-case narrows
+ *  which regions show up here too. */
+export async function getCountryFacets(
+  categoryIds?: string[],
+  brands?: string[],
+  useCaseSlugs?: string[]
+): Promise<Record<string, number>> {
+  return getCountryFacetsCached(categoryIds, brands, useCaseSlugs);
 }
 
 const getBrandFacetsCached = unstable_cache(
-  async (categoryIds?: string[]): Promise<Record<string, number>> => {
+  async (
+    categoryIds?: string[],
+    countries?: string[],
+    useCaseSlugs?: string[]
+  ): Promise<Record<string, number>> => {
     const supabase = createServiceClient();
-    const rows = await fetchAllRows<{ brand: string | null }>((from, to) => {
-      let q = supabase
-        .from("products")
-        .select("brand")
-        .eq("moderation_status", "approved")
-        .eq("is_active", true)
-        .not("brand", "is", null);
-      if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
-      return q.range(from, to);
-    });
+    const [rows, originMap, useCaseIds] = await Promise.all([
+      fetchAllRows<{ id: string; brand: string | null }>((from, to) => {
+        let q = supabase
+          .from("products")
+          .select("id, brand")
+          .eq("moderation_status", "approved")
+          .eq("is_active", true)
+          .not("brand", "is", null);
+        if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
+        return q.range(from, to);
+      }),
+      countries && countries.length > 0 ? getProductOriginMapCached() : Promise.resolve(null),
+      useCaseSlugs && useCaseSlugs.length > 0
+        ? resolveProductIdsByUseCase(supabase, useCaseSlugs)
+        : Promise.resolve(null),
+    ]);
 
+    const useCaseSet = useCaseIds ? new Set(useCaseIds) : null;
     const counts: Record<string, number> = {};
     for (const row of rows) {
       const brand = row.brand;
       if (!brand) continue;
+      if (countries && countries.length > 0) {
+        const country = originMap?.[row.id];
+        if (!country || !countries.includes(country)) continue;
+      }
+      if (useCaseSet && !useCaseSet.has(row.id)) continue;
       counts[brand] = (counts[brand] ?? 0) + 1;
     }
     return counts;
@@ -510,16 +580,25 @@ const getBrandFacetsCached = unstable_cache(
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
-/** Brand filter facet, optionally scoped to a category selection (so
- *  browsing Consumer Electronics doesn't surface unrelated Beauty brands). */
-export async function getBrandFacets(categoryIds?: string[]): Promise<Record<string, number>> {
-  return getBrandFacetsCached(categoryIds);
+/** Brand filter facet, scoped to the current category selection plus any
+ *  active region/use-case filters (so selecting Korea doesn't leave brands
+ *  listed that have zero products in that region). */
+export async function getBrandFacets(
+  categoryIds?: string[],
+  countries?: string[],
+  useCaseSlugs?: string[]
+): Promise<Record<string, number>> {
+  return getBrandFacetsCached(categoryIds, countries, useCaseSlugs);
 }
 
 export type UseCaseFacet = { slug: string; name: string; count: number };
 
 const getUseCaseFacetsCached = unstable_cache(
-  async (categoryIds?: string[]): Promise<UseCaseFacet[]> => {
+  async (
+    categoryIds?: string[],
+    countries?: string[],
+    brands?: string[]
+  ): Promise<UseCaseFacet[]> => {
     const supabase = createServiceClient();
     const { data: labelRows } = await supabase
       .from("labels")
@@ -529,7 +608,7 @@ const getUseCaseFacetsCached = unstable_cache(
     if (labels.length === 0) return [];
     const labelIds = labels.map((l) => l.id);
 
-    const [pairs, activeProducts] = await Promise.all([
+    const [pairs, activeProducts, originMap] = await Promise.all([
       fetchAllRows<{ product_id: string; label_id: string }>((from, to) =>
         supabase.from("product_labels").select("product_id, label_id").in("label_id", labelIds).range(from, to)
       ),
@@ -540,11 +619,21 @@ const getUseCaseFacetsCached = unstable_cache(
           .eq("moderation_status", "approved")
           .eq("is_active", true);
         if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
+        if (brands && brands.length > 0) q = q.in("brand", brands);
         return q.range(from, to);
       }),
+      countries && countries.length > 0 ? getProductOriginMapCached() : Promise.resolve(null),
     ]);
 
-    const activeIds = new Set(activeProducts.map((p) => p.id));
+    const activeIds = new Set(
+      activeProducts
+        .filter((p) => {
+          if (!countries || countries.length === 0) return true;
+          const country = originMap?.[p.id];
+          return !!country && countries.includes(country);
+        })
+        .map((p) => p.id)
+    );
     const counts: Record<string, number> = {};
     for (const pair of pairs) {
       if (!activeIds.has(pair.product_id)) continue;
@@ -560,10 +649,15 @@ const getUseCaseFacetsCached = unstable_cache(
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
-/** "Use" filter facet — buyer-facing labels like Gaming / Business & Office,
- *  optionally scoped to a category selection. */
-export async function getUseCaseFacets(categoryIds?: string[]): Promise<UseCaseFacet[]> {
-  return getUseCaseFacetsCached(categoryIds);
+/** "Use" filter facet — buyer-facing labels like Gaming / Business & Office —
+ *  scoped to the current category selection plus any active region/brand
+ *  filters. */
+export async function getUseCaseFacets(
+  categoryIds?: string[],
+  countries?: string[],
+  brands?: string[]
+): Promise<UseCaseFacet[]> {
+  return getUseCaseFacetsCached(categoryIds, countries, brands);
 }
 
 export async function getFeaturedProducts(limit = 8) {

@@ -282,7 +282,7 @@ function FAQ() {
     },
     {
       q: "Can I talk to the supplier directly?",
-      a: "No — Silk Road Africa is the single party on every order. This keeps pricing consistent, protects you from supplier disputes, and makes us accountable for the whole delivery.",
+      a: "Yes — use the \"Contact Supplier\" button on any supplier's storefront or product page to ask questions before you order. For the order itself, Silk Road Africa remains the accountable party: payment, disputes, and delivery all run through us, which keeps pricing consistent and protects you if something goes wrong.",
     },
     {
       q: "What currencies can I pay in?",

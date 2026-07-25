@@ -12,6 +12,8 @@ import {
   ArrowUpRight,
   Filter,
 } from "lucide-react";
+import { useRegion } from "@/lib/providers/region-provider";
+import { formatDualCurrency, convertSync } from "@/lib/currency/formatter";
 
 interface PaymentTransaction {
   id: string;
@@ -32,6 +34,9 @@ const GATEWAY_CONFIG: Record<string, { label: string; icon: typeof CreditCard; c
   bank_transfer: { label: "Bank Transfer", icon: Building2, color: "var(--text-tertiary)" },
   alipay: { label: "Alipay", icon: CreditCard, color: "var(--info)" },
   wechat_pay: { label: "WeChat Pay", icon: CreditCard, color: "var(--success)" },
+  flutterwave: { label: "Flutterwave", icon: CreditCard, color: "var(--warning)" },
+  tigo_cash: { label: "Tigo Cash", icon: Smartphone, color: "var(--indigo)" },
+  xtransfer: { label: "XTransfer", icon: Building2, color: "var(--terracotta)" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
@@ -43,6 +48,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 };
 
 export default function PaymentsPage() {
+  const region = useRegion();
   const [payments, setPayments] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -57,9 +63,12 @@ export default function PaymentsPage() {
 
   const filtered = filter === "all" ? payments : payments.filter((p) => p.status === filter);
 
+  // Transactions can be in different currencies — normalize to USD before
+  // summing so the total isn't a meaningless mix of currency units.
   const totalPaid = payments
     .filter((p) => p.status === "succeeded")
-    .reduce((s, p) => s + p.amount, 0);
+    .reduce((s, p) => s + convertSync(p.amount, p.currency, "USD"), 0);
+  const totalPaidDisplay = formatDualCurrency(totalPaid, "USD", region.currency);
 
   return (
     <div className="space-y-6">
@@ -76,8 +85,13 @@ export default function PaymentsPage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl border" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
           <p className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>
-            ${(totalPaid / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {totalPaidDisplay.primary}
           </p>
+          {totalPaidDisplay.secondary && (
+            <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              ~{totalPaidDisplay.secondary}
+            </p>
+          )}
           <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>Total Paid</p>
         </div>
         <div className="p-5 rounded-2xl border" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
@@ -127,6 +141,7 @@ export default function PaymentsPage() {
               const st = STATUS_CONFIG[tx.status] || STATUS_CONFIG.pending;
               const GwIcon = gw.icon;
               const StIcon = st.icon;
+              const price = formatDualCurrency(tx.amount, tx.currency, region.currency);
 
               return (
                 <div key={tx.id} className="flex items-center gap-4 px-5 py-4">
@@ -141,8 +156,13 @@ export default function PaymentsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-                      {tx.currency} {(tx.amount / 100).toFixed(2)}
+                      {price.primary}
                     </p>
+                    {price.secondary && (
+                      <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                        ~{price.secondary}
+                      </p>
+                    )}
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold" style={{ color: st.color }}>
                       <StIcon className="w-3 h-3" /> {st.label}
                     </span>

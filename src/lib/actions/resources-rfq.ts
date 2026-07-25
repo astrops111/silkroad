@@ -1,6 +1,6 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getCallerTierStatus, PaidTierRequiredError } from "@/lib/auth/tier";
 
@@ -11,12 +11,12 @@ type ActionResult<T = undefined> = {
   code?: "unauthorized" | "paid_tier_required" | "invalid_input" | "db_error";
 };
 
+// Same format as the dashboard RFQ path (src/app/api/rfqs/route.ts) so RFQ
+// numbers look consistent regardless of which entry point created them.
 function rfqNumber() {
-  const d = new Date();
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const suffix = randomUUID().slice(0, 8).toUpperCase();
-  return `RFQ-R-${y}${m}-${suffix}`;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = randomBytes(3).toString("hex").toUpperCase().substring(0, 6);
+  return `RFQ-${date}-${rand}`;
 }
 
 function quotationNumber() {
@@ -175,6 +175,21 @@ export async function submitResourceQuote(
     .single();
   if (!profile) return { success: false, error: "Profile missing", code: "unauthorized" };
 
+  // Same guard as the dashboard quotation path (/api/quotations) — never let
+  // a quote land against a closed RFQ or one past its deadline.
+  const { data: rfq } = await supabase
+    .from("rfqs")
+    .select("id, title, status, deadline")
+    .eq("id", input.rfqId)
+    .single();
+
+  if (!rfq || !["open", "quoted"].includes(rfq.status)) {
+    return { success: false, error: "RFQ is not open for quotations", code: "invalid_input" };
+  }
+  if (rfq.deadline && new Date(rfq.deadline) < new Date()) {
+    return { success: false, error: "RFQ deadline has passed", code: "invalid_input" };
+  }
+
   const totalAmountMinor = Math.round(input.unitPriceUsd * input.quantity * 100);
 
   const { data, error } = await supabase
@@ -214,6 +229,20 @@ export async function submitResourceQuote(
     }
     return { success: false, error: error.message, code: "db_error" };
   }
+
+  // Resource RFQs are single-commodity, so this is always exactly one line
+  // item — but it still has to exist for invoicing/settlement/dispute-evidence
+  // to find anything when the order this quote converts into is looked up.
+  await supabase.from("quotation_items").insert({
+    quotation_id: data.id,
+    product_name: rfq.title,
+    quantity: input.quantity,
+    unit: input.unitOfMeasure,
+    unit_price: Math.round(input.unitPriceUsd * 100),
+    total_price: totalAmountMinor,
+    lead_time_days: input.leadTimeDays ?? null,
+    sort_order: 0,
+  });
 
   return { success: true, data };
 }

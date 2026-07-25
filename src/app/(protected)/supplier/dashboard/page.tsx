@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   DollarSign,
@@ -126,6 +127,7 @@ function StatusBadge({ status }: { status: string }) {
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 export default function SupplierDashboard() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -407,6 +409,7 @@ export default function SupplierDashboard() {
                   {recentOrders.map((order) => (
                     <tr
                       key={order.id}
+                      onClick={() => router.push(`/supplier/orders/${order.id}`)}
                       className="transition-colors cursor-pointer"
                       style={{ borderBottom: "1px solid var(--border-subtle)" }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}

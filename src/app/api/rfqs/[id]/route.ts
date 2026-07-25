@@ -38,7 +38,7 @@ export async function GET(
        buyer_company_name, created_at, updated_at,
        categories ( name ),
        rfq_items (
-         id, product_name, description, quantity, unit,
+         id, product_id, variant_id, product_name, description, quantity, unit,
          target_unit_price, specifications, hs_code, sort_order
        ),
        quotations (

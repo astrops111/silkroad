@@ -27,17 +27,12 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(50, parseInt(searchParams.get("limit") ?? "20", 10));
   const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
+  // Manual multi-step fetch instead of a PostgREST embed: supplier_orders has
+  // no FK to purchase_orders (both are RANGE-partitioned by created_at with a
+  // composite PK, so PostgREST can't embed across them).
   let query = supabase
     .from("purchase_orders")
-    .select(
-      `id, order_number, status, currency, grand_total, created_at,
-       supplier_orders (
-         id, supplier_id, status, total_amount,
-         companies ( name ),
-         supplier_order_items ( product_name, quantity )
-       )`,
-      { count: "exact" }
-    )
+    .select(`id, order_number, status, currency, grand_total, created_at`, { count: "exact" })
     .eq("buyer_user_id", profile.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -45,14 +40,60 @@ export async function GET(request: NextRequest) {
   if (status) query = query.eq("status", status);
   if (search) query = query.ilike("order_number", `%${search}%`);
 
-  const { data, error, count } = await query;
+  const { data: orders, error, count } = await query;
 
   if (error) {
     console.error("[orders/GET]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ orders: data ?? [], total: count ?? 0, limit, offset });
+  const poIds = (orders ?? []).map((o) => o.id);
+  const { data: supplierOrders } = poIds.length
+    ? await supabase
+        .from("supplier_orders")
+        .select("id, purchase_order_id, supplier_id, status, total_amount")
+        .in("purchase_order_id", poIds)
+    : { data: [] as { id: string; purchase_order_id: string; supplier_id: string; status: string; total_amount: number }[] };
+
+  const soIds = (supplierOrders ?? []).map((so) => so.id);
+  const supplierIds = [...new Set((supplierOrders ?? []).map((so) => so.supplier_id))];
+
+  const [{ data: companies }, { data: items }] = await Promise.all([
+    supplierIds.length
+      ? supabase.from("companies").select("id, name").in("id", supplierIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    soIds.length
+      ? supabase.from("supplier_order_items").select("supplier_order_id, product_name, quantity").in("supplier_order_id", soIds)
+      : Promise.resolve({ data: [] as { supplier_order_id: string; product_name: string; quantity: number }[] }),
+  ]);
+
+  const companyById = new Map((companies ?? []).map((c) => [c.id, c]));
+  const itemsBySo = new Map<string, typeof items>();
+  for (const item of items ?? []) {
+    const list = itemsBySo.get(item.supplier_order_id) ?? [];
+    list.push(item);
+    itemsBySo.set(item.supplier_order_id, list);
+  }
+  const soByPo = new Map<string, typeof supplierOrders>();
+  for (const so of supplierOrders ?? []) {
+    const list = soByPo.get(so.purchase_order_id) ?? [];
+    list.push(so);
+    soByPo.set(so.purchase_order_id, list);
+  }
+
+  const fullOrders = (orders ?? []).map((o) => ({
+    ...o,
+    supplier_orders: (soByPo.get(o.id) ?? []).map((so) => ({
+      id: so.id,
+      supplier_id: so.supplier_id,
+      status: so.status,
+      total_amount: so.total_amount,
+      companies: companyById.get(so.supplier_id) ?? null,
+      supplier_order_items: itemsBySo.get(so.id) ?? [],
+    })),
+  }));
+
+  return NextResponse.json({ orders: fullOrders, total: count ?? 0, limit, offset });
 }
 import { onOrderPlacedOpsNotify } from "@/lib/email/events";
 import {
@@ -380,6 +421,9 @@ export async function POST(request: NextRequest) {
   }[] = [];
 
   for (const soData of groupOrdersData) {
+    // shippingAddresses is keyed by supplierId (see createOrderSchema/BuyNowDialog) —
+    // one destination per shipping group's supplier.
+    const addr = (shippingAddresses as Record<string, Record<string, unknown>> | undefined)?.[soData.supplier_id];
     const { data: so, error: soError } = await supabase
       .from("supplier_orders")
       .insert({
@@ -393,6 +437,10 @@ export async function POST(request: NextRequest) {
         currency: soData.currency,
         payment_gateway: soData.payment_gateway,
         status: "pending_payment",
+        ship_to_country: (addr?.country as string) ?? profile.country_code ?? null,
+        ship_to_city: (addr?.city as string) ?? null,
+        ship_to_address: (addr?.address as string) ?? null,
+        recipient_phone: (addr?.phone as string) ?? phoneNumber ?? null,
       })
       .select("id")
       .single();

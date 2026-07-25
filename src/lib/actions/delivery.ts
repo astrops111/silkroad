@@ -46,7 +46,7 @@ export async function confirmDelivery(
     from_status: order.status,
     to_status: "delivered",
     changed_by: confirmedBy,
-    note: "Delivery confirmed by buyer",
+    reason: "Delivery confirmed by buyer",
   });
 
   // Check if all supplier orders for this purchase order are delivered

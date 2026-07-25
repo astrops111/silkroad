@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCartStore } from "@/stores/cart";
+import { useSavedStore } from "@/stores/saved";
 import {
   Star,
   Heart,
@@ -24,6 +25,8 @@ import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { regionMeta } from "@/lib/product-labels";
 import { applyMarkup } from "@/lib/pricing";
+import BuyNowDialog from "@/components/checkout/BuyNowDialog";
+import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 
 interface ProductData {
   id: string;
@@ -97,6 +100,7 @@ interface VariantData {
   name: string;
   optionSize: string | null;
   optionShade: string | null;
+  optionVariant3: string | null;
   janCode: string | null;
   moq: number;
   boxPackQty: number | null;
@@ -229,8 +233,28 @@ export default function ProductDetailClient({
     "description" | "specs" | "certifications"
   >("description");
   const [addedToCart, setAddedToCart] = useState(false);
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
 
   const addItem = useCartStore((s) => s.addItem);
+  const addSaved = useSavedStore((s) => s.addItem);
+  const removeSaved = useSavedStore((s) => s.removeItem);
+  const isProductSaved = useSavedStore((s) => s.isSaved(product.id));
+
+  function handleToggleSaved() {
+    if (isProductSaved) {
+      removeSaved(product.id);
+    } else {
+      addSaved({
+        productId: product.id,
+        productName: product.name,
+        supplierId: product.supplierId,
+        supplierName: product.supplierName,
+        imageUrl: effectiveImages[0]?.url ?? null,
+        basePrice: product.basePrice,
+        currency: product.currency,
+      });
+    }
+  }
 
   function selectVariant(variantId: string) {
     setSelectedVariantId(variantId);
@@ -245,9 +269,11 @@ export default function ProductDetailClient({
     router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
   }
 
-  // Structured 2-axis variants (e.g. Size + Shade). Legacy single-axis variants
-  // leave optionSize/optionShade null and fall back to the flat selector below.
-  const hasAxes = variants.some((v) => v.optionSize || v.optionShade);
+  // Structured 2- or 3-axis variants (e.g. Size + Shade, or + a free-label 3rd
+  // axis like switch type — see migration 00117). Legacy single-axis variants
+  // leave optionSize/optionShade/optionVariant3 null and fall back to the flat
+  // selector below.
+  const hasAxes = variants.some((v) => v.optionSize || v.optionShade || v.optionVariant3);
   const shadeNum = (s: string) => {
     const m = s.match(/#\s*(\d+)/);
     return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
@@ -262,13 +288,18 @@ export default function ProductDetailClient({
         ),
       ].sort((a, b) => shadeNum(a) - shadeNum(b) || a.localeCompare(b))
     : [];
-  // Resolve an (size, shade) selection to a concrete variant, tolerating an axis
-  // that doesn't exist for the other's current value by falling back sensibly.
-  function selectAxis(size: string | null, shade: string | null) {
+  const variant3Options = hasAxes
+    ? [...new Set(variants.map((v) => v.optionVariant3).filter((s): s is string => Boolean(s)))]
+    : [];
+  // Resolve a (size, shade, variant3) selection to a concrete variant, tolerating
+  // an axis that doesn't exist for the others' current values by falling back sensibly.
+  function selectAxis(size: string | null, shade: string | null, variant3: string | null) {
     const target =
+      variants.find((v) => v.optionSize === size && v.optionShade === shade && v.optionVariant3 === variant3) ??
       variants.find((v) => v.optionSize === size && v.optionShade === shade) ??
       variants.find((v) => v.optionSize === size) ??
-      variants.find((v) => v.optionShade === shade);
+      variants.find((v) => v.optionShade === shade) ??
+      variants.find((v) => v.optionVariant3 === variant3);
     if (target) selectVariant(target.id);
   }
 
@@ -392,10 +423,19 @@ export default function ProductDetailClient({
 
                   <div className="absolute top-4 right-4 flex gap-2">
                     <button
-                      aria-label="Save to wishlist"
+                      type="button"
+                      aria-label={isProductSaved ? "Remove from wishlist" : "Save to wishlist"}
+                      aria-pressed={isProductSaved}
+                      onClick={handleToggleSaved}
                       className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
                     >
-                      <Heart className="w-4 h-4 text-[var(--text-secondary)]" />
+                      <Heart
+                        className={`w-4 h-4 ${
+                          isProductSaved
+                            ? "text-[var(--terracotta)] fill-[var(--terracotta)]"
+                            : "text-[var(--text-secondary)]"
+                        }`}
+                      />
                     </button>
                     <button
                       aria-label="Share"
@@ -481,7 +521,7 @@ export default function ProductDetailClient({
                         options={sizeOptions}
                         value={currentVariant?.optionSize ?? null}
                         onSelect={(v) =>
-                          selectAxis(v, currentVariant?.optionShade ?? null)
+                          selectAxis(v, currentVariant?.optionShade ?? null, currentVariant?.optionVariant3 ?? null)
                         }
                       />
                     )}
@@ -491,7 +531,17 @@ export default function ProductDetailClient({
                         options={shadeOptions}
                         value={currentVariant?.optionShade ?? null}
                         onSelect={(v) =>
-                          selectAxis(currentVariant?.optionSize ?? null, v)
+                          selectAxis(currentVariant?.optionSize ?? null, v, currentVariant?.optionVariant3 ?? null)
+                        }
+                      />
+                    )}
+                    {variant3Options.length > 1 && (
+                      <VariantAxis
+                        label="Variant"
+                        options={variant3Options}
+                        value={currentVariant?.optionVariant3 ?? null}
+                        onSelect={(v) =>
+                          selectAxis(currentVariant?.optionSize ?? null, currentVariant?.optionShade ?? null, v)
                         }
                       />
                     )}
@@ -703,6 +753,15 @@ export default function ProductDetailClient({
                     <ShoppingCart className="w-4 h-4" />
                     {addedToCart ? "Added to cart" : "Place order"}
                   </button>
+                  {CHECKOUT_FEATURES.buyNow && (
+                    <button
+                      className="btn-secondary flex-1 justify-center"
+                      onClick={() => setBuyNowOpen(true)}
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      Buy Now
+                    </button>
+                  )}
                   <button
                     className="btn-secondary flex-1 justify-center opacity-50 cursor-not-allowed"
                     disabled
@@ -712,6 +771,22 @@ export default function ProductDetailClient({
                     Request quote
                   </button>
                 </div>
+
+                {CHECKOUT_FEATURES.buyNow && (
+                  <BuyNowDialog
+                    open={buyNowOpen}
+                    onOpenChange={setBuyNowOpen}
+                    productId={product.id}
+                    supplierId={product.supplierId}
+                    productName={product.name}
+                    variantId={currentVariant?.id}
+                    variantName={currentVariant?.name}
+                    unitPrice={Math.round(unitPrice * 100)}
+                    quantity={quantity}
+                    currency={product.currency}
+                    moq={effectiveMoq}
+                  />
+                )}
                 <p className="mt-3 text-[11px] text-[var(--text-tertiary)] leading-snug">
                   Orders are fulfilled through the platform — we coordinate with the manufacturer on your behalf.
                 </p>

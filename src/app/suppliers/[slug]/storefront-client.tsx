@@ -724,7 +724,7 @@ function SupplierHero({ supplier, isReal }: { supplier: SupplierView; isReal: bo
                   <MessageSquare className="w-4 h-4" />
                   Contact Supplier
                 </button>
-                <Link href="/rfq" className="btn-outline !rounded-xl !py-3 w-full text-center">
+                <Link href="/dashboard/rfq/new" className="btn-outline !rounded-xl !py-3 w-full text-center">
                   <FileText className="w-4 h-4" />
                   Send RFQ
                 </Link>

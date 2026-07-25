@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Gavel, Clock, CheckCircle2, AlertTriangle, Loader2, MessageSquare } from "lucide-react";
+import { Gavel, Clock, CheckCircle2, AlertTriangle, Loader2, MessageSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface Dispute {
@@ -180,6 +180,14 @@ export default function AdminDisputesPage() {
                     style={{ color: "var(--text-secondary)", borderColor: "var(--border-subtle)" }}
                   >
                     View Details
+                  </Link>
+                  <Link
+                    href={`/superadmin/disputes/ai-analysis?disputeId=${dispute.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors hover:opacity-80"
+                    style={{ color: "var(--terracotta)", borderColor: "var(--border-subtle)" }}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI Analysis
                   </Link>
                 </div>
               </CardContent>
