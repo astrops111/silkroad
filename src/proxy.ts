@@ -78,7 +78,7 @@ function buildCspHeader(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https:",
-    "font-src 'self' data: https://cdn.fontshare.com",
+    "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://js.stripe.com https://api.stripe.com https://api.flutterwave.com https://sandbox.momoapi.mtn.com https://proxy.momoapi.mtn.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -151,7 +151,7 @@ export const config = {
   matcher: [
     {
       source:
-        "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest\\.json|sw\\.js|icons/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json|ico)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest\\.json|sw\\.js|icons/.*|fonts/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json|ico|woff2?|ttf)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

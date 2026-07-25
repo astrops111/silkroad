@@ -2,7 +2,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/BNPFDNRP3YHKZFVDAZSQZJG4BFPW7SWE/YGV2C3XEH5NHZMHXQAU6NFSF2HBUCONS/TLDWUEPS5RBX7BDKK2CQVC7OYWBQAGHT.woff2') format('woff2');
+  src: url('/fonts/satoshi-400.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -10,7 +10,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/4CAILHP75JRK5BYCLAHRSBS25RAXBXIX/UAADIMGNYRGVUUZ3Y6P5A3LWNQ7XQJBX/UOCUQI76AMKF5GOUXB5A4DSNRC5DU3DX.woff2') format('woff2');
+  src: url('/fonts/satoshi-500.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -18,7 +18,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/ZINJCBNJ2SFA3LE5QZNRR6HXMHH5SNFQ/EKWFJJVTWIN5HYM3SCVEFP6TZXPG7O4U/36I3BNDABJDI7UUN7RYUJRSFY5NHJVYP.woff2') format('woff2');
+  src: url('/fonts/satoshi-700.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -26,7 +26,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/B7DHPUWLBRCYFJWQHISUXJLN2IKFZNOE/6SZO5JVFQPVQHTJCAAOW64JFIHFVHWZM/K3VZ5X4FEKTXUZYQFL3VFXLSHJ2A3FD4.woff2') format('woff2');
+  src: url('/fonts/satoshi-900.woff2') format('woff2');
   font-weight: 900;
   font-style: normal;
   font-display: swap;
@@ -34,7 +34,7 @@
 
 @font-face {
   font-family: 'Cabinet Grotesk';
-  src: url('https://cdn.fontshare.com/wf/XQ5ASHPW5MXASKA55AAKFR3RPLH5CVA5/AMZLNSQHI3OMNCQD4QX67LQK3PXUQMFE/GDFWT6GLKL7NBQPHYBHJMOYP6RAT6VOQ.woff2') format('woff2');
+  src: url('/fonts/cabinet-grotesk-800.woff2') format('woff2');
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -42,7 +42,7 @@
 
 @font-face {
   font-family: 'Cabinet Grotesk';
-  src: url('https://cdn.fontshare.com/wf/YZXTBX4NMVB53GPEQRI7IO2ZN3DMHPQT/O2UXMHK7CXRGHB7GKU3OU4UDSRCMYUDG/WF7WVQYOQCJCFWRZR2F2SUWB4A56MYR3.woff2') format('woff2');
+  src: url('/fonts/cabinet-grotesk-700.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
