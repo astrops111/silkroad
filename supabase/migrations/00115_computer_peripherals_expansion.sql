@@ -22,12 +22,13 @@ INSERT INTO categories (parent_id, name, name_local, slug, level, path, sort_ord
   ('3f9827ab-adcc-42a0-a0ca-4867916de07b', 'Speakers',                    '音箱',       'peripherals-speakers',           2, 'consumer-electronics/computer-peripherals/peripherals-speakers',           6),
   ('3f9827ab-adcc-42a0-a0ca-4867916de07b', 'Gaming Controllers & Wheels', '游戏控制器', 'peripherals-gaming-controllers', 2, 'consumer-electronics/computer-peripherals/peripherals-gaming-controllers', 7),
   ('3f9827ab-adcc-42a0-a0ca-4867916de07b', 'Presenters & Clickers',       '演示器',     'peripherals-presenters',         2, 'consumer-electronics/computer-peripherals/peripherals-presenters',         8),
-  ('3f9827ab-adcc-42a0-a0ca-4867916de07b', 'Mouse Pads & Desk Accessories','鼠标垫',    'peripherals-mousepads',          2, 'consumer-electronics/computer-peripherals/peripherals-mousepads',          9);
+  ('3f9827ab-adcc-42a0-a0ca-4867916de07b', 'Mouse Pads & Desk Accessories','鼠标垫',    'peripherals-mousepads',          2, 'consumer-electronics/computer-peripherals/peripherals-mousepads',          9)
+ON CONFLICT (slug) DO NOTHING;
 
 -- ------------------------------------------------------------
 -- labels.kind: add 'use_case' alongside keyword/brand/category
 -- ------------------------------------------------------------
-ALTER TABLE labels DROP CONSTRAINT labels_kind_check;
+ALTER TABLE labels DROP CONSTRAINT IF EXISTS labels_kind_check;
 ALTER TABLE labels ADD CONSTRAINT labels_kind_check
   CHECK (kind IN ('keyword', 'brand', 'category', 'use_case'));
 
