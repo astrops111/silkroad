@@ -5,6 +5,10 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone", // Required for Docker / Cloud Run
+  // Lets the client detect a stale build after a Cloud Run deploy (old tab's
+  // JS vs. new server) and force a full reload instead of RSC fetches 404ing.
+  // See node_modules/next/dist/docs/.../deploymentId.md.
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   images: {
     remotePatterns: [
       {
