@@ -193,10 +193,6 @@ function ImportFromRegion({
                 />
                 <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
 
-                <span className="absolute top-4 right-4 text-2xl leading-none" aria-hidden>
-                  {meta.flag}
-                </span>
-
                 <div>
                   <h3
                     className="text-base lg:text-lg font-bold text-white leading-tight"
