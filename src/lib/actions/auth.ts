@@ -114,6 +114,16 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   const serviceClient = createServiceClient();
 
+  // Look up the buyer/supplier's currency from their chosen country instead
+  // of leaving preferred_currency/default_currency on the 'USD' column
+  // default regardless of where they actually are.
+  const { data: countryRow } = await serviceClient
+    .from("countries")
+    .select("currency_code")
+    .eq("country_code", parsed.data.countryCode)
+    .maybeSingle();
+  const currencyCode = countryRow?.currency_code ?? "USD";
+
   // 1. Create auth user
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -137,6 +147,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
       email: parsed.data.email,
       full_name: parsed.data.fullName,
       country_code: parsed.data.countryCode,
+      preferred_currency: currencyCode,
     })
     .select()
     .single();
@@ -157,6 +168,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
       type: companyType,
       country_code: parsed.data.countryCode,
       market_region: parsed.data.marketRegion as MarketRegion,
+      default_currency: currencyCode,
     })
     .select()
     .single();
