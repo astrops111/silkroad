@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/providers/auth-provider";
 import { RegionProvider } from "@/lib/providers/region-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieBanner } from "@/components/ui/cookie-banner";
+import { CartDrawer } from "@/components/cart/cart-drawer";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: ReactNode }) {
           {children}
           <Toaster position="top-right" richColors />
           <CookieBanner />
+          <CartDrawer />
         </RegionProvider>
       </AuthProvider>
     </QueryProvider>

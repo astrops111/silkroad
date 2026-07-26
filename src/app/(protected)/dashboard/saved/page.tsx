@@ -14,6 +14,7 @@ import { toast } from "sonner";
 export default function SavedItemsPage() {
   const { items, removeItem, clearAll } = useSavedStore();
   const addToCart = useCartStore((s) => s.addItem);
+  const openCart = useCartStore((s) => s.openCart);
 
   const handleAddToCart = (item: typeof items[0]) => {
     addToCart({
@@ -28,6 +29,7 @@ export default function SavedItemsPage() {
       imageUrl: item.imageUrl || undefined,
     });
     toast.success("Added to cart");
+    openCart();
   };
 
   return (

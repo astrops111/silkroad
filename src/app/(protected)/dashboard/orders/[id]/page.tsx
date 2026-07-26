@@ -123,6 +123,7 @@ export default function OrderDetailPage() {
   const [reordering, setReordering] = useState(false);
 
   const addItem = useCartStore((s) => s.addItem);
+  const openCart = useCartStore((s) => s.openCart);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -164,7 +165,7 @@ export default function OrderDetailPage() {
     }
     toast.success(`${count} item${count !== 1 ? "s" : ""} added to cart`);
     setReordering(false);
-    router.push("/cart");
+    openCart();
   }
 
   if (loading) {

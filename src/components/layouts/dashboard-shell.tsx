@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { RegionPicker } from "@/components/ui/region-picker";
+import { useUnreadMessagesCount } from "@/hooks/use-unread-messages";
+import { useCartStore } from "@/stores/cart";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -192,12 +194,17 @@ export function DashboardShell({
   const navItems = companyType === "supplier" ? SUPPLIER_NAV : BUYER_NAV;
   const dashboardLabel =
     companyType === "supplier" ? "Supplier Portal" : "Buyer Dashboard";
+  const unreadMessages = useUnreadMessagesCount();
+  const messagesHref = companyType === "supplier" ? "/supplier/messages" : "/dashboard/messages";
+  const isBuyer = companyType !== "supplier";
+  const cartCount = useCartStore((s) => s.getItemCount());
+  const openCart = useCartStore((s) => s.openCart);
 
   return (
     <div className="flex min-h-screen">
       {/* Sidebar — visible by default at every screen size; collapses only when the user toggles it */}
       <aside
-        className={`flex flex-col bg-[var(--obsidian)] min-h-screen shrink-0 transition-[width] duration-200 ${
+        className={`flex flex-col bg-[var(--obsidian)] h-screen sticky top-0 shrink-0 transition-[width] duration-200 ${
           collapsed ? "w-20" : "w-64"
         }`}
       >
@@ -229,19 +236,20 @@ export function DashboardShell({
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
             const isActive =
               item.href === "/dashboard" || item.href === "/supplier"
                 ? pathname === item.href
                 : pathname.startsWith(item.href);
+            const isMessages = item.href === messagesHref;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                   collapsed ? "justify-center px-0" : ""
                 } ${
                   isActive
@@ -251,6 +259,21 @@ export function DashboardShell({
               >
                 <item.icon className="w-[18px] h-[18px] shrink-0" />
                 {!collapsed && <span className="flex-1">{item.label}</span>}
+                {isMessages && unreadMessages > 0 && (
+                  collapsed ? (
+                    <span
+                      className="absolute top-2 right-2 w-2 h-2 rounded-full"
+                      style={{ background: "var(--terracotta)" }}
+                    />
+                  ) : (
+                    <span
+                      className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                      style={{ background: "var(--terracotta)", color: "white" }}
+                    >
+                      {unreadMessages > 99 ? "99+" : unreadMessages}
+                    </span>
+                  )
+                )}
               </Link>
             );
           })}
@@ -319,6 +342,47 @@ export function DashboardShell({
 
             <div className="flex items-center gap-3">
               <HeaderSearch />
+
+              <Link
+                href={messagesHref}
+                className="relative p-2.5 rounded-lg transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                title="Messages"
+              >
+                <MessageSquare className="w-[18px] h-[18px]" />
+                {unreadMessages > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                    style={{ background: "var(--terracotta)", color: "white" }}
+                  >
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                )}
+              </Link>
+
+              {isBuyer && (
+                <button
+                  type="button"
+                  onClick={openCart}
+                  className="relative p-2.5 rounded-lg transition-colors"
+                  style={{ color: "var(--text-tertiary)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  title="Cart"
+                >
+                  <ShoppingCart className="w-[18px] h-[18px]" />
+                  {cartCount > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                      style={{ background: "var(--terracotta)", color: "white" }}
+                    >
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <NotificationBell />
 

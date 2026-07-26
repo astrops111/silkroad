@@ -44,6 +44,7 @@ export interface ShippingGroup {
 
 interface CartState {
   items: CartItem[];
+  isCartOpen: boolean;
 
   // Actions
   addItem: (item: CartItem) => void;
@@ -51,6 +52,9 @@ interface CartState {
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
   clearSupplier: (supplierId: string) => void;
+  openCart: () => void;
+  closeCart: () => void;
+  toggleCart: () => void;
 
   // Computed
   getItemsBySupplier: () => SupplierGroup[];
@@ -64,6 +68,11 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      isCartOpen: false,
+
+      openCart: () => set({ isCartOpen: true }),
+      closeCart: () => set({ isCartOpen: false }),
+      toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
       addItem: (item) =>
         set((state) => {
@@ -177,6 +186,9 @@ export const useCartStore = create<CartState>()(
       getSupplierCount: () =>
         new Set(get().items.map((i) => i.supplierId)).size,
     }),
-    { name: "silk-road-cart" }
+    {
+      name: "silk-road-cart",
+      partialize: (state) => ({ items: state.items }),
+    }
   )
 );

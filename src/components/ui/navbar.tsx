@@ -198,6 +198,7 @@ export function Navbar() {
   const categoryStripRef = useRef<HTMLDivElement>(null);
 
   const cartCount = useCartStore((s) => s.getItemCount());
+  const openCart = useCartStore((s) => s.openCart);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
@@ -464,8 +465,9 @@ export function Navbar() {
                 <User className="w-5 h-5" />
               </Link>
 
-              <Link
-                href="/cart"
+              <button
+                type="button"
+                onClick={openCart}
                 aria-label={t("cart")}
                 className="relative flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
@@ -476,7 +478,7 @@ export function Navbar() {
                     {cartCount > 9 ? "9+" : cartCount}
                   </span>
                 )}
-              </Link>
+              </button>
 
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
