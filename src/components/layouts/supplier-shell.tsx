@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
-  Truck,
   FileText,
   Settings,
   LogOut,
@@ -23,13 +22,16 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useUnreadMessagesCount } from "@/hooks/use-unread-messages";
 
 const CORE_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/supplier/dashboard" },
   { icon: Package, label: "Products", href: "/supplier/products" },
   { icon: Upload, label: "Bulk Import", href: "/supplier/products/bulk-import" },
+  { icon: ShoppingCart, label: "Orders", href: "/supplier/orders" },
   { icon: FileText, label: "RFQ Requests", href: "/supplier/rfq" },
   { icon: MessageSquare, label: "Messages", href: "/supplier/messages" },
+  { icon: BarChart3, label: "Analytics", href: "/supplier/analytics" },
   { icon: Users, label: "Team & Contacts", href: "/supplier/contacts" },
   { icon: Settings, label: "Settings", href: "/supplier/settings" },
 ];
@@ -37,9 +39,6 @@ const CORE_ITEMS = [
 const ADVANCED_ITEMS = [
   { icon: Megaphone, label: "Promoted", href: "/supplier/products/promote" },
   { icon: TrendingUp, label: "Smart Pricing", href: "/supplier/products/pricing" },
-  { icon: ShoppingCart, label: "Orders", href: "/supplier/orders" },
-  { icon: Truck, label: "Shipments", href: "/supplier/shipments" },
-  { icon: BarChart3, label: "Analytics", href: "/supplier/analytics" },
 ];
 
 interface SupplierShellProps {
@@ -60,6 +59,7 @@ export function SupplierShell({
 }: SupplierShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const unreadMessages = useUnreadMessagesCount();
 
   // Pick the single most-specific nav entry for the current pathname. Using
   // startsWith naively lights up both "Products" and "Bulk Import" when the
@@ -136,13 +136,14 @@ export function SupplierShell({
           <div className="space-y-1">
             {CORE_ITEMS.map((item) => {
               const isActive = activeHref === item.href;
+              const isMessages = item.href === "/supplier/messages";
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                     transition-all duration-200
                     ${collapsed ? "justify-center px-0" : ""}
                     ${
@@ -154,7 +155,22 @@ export function SupplierShell({
                 >
                   <item.icon size={18} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
-                  {!collapsed && isActive && (
+                  {isMessages && unreadMessages > 0 && (
+                    collapsed ? (
+                      <span
+                        className="absolute top-2 right-2 w-2 h-2 rounded-full"
+                        style={{ background: "var(--terracotta)" }}
+                      />
+                    ) : (
+                      <span
+                        className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                        style={{ background: "var(--terracotta)", color: "white" }}
+                      >
+                        {unreadMessages > 99 ? "99+" : unreadMessages}
+                      </span>
+                    )
+                  )}
+                  {!collapsed && isActive && !(isMessages && unreadMessages > 0) && (
                     <ChevronRight size={14} className="ml-auto opacity-60" />
                   )}
                 </Link>
@@ -245,6 +261,25 @@ export function SupplierShell({
         {/* Top bar */}
         <header className="h-16 bg-[var(--surface-primary)] border-b border-[var(--border-subtle)] flex items-center justify-end px-4 lg:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-3">
+            <Link
+              href="/supplier/messages"
+              className="relative p-2.5 rounded-lg transition-colors"
+              style={{ color: "var(--text-tertiary)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-secondary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              title="Messages"
+            >
+              <MessageSquare className="w-[18px] h-[18px]" />
+              {unreadMessages > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                  style={{ background: "var(--terracotta)", color: "white" }}
+                >
+                  {unreadMessages > 99 ? "99+" : unreadMessages}
+                </span>
+              )}
+            </Link>
+
             <NotificationBell />
           </div>
         </header>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -226,6 +226,17 @@ export default function EditProductForm({
   const [images, setImages] = useState<ExistingImage[]>(initialImages);
   const [docs, setDocs] = useState<ExistingDoc[]>(initialDocs);
   const [newDocs, setNewDocs] = useState<NewDoc[]>([]);
+
+  // router.refresh() re-renders the server parent with fresh DB rows, but a
+  // useState seed never re-reads its prop — without these syncs an uploaded
+  // image keeps its optimistic tmp- id (so its remove button can't match a DB
+  // row) and just-saved documents stay invisible until a hard reload.
+  useEffect(() => {
+    setImages(initialImages);
+  }, [initialImages]);
+  useEffect(() => {
+    setDocs(initialDocs);
+  }, [initialDocs]);
 
   const [tiers, setTiers] = useState<TierRow[]>(() =>
     initialTiers.length
@@ -1166,8 +1177,8 @@ export default function EditProductForm({
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(img.id)}
-                    disabled={pending}
-                    className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--danger)]"
+                    disabled={pending || img.id.startsWith("tmp-")}
+                    className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--danger)] disabled:opacity-0"
                     aria-label="Remove image"
                   >
                     <X className="w-3.5 h-3.5" />

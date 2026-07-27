@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { searchProducts, getCountryFacets, getBrandFacets, getUseCaseFacets, getPoolingInfoByProductIds, getPoolingRulesByCountry, getShippingGroupFacets } from "@/lib/queries/marketplace";
 import {
   getTopLevelCategoriesWithCount,
@@ -56,9 +57,10 @@ export const MARKETPLACE_DEFAULT_SORT = "name";
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; sub?: string; country?: string; brand?: string; use?: string; limit?: string; group?: string; page?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; sub?: string; country?: string; brand?: string; use?: string; limit?: string; group?: string; page?: string; sort?: string }>;
 }) {
   const sp = await searchParams;
+  const activeSearch = sp.q?.trim() || null;
   const activeCategorySlug = sp.category ?? null;
   // The deepest selected descendant slug — may be a level-1 subcategory
   // (e.g. "computer-peripherals") or a level-2 leaf (e.g. "peripherals-mice").
@@ -84,6 +86,7 @@ export default async function MarketplacePage({
   let subcategories: MarketplaceSubcategory[] = [];
   let categoryIds: string[] | undefined;
   let totalProductCount: number | undefined;
+  let loadFailed = false;
 
   const activeCountries = activeCountry ? [activeCountry] : undefined;
   // Everything under the sidebar (category counts + brand/use/region facets)
@@ -196,6 +199,7 @@ export default async function MarketplacePage({
       originCountries: activeCountries,
       brands: activeBrands,
       useCaseSlugs: activeUseCases,
+      search: activeSearch ?? undefined,
       shippingGroupId: activeGroupId ?? undefined,
       sort: activeSort,
       limit: pageSize,
@@ -232,9 +236,6 @@ export default async function MarketplacePage({
         unit: boxPackQty > 1 ? "Box" : "Piece",
         boxPackQty: boxPackQty > 1 ? boxPackQty : undefined,
         unitPrice,
-        rating: 4.5,
-        reviews: 0,
-        responseTime: "< 24h",
         leadTimeDays: p.lead_time_days ?? null,
         minOrderAmount: p.min_order_amount != null ? p.min_order_amount / 100 : null,
         minOrderGroupedBy: p.min_order_grouped_by ?? null,
@@ -251,7 +252,21 @@ export default async function MarketplacePage({
       };
     });
   } catch {
-    // DB not connected or empty — will fall back to mock data in client
+    // DB unreachable — the client renders a distinct load-error state.
+    loadFailed = true;
+  }
+
+  // A ?page= past the end of the result set makes PostgREST reject the range,
+  // losing the true count — canonicalize back to page 1 with filters intact.
+  // Outside the try/catch above so the redirect control-flow error isn't
+  // swallowed by it.
+  if (!loadFailed && products.length === 0 && currentPage > 1) {
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (value && key !== "page") qs.set(key, value);
+    }
+    const s = qs.toString();
+    redirect(s ? `/marketplace?${s}` : "/marketplace");
   }
 
   return (
@@ -270,6 +285,7 @@ export default async function MarketplacePage({
         currentPage={currentPage}
         poolingRules={poolingRules}
         groupFacets={groupFacets}
+        loadFailed={loadFailed}
       />
       <RecommendationRail title="Recommended for you" forMe />
     </>

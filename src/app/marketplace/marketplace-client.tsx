@@ -5,17 +5,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
+import { toast } from "sonner";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { Tooltip } from "@/components/ui/tooltip";
 import { imageForSlug } from "@/lib/category-images";
 import { useSavedStore } from "@/stores/saved";
+import { useCartStore } from "@/stores/cart";
 import { regionMeta, tradeMeta } from "@/lib/product-labels";
 import { MARKETPLACE_COUNTRIES } from "@/lib/countries";
 import { useRegion } from "@/lib/providers/region-provider";
 import { convertSync } from "@/lib/currency/formatter";
 import { getSupportedCurrencies } from "@/lib/currency/converter";
+import { applyMarkup } from "@/lib/pricing";
 import type { RegionPoolingRule, ShippingGroupFacet, UseCaseFacet } from "@/lib/queries/marketplace";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   SlidersHorizontal,
   Grid3X3,
@@ -24,14 +34,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
-  Shield,
   Clock,
   Heart,
-  ArrowUpRight,
   X,
   Package,
   Truck,
   Info,
+  ShoppingCart,
+  Check,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 
 export interface MarketplaceSubcategory {
@@ -67,9 +79,10 @@ export interface MarketplaceProduct {
   boxPackQty?: number;
   /** Marked-up price per individual piece, regardless of box packaging. */
   unitPrice?: number;
-  rating: number;
-  reviews: number;
-  responseTime: string;
+  /** Real review data only — omitted until the product has reviews. */
+  rating?: number;
+  reviews?: number;
+  responseTime?: string;
   image: string;
   category: string;
   tags: string[];
@@ -106,129 +119,6 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
 const DEFAULT_PAGE_SIZE = 50;
 const SORT_OPTIONS = ["name", "price_asc", "price_desc", "newest", "popular"] as const;
 const DEFAULT_SORT = "name";
-
-const PRODUCTS: MarketplaceProduct[] = [
-  {
-    id: "1",
-    name: "Modular 3-Seat Fabric Sofa — Living Room OEM",
-    originCountry: "CN",
-    tradeTerm: "fob",
-    price: 320,
-    moq: 10,
-    unit: "Sets",
-    rating: 4.8,
-    reviews: 142,
-    responseTime: "< 24h",
-    image: "from-slate-200 to-slate-300",
-    category: "Furniture",
-    tags: ["Hot Sale"],
-  },
-  {
-    id: "2",
-    name: "5G Android Smartphone 6.7\" AMOLED 256GB OEM Manufacturer",
-    originCountry: "CN",
-    tradeTerm: "ddp",
-    price: 85,
-    moq: 100,
-    unit: "Pieces",
-    rating: 4.6,
-    reviews: 891,
-    responseTime: "< 2h",
-    image: "from-indigo-100 to-blue-200",
-    category: "Consumer Electronics",
-    tags: ["Best Seller"],
-  },
-  {
-    id: "3",
-    name: "Remy Human-Hair Wigs Lace Front — OEM Bulk Packaging",
-    originCountry: "CN",
-    tradeTerm: "cif",
-    price: 18,
-    moq: 50,
-    unit: "Pieces",
-    rating: 4.9,
-    reviews: 2340,
-    responseTime: "< 4h",
-    image: "from-amber-50 to-orange-100",
-    category: "Beauty",
-    tags: ["Top Rated"],
-  },
-  {
-    id: "4",
-    name: "Crystal Pendant Chandelier 12-Arm — Hotel Lobby Grade",
-    originCountry: "CN",
-    tradeTerm: "cif",
-    price: 240,
-    moq: 5,
-    unit: "Pieces",
-    rating: 4.7,
-    reviews: 567,
-    responseTime: "< 6h",
-    image: "from-sky-100 to-cyan-200",
-    category: "Hotel Interiors",
-    tags: ["Hot Sale"],
-  },
-  {
-    id: "5",
-    name: "4-Star Guestroom Bed Frame + Headboard Set",
-    originCountry: "CN",
-    tradeTerm: "fob",
-    price: 180,
-    moq: 20,
-    unit: "Sets",
-    rating: 4.5,
-    reviews: 89,
-    responseTime: "< 12h",
-    image: "from-yellow-100 to-amber-200",
-    category: "Hotel Interiors",
-    tags: [],
-  },
-  {
-    id: "6",
-    name: "Private-Label Instant Noodles — Assorted Flavors 85g",
-    originCountry: "CN",
-    tradeTerm: "exw",
-    price: 0.18,
-    moq: 5000,
-    unit: "Packs",
-    rating: 4.3,
-    reviews: 234,
-    responseTime: "< 8h",
-    image: "from-stone-100 to-neutral-200",
-    category: "Groceries",
-    tags: [],
-  },
-  {
-    id: "7",
-    name: "LED Smart Home Bulb A60 9W E27 RGBW Tuya WiFi",
-    originCountry: "CN",
-    tradeTerm: "ddp",
-    price: 2.4,
-    moq: 500,
-    unit: "Pieces",
-    rating: 4.8,
-    reviews: 1205,
-    responseTime: "< 3h",
-    image: "from-emerald-50 to-green-100",
-    category: "Consumer Electronics",
-    tags: ["Best Seller"],
-  },
-  {
-    id: "8",
-    name: "OEM Ultra-Absorbent Baby Diapers Size M — Carton of 48",
-    originCountry: "CN",
-    tradeTerm: "cif",
-    price: 4.2,
-    moq: 100,
-    unit: "Cartons",
-    rating: 4.6,
-    reviews: 178,
-    responseTime: "< 6h",
-    image: "from-lime-50 to-green-100",
-    category: "Baby & Kids",
-    tags: ["Hot Sale"],
-  },
-];
 
 /* ============================================================
    SUBCATEGORY TICKER — auto-scrolling, seamless loop, pause on hover
@@ -1082,6 +972,10 @@ function ProductCard({
   const addSaved = useSavedStore((s) => s.addItem);
   const removeSaved = useSavedStore((s) => s.removeItem);
   const isSaved = useSavedStore((s) => s.isSaved(product.id));
+  const addToCart = useCartStore((s) => s.addItem);
+  const openCart = useCartStore((s) => s.openCart);
+  const [justAdded, setJustAdded] = useState(false);
+  const [similarOpen, setSimilarOpen] = useState(false);
 
   function handleToggleSaved(e: MouseEvent) {
     e.preventDefault();
@@ -1101,7 +995,35 @@ function ProductCard({
     }
   }
 
+  function handleAddToCart(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart({
+      productId: product.id,
+      supplierId: product.supplierId ?? "",
+      supplierName: product.supplierName ?? "",
+      productName: product.name,
+      unitPrice: Math.round((product.unitPrice ?? product.price) * 100),
+      quantity: product.moq,
+      currency: product.currency ?? "USD",
+      moq: product.moq,
+      boxPackQty: product.boxPackQty && product.boxPackQty > 1 ? product.boxPackQty : undefined,
+      imageUrl: isRealImage ? product.image : undefined,
+    });
+    toast.success("Added to cart");
+    openCart();
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1800);
+  }
+
+  function handleOpenSimilar(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSimilarOpen(true);
+  }
+
   return (
+    <>
     <Link
       href={product.href ?? `/marketplace/${product.id}`}
       className={`group card-elevated flex overflow-hidden ${isList ? "" : "sm:block"}`}
@@ -1269,21 +1191,169 @@ function ProductCard({
           </div>
 
           <div className="flex items-center gap-4 text-xs text-[var(--text-tertiary)]">
-            <span className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-[var(--amber)] fill-[var(--amber)]" />
-              {product.rating}
-              <span className="text-[var(--text-tertiary)]">
-                ({product.reviews})
+            {product.rating != null && (product.reviews ?? 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-[var(--amber)] fill-[var(--amber)]" />
+                {product.rating}
+                <span className="text-[var(--text-tertiary)]">
+                  ({product.reviews})
+                </span>
               </span>
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {product.leadTimeDays ? `${product.leadTimeDays} days` : product.responseTime}
-            </span>
+            )}
+            {(product.leadTimeDays || product.responseTime) && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {product.leadTimeDays ? `${product.leadTimeDays} days` : product.responseTime}
+              </span>
+            )}
           </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-[var(--border-subtle)] flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] sm:text-[13px] font-semibold transition-colors ${
+              justAdded
+                ? "bg-[var(--forest,#2f6b4f)] text-white"
+                : "bg-[var(--amber)] text-[var(--obsidian)] hover:bg-[var(--amber-dark)] hover:text-white"
+            }`}
+          >
+            {justAdded ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Added
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-3.5 h-3.5" />
+                Add to Cart
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenSimilar}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-[11px] sm:text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--amber)]/50 hover:text-[var(--text-primary)]"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Similar
+          </button>
         </div>
       </div>
     </Link>
+    <SimilarItemsDialog
+      open={similarOpen}
+      onOpenChange={setSimilarOpen}
+      productId={product.id}
+      productName={product.name}
+    />
+    </>
+  );
+}
+
+/* ============================================================
+   SIMILAR ITEMS DIALOG — lazy-loads AI-powered "similar products"
+   for a single card only when opened, via the existing
+   /api/ai/recommendations endpoint. Not fetched eagerly per-card
+   so a grid of 50-200 listings never fires a burst of requests.
+   ============================================================ */
+interface SimilarProduct {
+  product_id: string;
+  reason: string;
+  name: string;
+  base_price: number;
+  currency: string | null;
+  moq: number | null;
+}
+
+function SimilarItemsDialog({
+  open,
+  onOpenChange,
+  productId,
+  productName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  productId: string;
+  productName: string;
+}) {
+  const [items, setItems] = useState<SimilarProduct[] | null>(null);
+  const [errored, setErrored] = useState(false);
+  const fetchingRef = useRef(false);
+  const loading = open && items === null && !errored;
+
+  useEffect(() => {
+    if (!open || items !== null || fetchingRef.current) return;
+    fetchingRef.current = true;
+    let cancelled = false;
+    fetch(`/api/ai/recommendations?productId=${encodeURIComponent(productId)}&limit=6`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => {
+        if (!cancelled) setItems(data?.recommendations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setErrored(true);
+      })
+      .finally(() => {
+        fetchingRef.current = false;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, productId, items]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Similar items</DialogTitle>
+          <DialogDescription className="line-clamp-1">
+            Buyers who viewed &ldquo;{productName}&rdquo; also considered
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-[var(--text-tertiary)]">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Finding similar items…
+          </div>
+        )}
+
+        {!loading && (errored || items?.length === 0) && (
+          <p className="py-6 text-center text-sm text-[var(--text-tertiary)]">
+            No similar items found right now.
+          </p>
+        )}
+
+        {!loading && items && items.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto">
+            {items.map((item) => (
+              <Link
+                key={item.product_id}
+                href={`/marketplace/${item.product_id}`}
+                onClick={() => onOpenChange(false)}
+                className="rounded-lg border border-[var(--border-subtle)] p-3 transition-colors hover:border-[var(--amber)]/50 hover:bg-[var(--surface-secondary)]"
+              >
+                <div className="w-full h-16 rounded-md mb-2 flex items-center justify-center bg-[var(--surface-secondary)]">
+                  <Package className="w-5 h-5 text-[var(--text-tertiary)]" />
+                </div>
+                <p className="text-xs font-medium leading-snug line-clamp-2 text-[var(--text-primary)]">
+                  {item.name}
+                </p>
+                <p className="text-xs font-bold mt-1 text-[var(--text-primary)]">
+                  {formatPrice(applyMarkup(item.base_price / 100))}
+                  {item.moq ? (
+                    <span className="font-normal text-[10px] text-[var(--text-tertiary)]"> · MOQ {item.moq}</span>
+                  ) : null}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1394,6 +1464,7 @@ export function MarketplaceClient({
   currentPage = 1,
   poolingRules = {},
   groupFacets = {},
+  loadFailed = false,
 }: {
   initialProducts?: MarketplaceProduct[];
   subcategories?: MarketplaceSubcategory[];
@@ -1410,6 +1481,8 @@ export function MarketplaceClient({
   currentPage?: number;
   poolingRules?: Record<string, RegionPoolingRule[]>;
   groupFacets?: Record<string, ShippingGroupFacet[]>;
+  /** True when the server-side product query threw (DB unreachable). */
+  loadFailed?: boolean;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -1417,8 +1490,8 @@ export function MarketplaceClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("marketing.marketplace");
-  const allProducts = initialProducts && initialProducts.length > 0 ? initialProducts : PRODUCTS;
 
+  const activeSearch = searchParams.get("q")?.trim() || null;
   const categorySlug = searchParams.get("category");
   const subSlug = searchParams.get("sub");
   const countryParam = searchParams.get("country");
@@ -1489,23 +1562,9 @@ export function MarketplaceClient({
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
-  const displayProducts = useMemo(() => {
-    // Server already filtered by category/country for real DB products — only re-filter mock fallback
-    const usingMock = !initialProducts || initialProducts.length === 0;
-    if (!usingMock) return allProducts;
-    return allProducts.filter((p) => {
-      const matchesCategory =
-        !activeCategory || !activeCategory.matchLabel || activeCategory.slug === null
-          ? true
-          : p.category === activeCategory.matchLabel;
-      const matchesCountry = !activeCountry || p.originCountry === activeCountry;
-      return matchesCategory && matchesCountry;
-    });
-  }, [allProducts, activeCategory, activeCountry, initialProducts]);
+  // Server already filtered by search/category/country — render as-is.
+  const displayProducts = initialProducts ?? [];
 
-  // Real filtered total from the server when available (matches the sidebar's
-  // category counts); falls back to the visible list length only when running
-  // on mock data (totalProductCount is undefined in that case).
   const productCountForDisplay = totalProductCount ?? displayProducts.length;
 
   const totalPages = Math.max(1, Math.ceil(productCountForDisplay / pageSize));
@@ -1530,16 +1589,20 @@ export function MarketplaceClient({
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
+  // Every remover drops "page" — a changed filter set invalidates the
+  // current page position.
   const removeCategoryFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("category");
     params.delete("sub");
+    params.delete("page");
     pushParams(params);
   };
 
   const removeSubFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("sub");
+    params.delete("page");
     pushParams(params);
   };
 
@@ -1547,6 +1610,14 @@ export function MarketplaceClient({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("country");
     params.delete("group");
+    params.delete("page");
+    pushParams(params);
+  };
+
+  const removeGroupFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("group");
+    params.delete("page");
     pushParams(params);
   };
 
@@ -1555,6 +1626,7 @@ export function MarketplaceClient({
     const next = activeBrandList.filter((b) => b !== brand);
     if (next.length > 0) params.set("brand", next.join(","));
     else params.delete("brand");
+    params.delete("page");
     pushParams(params);
   };
 
@@ -1563,16 +1635,34 @@ export function MarketplaceClient({
     const next = activeUseList.filter((u) => u !== slug);
     if (next.length > 0) params.set("use", next.join(","));
     else params.delete("use");
+    params.delete("page");
+    pushParams(params);
+  };
+
+  const removeSearchFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q");
+    params.delete("page");
     pushParams(params);
   };
 
   const clearAllFilters = () => {
     const params = new URLSearchParams(searchParams.toString());
-    for (const key of ["category", "sub", "country", "group", "brand", "use"]) {
+    for (const key of ["q", "category", "sub", "country", "group", "brand", "use", "page"]) {
       params.delete(key);
     }
     pushParams(params);
   };
+
+  const hasActiveFilters = Boolean(
+    activeSearch ||
+      activeCategory?.slug ||
+      subSlug ||
+      activeCountry ||
+      activeGroupId ||
+      activeBrandList.length > 0 ||
+      activeUseList.length > 0
+  );
 
   return (
     <>
@@ -1643,15 +1733,24 @@ export function MarketplaceClient({
                 : t("subtitle")}
             </p>
 
-            {(activeCategory?.slug ||
-              subSlug ||
-              activeCountry ||
-              activeBrandList.length > 0 ||
-              activeUseList.length > 0) && (
+            {hasActiveFilters && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-[var(--text-tertiary)] tracking-[0.1em] uppercase mr-1">
                   {t("filterChipLabel")}
                 </span>
+                {activeSearch && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--amber)]/12 border border-[var(--amber)]/25 text-[var(--amber-dark)]">
+                    {t("searchChip", { query: activeSearch })}
+                    <button
+                      type="button"
+                      onClick={removeSearchFilter}
+                      aria-label={t("searchChipRemove")}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
                 {activeCategory?.slug && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--amber)]/12 border border-[var(--amber)]/25 text-[var(--amber-dark)]">
                     {activeCategoryLabel}
@@ -1688,6 +1787,26 @@ export function MarketplaceClient({
                       type="button"
                       onClick={removeCountryFilter}
                       aria-label={`Remove ${regionMeta(activeCountry).label} filter`}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {activeGroupId && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+                    {t(
+                      (activeCountry &&
+                        (groupFacets[activeCountry] ?? [])
+                          .find((g) => g.id === activeGroupId)
+                          ?.poolingType?.startsWith("supplier")) ?
+                        "moaChipSupplier"
+                      : "moaChipGroupage"
+                    )}
+                    <button
+                      type="button"
+                      onClick={removeGroupFilter}
+                      aria-label="Remove shipping group filter"
                       className="hover:opacity-70"
                     >
                       <X className="w-3 h-3" />
@@ -1851,18 +1970,56 @@ export function MarketplaceClient({
                 </div>
               </div>
 
-              {/* Product grid */}
-              <div
-                className={
-                  viewMode === "grid"
-                    ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"
-                    : "flex flex-col gap-2"
-                }
-              >
-                {displayProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} viewMode={viewMode} />
-                ))}
-              </div>
+              {/* Product grid / empty state. A zero-row page while the server
+                  reports matches means ?page= is past the end — offer the way
+                  back instead of a misleading "nothing matches". */}
+              {displayProducts.length === 0 ? (
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] py-20 px-6 text-center">
+                  <p className="text-base font-semibold text-[var(--text-primary)]">
+                    {loadFailed ? t("loadErrorTitle") : t("emptyTitle")}
+                  </p>
+                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                    {loadFailed
+                      ? t("loadErrorHint")
+                      : (totalProductCount ?? 0) > 0
+                        ? t("emptyPageHint")
+                        : activeSearch
+                          ? t("emptySearchHint", { query: activeSearch })
+                          : hasActiveFilters
+                            ? t("emptyFilteredHint")
+                            : t("emptyCatalogHint")}
+                  </p>
+                  {!loadFailed && (totalProductCount ?? 0) > 0 ? (
+                    <Link
+                      href={pageHrefFor(1)}
+                      className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-[var(--amber)] px-4 py-2.5 text-sm font-semibold text-[var(--obsidian)] hover:bg-[var(--amber-dark)] hover:text-white transition-colors"
+                    >
+                      {t("emptyPageReset")}
+                    </Link>
+                  ) : !loadFailed && hasActiveFilters ? (
+                    <button
+                      type="button"
+                      onClick={clearAllFilters}
+                      className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-[var(--amber)] px-4 py-2.5 text-sm font-semibold text-[var(--obsidian)] hover:bg-[var(--amber-dark)] hover:text-white transition-colors"
+                    >
+                      {t("emptyClear")}
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"
+                      : "flex flex-col gap-2"
+                  }
+                >
+                  {displayProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} viewMode={viewMode} />
+                  ))}
+                </div>
+              )}
 
               {/* Pagination */}
               {totalPages > 1 && (

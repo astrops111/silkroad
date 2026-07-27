@@ -48,8 +48,12 @@ export default function AdminProductsPage() {
   const [countries, setCountries] = useState<string[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const PAGE_SIZE = 50;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const tabToStatus: Record<string, string | null> = {
     All: null, Pending: "pending", Approved: "approved",
@@ -82,7 +86,8 @@ export default function AdminProductsPage() {
     if (filterSupplierId) params.set("supplierId", filterSupplierId);
     if (filterShippingGroupId) params.set("shippingGroupId", filterShippingGroupId);
     if (filterCountry) params.set("country", filterCountry);
-    params.set("limit", "100");
+    params.set("limit", String(PAGE_SIZE));
+    params.set("offset", String((page - 1) * PAGE_SIZE));
 
     try {
       const res = await fetch(`/api/admin/products?${params}`);
@@ -95,12 +100,23 @@ export default function AdminProductsPage() {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, search, filterSupplierId, filterShippingGroupId, filterCountry, page]);
+
+  // Any filter change invalidates the current page position.
+  useEffect(() => {
+    setPage(1);
   }, [activeTab, search, filterSupplierId, filterShippingGroupId, filterCountry]);
+
+  // Keep the page in range when the result set shrinks under it (e.g. the
+  // last row on the last page was deleted).
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   useEffect(() => {
     const t = setTimeout(fetchProducts, search ? 300 : 0);
     return () => clearTimeout(t);
-  }, [fetchProducts]);
+  }, [fetchProducts, search]);
 
   async function handleModerate(productId: string, action: string) {
     setActionLoading(productId);
@@ -326,7 +342,32 @@ export default function AdminProductsPage() {
           </div>
         )}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Showing {products.length} of {total} products</p>
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            {total === 0 || products.length === 0
+              ? `${total} products`
+              : `Showing ${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + products.length} of ${total} products`}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || loading}
+                className="px-3 py-1.5 rounded-lg disabled:opacity-40"
+                style={{ border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}
+              >
+                Previous
+              </button>
+              <span className="px-1">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || loading}
+                className="px-3 py-1.5 rounded-lg disabled:opacity-40"
+                style={{ border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

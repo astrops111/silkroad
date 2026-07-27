@@ -45,10 +45,12 @@ function formatMoney(cents: number, currency: string) {
   }).format(cents / 100);
 }
 
+const PAGE_SIZE = 50;
+
 export default async function SupplierProducts({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: StatusFilter; q?: string }>;
+  searchParams: Promise<{ status?: StatusFilter; q?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const user = await getCurrentUser();
@@ -59,14 +61,32 @@ export default async function SupplierProducts({
 
   const statusParam = params.status;
   const search = params.q?.trim();
+  const page = Math.max(1, Math.floor(Number(params.page)) || 1);
 
   const { products, total } = await getSupplierProducts(membership.company_id, {
     status: statusParam && statusParam !== "all" ? statusParam : undefined,
     search: search || undefined,
-    limit: 100,
+    page,
+    limit: PAGE_SIZE,
   });
 
   const active: StatusFilter = statusParam ?? "all";
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const pageHref = (p: number) => {
+    const qs = new URLSearchParams();
+    if (active !== "all") qs.set("status", active);
+    if (search) qs.set("q", search);
+    if (p > 1) qs.set("page", String(p));
+    const s = qs.toString();
+    return s ? `/supplier/products?${s}` : "/supplier/products";
+  };
+
+  // A stale or hand-typed ?page= past the end would show an empty table with
+  // a garbled range label — send it back to the last real page instead.
+  if (page > totalPages) {
+    redirect(pageHref(totalPages));
+  }
 
   // Demand rollup (RFQ/order counts) for the listed products — the view
   // aggregates across buyers, so read it with the service client; ids are
@@ -277,8 +297,41 @@ export default async function SupplierProducts({
 
       <div className="flex items-center justify-between text-sm text-[var(--text-tertiary)]">
         <p>
-          Showing {products.length} of {total} products
+          {total === 0
+            ? "0 products"
+            : `Showing ${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + products.length} of ${total} products`}
         </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            {page > 1 ? (
+              <Link
+                href={pageHref(page - 1)}
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] transition-colors"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] opacity-40">
+                Previous
+              </span>
+            )}
+            <span className="px-2">
+              Page {page} of {totalPages}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={pageHref(page + 1)}
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] transition-colors"
+              >
+                Next
+              </Link>
+            ) : (
+              <span className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] opacity-40">
+                Next
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

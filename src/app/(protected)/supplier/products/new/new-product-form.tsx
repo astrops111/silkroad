@@ -210,9 +210,13 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
 
       const productId = result.data.id;
 
+      // The product row exists at this point — if any follow-up insert fails,
+      // say so and land on the edit page instead of reporting a clean success.
+      const followUpErrors: string[] = [];
+
       const validTiers = tiers.filter((t) => t.minQuantity && t.unitPrice);
       if (validTiers.length) {
-        await addPricingTiers(
+        const tierRes = await addPricingTiers(
           productId,
           validTiers.map((t) => ({
             minQuantity: parseInt(t.minQuantity),
@@ -221,10 +225,11 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
             currency: form.currency,
           }))
         );
+        if (!tierRes.success) followUpErrors.push("pricing tiers");
       }
 
       if (images.length) {
-        await addProductImages(
+        const imageRes = await addProductImages(
           productId,
           images.map((img, i) => ({
             url: img.url,
@@ -232,12 +237,13 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
             isPrimary: i === 0,
           }))
         );
+        if (!imageRes.success) followUpErrors.push("images");
       }
 
       if (docs.length) {
         const validDocs = docs.filter((d) => d.url);
         if (validDocs.length) {
-          await addProductDocuments(
+          const docRes = await addProductDocuments(
             productId,
             validDocs.map((d) => ({
               url: d.url,
@@ -246,7 +252,16 @@ export default function NewProductForm({ categories, supplierCompanyId }: Props)
               validUntil: d.validUntil || undefined,
             }))
           );
+          if (!docRes.success) followUpErrors.push("documents");
         }
+      }
+
+      if (followUpErrors.length) {
+        toast.warning(
+          `Product created, but the ${followUpErrors.join(", ")} could not be saved. Please add them again on the edit page.`
+        );
+        router.push(`/supplier/products/${productId}/edit`);
+        return;
       }
 
       toast.success("Product submitted for review");
