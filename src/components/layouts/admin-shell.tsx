@@ -32,6 +32,7 @@ import {
   UserCircle2,
   ClipboardCheck,
   Mail,
+  Gem,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -107,6 +108,7 @@ const navSections = [
     items: [
       { name: "Disputes", href: "/admin/disputes", icon: Gavel },
       { name: "Verification", href: "/admin/verification", icon: ShieldCheck },
+      { name: "Resource Listings", href: "/admin/resources", icon: Gem },
     ],
   },
   {

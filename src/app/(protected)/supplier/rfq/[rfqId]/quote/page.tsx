@@ -44,6 +44,8 @@ interface RFQSummary {
   deadline: string | null;
   required_by?: string;
   sample_required?: boolean;
+  delivery_country?: string | null;
+  delivery_city?: string | null;
   rfq_items?: RFQItem[];
 }
 
@@ -320,6 +322,15 @@ export default function SubmitQuotePage() {
                 {rfq.quantity.toLocaleString()} {rfq.unit}
               </span>
             </div>
+            {(rfq.delivery_city || rfq.delivery_country) && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <MapPin className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                <span className="text-[var(--text-tertiary)]">Deliver to:</span>
+                <span className="font-semibold text-[var(--text-primary)]">
+                  {[rfq.delivery_city, rfq.delivery_country].filter(Boolean).join(", ")}
+                </span>
+              </div>
+            )}
             {rfq.target_price && (
               <div className="flex items-center gap-1.5 text-sm">
                 <Calculator className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />

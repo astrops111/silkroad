@@ -145,6 +145,49 @@ export async function listResourceListings(filters: ListResourceFilters = {}) {
   };
 }
 
+export async function getSupplierResourceListings(
+  companyId: string,
+  options?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }
+) {
+  const supabase = await createClient();
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
+  const offset = (page - 1) * limit;
+
+  let query = supabase
+    .from("commodities")
+    .select(
+      `
+      *,
+      resource_categories:resource_category_id (slug, name_en, name_zh, group_code, unit_of_measure)
+      `,
+      { count: "exact" }
+    )
+    .eq("tenant_id", companyId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (options?.status) {
+    query = query.eq("status", options.status);
+  }
+  if (options?.search) {
+    query = query.ilike("name_en", `%${options.search}%`);
+  }
+
+  const { data, count, error } = await query;
+  if (error) throw error;
+
+  return {
+    listings: (data ?? []) as unknown as ResourceListing[],
+    total: count ?? 0,
+  };
+}
+
 export async function getResourceListing(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

@@ -31,6 +31,8 @@ const fromCartSchema = z.object({
     .refine((d) => !d || new Date(d) > new Date(), "Deadline must be in the future")
     .optional()
     .nullable(),
+  deliveryCountry: z.string().length(2).optional(),
+  deliveryCity: z.string().max(100).optional(),
 });
 
 /**
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { items, note, deadline } = parsed.data;
+  const { items, note, deadline, deliveryCountry, deliveryCity } = parsed.data;
 
   const { data: membership } = await supabase
     .from("company_members")
@@ -159,7 +161,8 @@ export async function POST(request: NextRequest) {
         quantity: totalQty,
         unit: rfqUnit,
         target_currency: currency,
-        delivery_country: profile.country_code,
+        delivery_country: deliveryCountry ?? profile.country_code,
+        delivery_city: deliveryCity ?? null,
         invited_supplier_ids: [supplierId],
         is_public: false,
         status: "open",

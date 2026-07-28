@@ -3,7 +3,12 @@ import { QuotesPipelineList } from "@/components/admin/QuotesPipelineList";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminQuotesPipelinePage() {
+export default async function AdminQuotesPipelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ source?: string; q?: string }>;
+}) {
+  const sp = await searchParams;
   const rows = await listPipeline();
 
   return (
@@ -19,7 +24,7 @@ export default async function AdminQuotesPipelinePage() {
           Unified work queue across RFQ quotations, inbound buyer requests, and ops-originated freight quotes.
         </p>
       </div>
-      <QuotesPipelineList initialRows={rows} />
+      <QuotesPipelineList initialRows={rows} initialSource={sp.source} initialQuery={sp.q} />
     </div>
   );
 }

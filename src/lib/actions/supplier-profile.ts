@@ -7,7 +7,7 @@ import type {
   MarketRegion,
   TradeTerm,
 } from "@/lib/supabase/database.types";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -24,7 +24,7 @@ const MANAGE_ROLES: string[] = [
 
 async function requireSupplier(requireOwner = false) {
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
   if (!membership) return { ok: false as const, error: "Not signed in" };
   if (!canSupply(membership.companies?.type)) {
     return { ok: false as const, error: "Supplier accounts only" };

@@ -20,6 +20,7 @@ import {
   Users,
   PanelLeftClose,
   PanelLeftOpen,
+  Gem,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useUnreadMessagesCount } from "@/hooks/use-unread-messages";
@@ -28,6 +29,7 @@ const CORE_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/supplier/dashboard" },
   { icon: Package, label: "Products", href: "/supplier/products" },
   { icon: Upload, label: "Bulk Import", href: "/supplier/products/bulk-import" },
+  { icon: Gem, label: "Resources", href: "/supplier/resources" },
   { icon: ShoppingCart, label: "Orders", href: "/supplier/orders" },
   { icon: FileText, label: "RFQ Requests", href: "/supplier/rfq" },
   { icon: MessageSquare, label: "Messages", href: "/supplier/messages" },

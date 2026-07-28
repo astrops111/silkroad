@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/queries/user";
 import type { PlatformRole } from "@/lib/supabase/database.types";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -25,7 +25,7 @@ function isSupplierRole(r: string): r is PlatformRole {
 
 async function requireOwner() {
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
   if (!membership) return { ok: false as const, error: "Not signed in" };
   if (!canSupply(membership.companies?.type)) {
     return { ok: false as const, error: "Supplier accounts only" };

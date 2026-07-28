@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/charts/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { getCurrentUser } from "@/lib/queries/user";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 import {
   getSupplierKpis,
   getSupplierMonthlyRevenue,
@@ -37,7 +37,7 @@ function formatCompact(cents: number): string {
 
 export default async function SupplierAnalyticsPage() {
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
   if (!membership || !canSupply(membership.companies?.type)) {
     redirect("/dashboard");
   }

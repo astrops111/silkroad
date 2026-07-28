@@ -37,6 +37,7 @@ interface DealPayload {
   activities: TimelineActivity[];
   emailThreads: {
     id: string;
+    mailbox_id: string;
     subject_normalized: string | null;
     message_count: number;
     email_messages: {
@@ -193,7 +194,7 @@ export function DealDetailClient({ dealId }: { dealId: string }) {
             {data.emailThreads.map((t) => (
               <div key={t.id} className="mb-3 last:mb-0">
                 <Link
-                  href="/admin/mail"
+                  href={`/admin/mail?mailboxId=${t.mailbox_id}&threadId=${t.id}`}
                   className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--amber)]"
                 >
                   {t.subject_normalized ?? "(no subject)"} · {t.message_count} messages

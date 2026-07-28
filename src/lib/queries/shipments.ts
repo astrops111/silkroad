@@ -19,6 +19,49 @@ export async function getShipmentById(id: string): Promise<B2BShipmentRow | null
   return data;
 }
 
+export type AdminShipmentListRow = Pick<
+  B2BShipmentRow,
+  | "id"
+  | "shipment_number"
+  | "status"
+  | "customs_status"
+  | "shipping_method"
+  | "pickup_country"
+  | "pickup_city"
+  | "delivery_country"
+  | "delivery_city"
+  | "tracking_number"
+  | "carrier_scac"
+  | "vessel_name"
+  | "estimated_delivery_at"
+  | "dispatched_at"
+  | "delivered_at"
+  | "demurrage_flagged_at"
+  | "created_at"
+>;
+
+export async function listAdminShipments(): Promise<AdminShipmentListRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("b2b_shipments")
+    .select(
+      `
+      id, shipment_number, status, customs_status, shipping_method,
+      pickup_country, pickup_city, delivery_country, delivery_city,
+      tracking_number, carrier_scac, vessel_name,
+      estimated_delivery_at, dispatched_at, delivered_at,
+      demurrage_flagged_at, created_at
+    `
+    )
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    console.error("listAdminShipments failed", error);
+    return [];
+  }
+  return data ?? [];
+}
+
 export async function getShipmentBySupplierOrderId(
   supplierOrderId: string
 ): Promise<B2BShipmentRow | null> {

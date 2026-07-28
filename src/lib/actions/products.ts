@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/queries/user";
 import { productSchema, type ProductInput } from "@/lib/validators/product";
 import type { TradeTerm } from "@/lib/supabase/database.types";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 
 // Listed price = COGS × this markup. COGS is supplier-internal; buyers see base_price only.
 const COGS_MARKUP = 1.0;
@@ -26,7 +26,7 @@ async function getSupplierCompanyId(): Promise<
   { ok: true; companyId: string } | { ok: false; error: string }
 > {
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
   if (!membership) return { ok: false, error: "Not signed in" };
   if (!canSupply(membership.companies?.type)) {
     return { ok: false, error: "Only supplier accounts can manage products" };

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { MailClient } from "@/components/admin/mail/mail-client";
 
 export const metadata = {
@@ -18,7 +19,9 @@ export default function AdminMailPage() {
           Company mailboxes — synced every 5 minutes from mail.privateemail.com
         </p>
       </div>
-      <MailClient />
+      <Suspense fallback={null}>
+        <MailClient />
+      </Suspense>
     </div>
   );
 }

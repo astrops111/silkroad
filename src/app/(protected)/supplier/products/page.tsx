@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Plus, Package, Filter, Search } from "lucide-react";
 import { getCurrentUser } from "@/lib/queries/user";
 import { getSupplierProducts } from "@/lib/queries/products";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 import { createServiceClient } from "@/lib/supabase/server";
 import ProductRowActions from "./product-row-actions";
 
@@ -54,7 +54,7 @@ export default async function SupplierProducts({
 }) {
   const params = await searchParams;
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
   if (!membership || !canSupply(membership.companies?.type)) {
     redirect("/dashboard");
   }

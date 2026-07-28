@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeSearchTerm } from "@/lib/security/sanitize";
-import { onQuotationAccepted, onQuotationsRejected } from "@/lib/email/events";
+import { onQuotationAccepted, onQuotationsRejected, onRfqSubmitted } from "@/lib/email/events";
 import { findDealByRfq, attachToDealThread } from "@/lib/deals/threads";
 import { postDealMessage } from "@/lib/deals/messages";
 import { logActivity } from "@/lib/crm/activities";
@@ -244,6 +244,13 @@ export async function POST(request: NextRequest) {
     details: { rfqNumber },
   });
 
+  // Fire-and-forget notifications (ops email + Telegram, invited suppliers, buyer)
+  if (publish) {
+    onRfqSubmitted(rfq.id).catch((err) => {
+      console.error("[rfqs/POST] notification failed:", err);
+    });
+  }
+
   return NextResponse.json({
     success: true,
     rfqId: rfq.id,
@@ -295,6 +302,11 @@ export async function PATCH(request: NextRequest) {
         rfq_id: rfqId,
         actor_user_id: profile?.id,
         action: "published",
+      });
+
+      // Fire-and-forget notifications (ops email + Telegram, invited suppliers, buyer)
+      onRfqSubmitted(rfqId).catch((err) => {
+        console.error("[rfqs/PATCH] notification failed:", err);
       });
 
       return NextResponse.json({ success: true, action: "publish" });

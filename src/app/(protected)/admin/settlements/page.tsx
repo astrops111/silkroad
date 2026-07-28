@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Ban,
   ChevronLeft,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -95,6 +96,56 @@ export default function SettlementsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Generate-settlement panel
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [genSuppliers, setGenSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [genSupplierId, setGenSupplierId] = useState("");
+  const [genStart, setGenStart] = useState("");
+  const [genEnd, setGenEnd] = useState("");
+  const [genBusy, setGenBusy] = useState(false);
+
+  useEffect(() => {
+    if (!showGenerate || genSuppliers.length > 0) return;
+    fetch("/api/admin/suppliers?status=verified&limit=200")
+      .then((r) => r.json())
+      .then((d) =>
+        setGenSuppliers(
+          ((d.suppliers ?? []) as { id: string; name: string }[]).map((s) => ({
+            id: s.id,
+            name: s.name,
+          }))
+        )
+      )
+      .catch(() => toast.error("Could not load suppliers"));
+  }, [showGenerate, genSuppliers.length]);
+
+  async function handleGenerate() {
+    setGenBusy(true);
+    try {
+      const res = await fetch("/api/admin/settlements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierId: genSupplierId,
+          periodStart: genStart,
+          periodEnd: genEnd,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Settlement creation failed");
+      }
+      toast.success(`Settlement ${result.settlementNumber} created`);
+      setShowGenerate(false);
+      setGenSupplierId("");
+      await fetchSettlements();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Settlement creation failed");
+    } finally {
+      setGenBusy(false);
+    }
+  }
+
   const fetchSettlements = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -134,7 +185,13 @@ export default function SettlementsPage() {
       });
       const result = await res.json();
       if (result.success) {
-        toast.success(action === "process" ? "Payout initiated" : action === "mark_paid" ? "Marked as paid" : "Marked as failed");
+        toast.success(
+          action === "process"
+            ? `Payout executed via ${result.payoutMethod ?? "configured rail"}${result.payoutStatus === "processing" ? " — completing asynchronously" : ""}`
+            : action === "mark_paid"
+            ? "Marked as paid"
+            : "Marked as failed"
+        );
         await fetchSettlements();
       } else {
         toast.error(result.error || "Action failed");
@@ -178,7 +235,9 @@ export default function SettlementsPage() {
             Financial Settlements
           </h1>
           <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>
-            Commission tracking and supplier payout management
+            Commission tracking and supplier payouts. Start Payout executes the
+            transfer via the supplier&apos;s configured rail — XTransfer, Stripe,
+            Wise, or Flutterwave (mobile money / bank).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -186,12 +245,69 @@ export default function SettlementsPage() {
             style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)", color: "var(--text-tertiary)" }}>
             <RefreshCw className="w-4 h-4" />
           </button>
+          <button onClick={() => setShowGenerate((v) => !v)} className="btn-outline !py-2 !px-4 !text-sm">
+            <Plus className="w-4 h-4" />
+            Generate Settlement
+          </button>
           <button onClick={exportReport} disabled={filtered.length === 0} className="btn-outline !py-2 !px-4 !text-sm">
             <Download className="w-4 h-4" />
             Export Report
           </button>
         </div>
       </div>
+
+      {showGenerate && (
+        <div className="p-5 rounded-2xl border" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
+          <p className="text-sm font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+            Generate settlement from completed orders
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+              Supplier
+              <select
+                value={genSupplierId}
+                onChange={(e) => setGenSupplierId(e.target.value)}
+                className="mt-1 block px-3 py-2 rounded-xl border text-sm min-w-56"
+                style={{ background: "var(--surface-primary)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+              >
+                <option value="">Select supplier…</option>
+                {genSuppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+              Period start
+              <input type="date" value={genStart} onChange={(e) => setGenStart(e.target.value)}
+                className="mt-1 block px-3 py-2 rounded-xl border text-sm"
+                style={{ background: "var(--surface-primary)", borderColor: "var(--border-default)", color: "var(--text-primary)" }} />
+            </label>
+            <label className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+              Period end
+              <input type="date" value={genEnd} onChange={(e) => setGenEnd(e.target.value)}
+                className="mt-1 block px-3 py-2 rounded-xl border text-sm"
+                style={{ background: "var(--surface-primary)", borderColor: "var(--border-default)", color: "var(--text-primary)" }} />
+            </label>
+            <button
+              onClick={handleGenerate}
+              disabled={genBusy || !genSupplierId || !genStart || !genEnd}
+              className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
+              style={{
+                background: "color-mix(in srgb, var(--success) 12%, transparent)",
+                color: "var(--success)",
+                border: "1px solid color-mix(in srgb, var(--success) 25%, transparent)",
+              }}
+            >
+              {genBusy ? <Loader2 className="w-4 h-4 animate-spin inline" /> : "Create"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+            Sums the supplier&apos;s completed orders in the period (gross −
+            commission − logistics = net payout). Fails if no completed orders
+            exist in the range.
+          </p>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -314,9 +430,10 @@ export default function SettlementsPage() {
                             <>
                               {canProcess && (
                                 <button onClick={() => handlePayoutAction(s.id, "process")}
+                                  title="Executes the transfer on the supplier's configured payout rail"
                                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                                   style={{ background: "color-mix(in srgb, var(--success) 12%, transparent)", color: "var(--success)" }}>
-                                  Process Payout
+                                  Pay Out
                                 </button>
                               )}
                               {canRetry && (

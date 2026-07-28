@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import {
   Mail,
   Inbox,
@@ -13,6 +16,9 @@ import {
   X,
   Users,
   UserCircle2,
+  Layers,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +38,8 @@ interface ThreadListItem {
   last_message_at: string | null;
   message_count: number;
   unreadCount: number;
+  deal_thread_id: string | null;
+  mailboxes: { address: string; display_name: string } | null;
   latestMessage: {
     from_address: string;
     from_name: string | null;
@@ -65,6 +73,35 @@ interface Message {
   email_attachments: Attachment[];
 }
 
+interface ThreadCase {
+  id: string;
+  title: string | null;
+  status: string;
+}
+
+type FilterType = "case" | "company" | "rfq" | "person";
+
+interface FilterResult {
+  id: string;
+  label: string;
+  sublabel?: string;
+}
+
+interface ActiveFilter {
+  value: string;
+  label: string;
+}
+
+const FILTER_CONFIG: Record<
+  FilterType,
+  { placeholder: string; queryParam: string; getValue: (r: FilterResult) => string }
+> = {
+  case: { placeholder: "Case", queryParam: "dealThreadId", getValue: (r) => r.id },
+  company: { placeholder: "Client / Supplier", queryParam: "companyId", getValue: (r) => r.id },
+  rfq: { placeholder: "Request", queryParam: "rfqId", getValue: (r) => r.id },
+  person: { placeholder: "Person", queryParam: "personEmail", getValue: (r) => r.sublabel || r.label },
+};
+
 function formatTime(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -75,12 +112,337 @@ function formatTime(iso: string | null): string {
     : d.toLocaleDateString("en", { month: "short", day: "numeric" });
 }
 
+/** Reusable filter-bar chip: shows a search popover until a value is picked, then a clearable chip. */
+function FilterCombo({
+  type,
+  active,
+  onSelect,
+  onClear,
+}: {
+  type: FilterType;
+  active: ActiveFilter | null;
+  onSelect: (filter: ActiveFilter) => void;
+  onClear: () => void;
+}) {
+  const config = FILTER_CONFIG[type];
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<FilterResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !search.trim()) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    const t = setTimeout(() => {
+      fetch(`/api/admin/mail/filters?type=${type}&search=${encodeURIComponent(search)}`)
+        .then((r) => r.json())
+        .then((data) => setResults(data.results ?? []))
+        .finally(() => setLoading(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, open, type]);
+
+  if (active) {
+    return (
+      <button
+        onClick={onClear}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--amber)]/15 text-[var(--amber-dark)] border border-[var(--amber)]/30"
+      >
+        {active.label}
+        <X className="w-3 h-3" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium text-[var(--text-tertiary)] border border-[var(--border-default)] hover:border-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+      >
+        {config.placeholder}
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full mt-1 left-0 w-64 bg-white rounded-lg shadow-lg border border-[var(--border-subtle)] p-2">
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${config.placeholder.toLowerCase()}…`}
+            className="w-full text-xs rounded-md border border-[var(--border-default)] px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 text-[var(--text-primary)]"
+          />
+          <div className="mt-1 max-h-56 overflow-y-auto">
+            {loading && <p className="px-2 py-2 text-[11px] text-[var(--text-tertiary)]">Searching…</p>}
+            {!loading && search.trim() && results.length === 0 && (
+              <p className="px-2 py-2 text-[11px] text-[var(--text-tertiary)]">No matches</p>
+            )}
+            {results.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => {
+                  onSelect({ value: config.getValue(r), label: r.label });
+                  setOpen(false);
+                  setSearch("");
+                }}
+                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-secondary)] text-xs"
+              >
+                <div className="font-medium text-[var(--text-primary)] truncate">{r.label}</div>
+                {r.sublabel && (
+                  <div className="text-[10px] text-[var(--text-tertiary)] truncate">{r.sublabel}</div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Link to case" control shown in the open-thread header — search an existing case or create one. */
+function CaseLinkPopover({
+  threadId,
+  onLinked,
+}: {
+  threadId: string;
+  onLinked: (c: ThreadCase) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"search" | "new">("search");
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<FilterResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyResults, setCompanyResults] = useState<FilterResult[]>([]);
+  const [companyPicked, setCompanyPicked] = useState<FilterResult | null>(null);
+  const [side, setSide] = useState<"buyer" | "supplier">("buyer");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || mode !== "search" || !search.trim()) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    const t = setTimeout(() => {
+      fetch(`/api/admin/mail/filters?type=case&search=${encodeURIComponent(search)}`)
+        .then((r) => r.json())
+        .then((data) => setResults(data.results ?? []))
+        .finally(() => setLoading(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, open, mode]);
+
+  useEffect(() => {
+    if (!open || mode !== "new" || !companySearch.trim()) {
+      setCompanyResults([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      fetch(`/api/admin/mail/filters?type=company&search=${encodeURIComponent(companySearch)}`)
+        .then((r) => r.json())
+        .then((data) => setCompanyResults(data.results ?? []));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [companySearch, open, mode]);
+
+  async function linkExisting(dealThreadId: string, label: string) {
+    setLinking(true);
+    try {
+      const res = await fetch(`/api/admin/mail/threads/${threadId}/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealThreadId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onLinked({ id: dealThreadId, title: label, status: "active" });
+        setOpen(false);
+      } else {
+        toast.error(data.error ?? "Failed to link case");
+      }
+    } catch {
+      toast.error("Network error linking case");
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  async function createAndLink() {
+    if (!newTitle.trim() || !companyPicked) return;
+    setLinking(true);
+    try {
+      const res = await fetch(`/api/admin/mail/threads/${threadId}/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newCase: { title: newTitle, companyId: companyPicked.id, side } }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onLinked({ id: data.dealThreadId, title: newTitle, status: "active" });
+        setOpen(false);
+      } else {
+        toast.error(data.error ?? "Failed to create case");
+      }
+    } catch {
+      toast.error("Network error creating case");
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-[var(--text-tertiary)] border border-dashed border-[var(--border-default)] hover:border-[var(--amber)] hover:text-[var(--amber-dark)] transition-colors"
+      >
+        <Link2 className="w-3 h-3" />
+        Link to case
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full mt-1 right-0 w-72 bg-white rounded-lg shadow-lg border border-[var(--border-subtle)] p-3">
+          <div className="flex gap-1 mb-2">
+            <button
+              onClick={() => setMode("search")}
+              className={`flex-1 text-[11px] font-medium py-1 rounded-md ${mode === "search" ? "bg-[var(--amber)]/15 text-[var(--amber-dark)]" : "text-[var(--text-tertiary)]"}`}
+            >
+              Existing case
+            </button>
+            <button
+              onClick={() => setMode("new")}
+              className={`flex-1 text-[11px] font-medium py-1 rounded-md ${mode === "new" ? "bg-[var(--amber)]/15 text-[var(--amber-dark)]" : "text-[var(--text-tertiary)]"}`}
+            >
+              + New case
+            </button>
+          </div>
+          {mode === "search" ? (
+            <>
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search cases…"
+                className="w-full text-xs rounded-md border border-[var(--border-default)] px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 text-[var(--text-primary)]"
+              />
+              <div className="mt-1 max-h-48 overflow-y-auto">
+                {loading && <p className="px-2 py-2 text-[11px] text-[var(--text-tertiary)]">Searching…</p>}
+                {results.map((r) => (
+                  <button
+                    key={r.id}
+                    disabled={linking}
+                    onClick={() => void linkExisting(r.id, r.label)}
+                    className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-secondary)] text-xs"
+                  >
+                    <div className="font-medium text-[var(--text-primary)] truncate">{r.label}</div>
+                    {r.sublabel && (
+                      <div className="text-[10px] text-[var(--text-tertiary)] truncate">{r.sublabel}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Case title"
+                className="w-full text-xs rounded-md border border-[var(--border-default)] px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 text-[var(--text-primary)]"
+              />
+              <div className="relative">
+                <input
+                  value={companyPicked ? companyPicked.label : companySearch}
+                  onChange={(e) => {
+                    setCompanyPicked(null);
+                    setCompanySearch(e.target.value);
+                  }}
+                  placeholder="Company…"
+                  className="w-full text-xs rounded-md border border-[var(--border-default)] px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 text-[var(--text-primary)]"
+                />
+                {!companyPicked && companyResults.length > 0 && (
+                  <div className="absolute z-10 top-full mt-1 left-0 right-0 max-h-32 overflow-y-auto bg-white rounded-md border border-[var(--border-subtle)] shadow">
+                    {companyResults.map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          setCompanyPicked(r);
+                          setCompanyResults([]);
+                        }}
+                        className="w-full text-left px-2 py-1.5 hover:bg-[var(--surface-secondary)] text-xs"
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setSide("buyer")}
+                  className={`flex-1 text-[11px] py-1 rounded-md border ${side === "buyer" ? "border-[var(--amber)] text-[var(--amber-dark)]" : "border-[var(--border-default)] text-[var(--text-tertiary)]"}`}
+                >
+                  Buyer
+                </button>
+                <button
+                  onClick={() => setSide("supplier")}
+                  className={`flex-1 text-[11px] py-1 rounded-md border ${side === "supplier" ? "border-[var(--amber)] text-[var(--amber-dark)]" : "border-[var(--border-default)] text-[var(--text-tertiary)]"}`}
+                >
+                  Supplier
+                </button>
+              </div>
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={!newTitle.trim() || !companyPicked || linking}
+                onClick={() => void createAndLink()}
+              >
+                {linking ? "Creating…" : "Create & link"}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MailClient() {
+  const searchParams = useSearchParams();
+  const initialThreadId = useRef(searchParams.get("threadId"));
+  const initialMailboxId = useRef(searchParams.get("mailboxId"));
+
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
-  const [selectedMailbox, setSelectedMailbox] = useState<string | null>(null);
+  const [selectedMailbox, setSelectedMailbox] = useState<string | "all" | null>(null);
   const [threads, setThreads] = useState<ThreadListItem[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [openThreadMailboxId, setOpenThreadMailboxId] = useState<string | null>(null);
+  const [threadCase, setThreadCase] = useState<ThreadCase | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -89,10 +451,20 @@ export function MailClient() {
   const [sendForm, setSendForm] = useState({ to: "", subject: "", body: "" });
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Record<FilterType, ActiveFilter | null>>({
+    case: null,
+    company: null,
+    rfq: null,
+    person: null,
+  });
 
+  const isAllMode = selectedMailbox === "all";
   const currentMailbox = mailboxes.find((m) => m.id === selectedMailbox) ?? null;
   const canSend =
-    currentMailbox?.myPermission === "send" || currentMailbox?.myPermission === "manage";
+    !isAllMode && (currentMailbox?.myPermission === "send" || currentMailbox?.myPermission === "manage");
+  const openMailbox = mailboxes.find((m) => m.id === openThreadMailboxId) ?? null;
+  const canReply = openMailbox?.myPermission === "send" || openMailbox?.myPermission === "manage";
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const [processedTick, setProcessedTick] = useState(0);
 
@@ -102,7 +474,12 @@ export function MailClient() {
       .then((data) => {
         const boxes: Mailbox[] = data.mailboxes ?? [];
         setMailboxes(boxes);
-        if (boxes.length > 0) setSelectedMailbox(boxes[0].id);
+        const urlMailbox = initialMailboxId.current;
+        if (urlMailbox && (urlMailbox === "all" || boxes.some((b) => b.id === urlMailbox))) {
+          setSelectedMailbox(urlMailbox);
+        } else if (boxes.length > 0) {
+          setSelectedMailbox(boxes[0].id);
+        }
       })
       .catch(() => {});
   }, []);
@@ -123,15 +500,20 @@ export function MailClient() {
     if (!selectedMailbox) return;
     setThreadsLoading(true);
     try {
-      const params = new URLSearchParams({ mailboxId: selectedMailbox });
+      const params = new URLSearchParams();
+      if (selectedMailbox !== "all") params.set("mailboxId", selectedMailbox);
       if (search) params.set("search", search);
+      for (const type of Object.keys(filters) as FilterType[]) {
+        const active = filters[type];
+        if (active) params.set(FILTER_CONFIG[type].queryParam, active.value);
+      }
       const res = await fetch(`/api/admin/mail/threads?${params}`);
       const data = await res.json();
       setThreads(data.threads ?? []);
     } finally {
       setThreadsLoading(false);
     }
-  }, [selectedMailbox, search]);
+  }, [selectedMailbox, search, filters]);
 
   useEffect(() => {
     setSelectedThread(null);
@@ -145,7 +527,7 @@ export function MailClient() {
     if (processedTick > 0) void loadThreads();
   }, [processedTick, loadThreads]);
 
-  async function openThread(threadId: string) {
+  const openThread = useCallback(async (threadId: string) => {
     setSelectedThread(threadId);
     setReplyTo(null);
     setComposeOpen(false);
@@ -154,6 +536,16 @@ export function MailClient() {
       const res = await fetch(`/api/admin/mail/threads/${threadId}`);
       const data = await res.json();
       setMessages(data.messages ?? []);
+      setOpenThreadMailboxId(data.thread?.mailbox_id ?? null);
+      setThreadCase(
+        data.thread?.deal_thread_id
+          ? {
+              id: data.thread.deal_thread_id,
+              title: data.thread.deal_threads?.title ?? null,
+              status: data.thread.deal_threads?.status ?? "active",
+            }
+          : null
+      );
       // Mark read + clear badge locally
       void fetch(`/api/admin/mail/threads/${threadId}`, { method: "PATCH" });
       setThreads((prev) =>
@@ -162,6 +554,28 @@ export function MailClient() {
     } finally {
       setMessagesLoading(false);
     }
+  }, []);
+
+  // Deep-link support: ?threadId= (optionally with ?mailboxId=) opens a
+  // specific thread directly, e.g. from the CRM deal-detail page's linked
+  // email panel. Fires once on mount; openThread fetches by id directly so
+  // it doesn't need to wait on the mailbox/thread-list load above.
+  useEffect(() => {
+    if (initialThreadId.current) {
+      const id = initialThreadId.current;
+      initialThreadId.current = null;
+      void openThread(id);
+    }
+  }, [openThread]);
+
+  function setFilter(type: FilterType, value: ActiveFilter) {
+    setFilters((prev) => ({ ...prev, [type]: value }));
+  }
+  function clearFilter(type: FilterType) {
+    setFilters((prev) => ({ ...prev, [type]: null }));
+  }
+  function clearAllFilters() {
+    setFilters({ case: null, company: null, rfq: null, person: null });
   }
 
   function startReply(message: Message) {
@@ -181,7 +595,8 @@ export function MailClient() {
   }
 
   async function handleSend() {
-    if (!selectedMailbox) return;
+    const sendMailboxId = replyTo ? openThreadMailboxId : selectedMailbox;
+    if (!sendMailboxId || sendMailboxId === "all") return;
     setSending(true);
     setSendError(null);
     try {
@@ -189,7 +604,7 @@ export function MailClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mailboxId: selectedMailbox,
+          mailboxId: sendMailboxId,
           to: sendForm.to.split(",").map((s) => s.trim()).filter(Boolean),
           subject: sendForm.subject,
           html: `<div style="font-family:system-ui,sans-serif;white-space:pre-wrap;">${sendForm.body
@@ -226,17 +641,61 @@ export function MailClient() {
     if (data.url) window.open(data.url, "_blank");
   }
 
+  async function unlinkCase() {
+    if (!selectedThread) return;
+    try {
+      const res = await fetch(`/api/admin/mail/threads/${selectedThread}/case`, { method: "DELETE" });
+      if (res.ok) {
+        setThreadCase(null);
+        setThreads((prev) =>
+          prev.map((t) => (t.id === selectedThread ? { ...t, deal_thread_id: null } : t))
+        );
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? "Failed to unlink case");
+      }
+    } catch {
+      toast.error("Network error unlinking case");
+    }
+  }
+
+  function onCaseLinked(c: ThreadCase) {
+    setThreadCase(c);
+    if (selectedThread) {
+      setThreads((prev) =>
+        prev.map((t) => (t.id === selectedThread ? { ...t, deal_thread_id: c.id } : t))
+      );
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] rounded-xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-primary)]">
       {/* Pane 1 — mailboxes */}
       <div className="w-56 shrink-0 border-r border-[var(--border-subtle)] bg-[var(--surface-secondary)] flex flex-col">
         <div className="p-3 border-b border-[var(--border-subtle)]">
-          <Button size="sm" className="w-full" onClick={startCompose} disabled={!canSend}>
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={startCompose}
+            disabled={!canSend}
+            title={isAllMode ? "Select a specific mailbox to compose" : undefined}
+          >
             <PenSquare className="w-3.5 h-3.5" />
             Compose
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto py-2">
+          <button
+            onClick={() => setSelectedMailbox("all")}
+            className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors ${
+              isAllMode
+                ? "bg-[var(--surface-primary)] text-[var(--text-primary)] font-medium"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-primary)]/60"
+            }`}
+          >
+            <Layers className="w-4 h-4 shrink-0 text-[var(--text-tertiary)]" />
+            <span className="truncate">All Mailboxes</span>
+          </button>
           {mailboxes.map((m) => (
             <button
               key={m.id}
@@ -265,23 +724,39 @@ export function MailClient() {
 
       {/* Pane 2 — thread list */}
       <div className="w-80 shrink-0 border-r border-[var(--border-subtle)] flex flex-col">
-        <div className="p-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search subject…"
-              className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 text-[var(--text-primary)]"
-            />
+        <div className="p-3 border-b border-[var(--border-subtle)] space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search subject…"
+                className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 text-[var(--text-primary)]"
+              />
+            </div>
+            <button
+              onClick={() => void loadThreads()}
+              className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${threadsLoading ? "animate-spin" : ""}`} />
+            </button>
           </div>
-          <button
-            onClick={() => void loadThreads()}
-            className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${threadsLoading ? "animate-spin" : ""}`} />
-          </button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <FilterCombo type="case" active={filters.case} onSelect={(f) => setFilter("case", f)} onClear={() => clearFilter("case")} />
+            <FilterCombo type="company" active={filters.company} onSelect={(f) => setFilter("company", f)} onClear={() => clearFilter("company")} />
+            <FilterCombo type="rfq" active={filters.rfq} onSelect={(f) => setFilter("rfq", f)} onClear={() => clearFilter("rfq")} />
+            <FilterCombo type="person" active={filters.person} onSelect={(f) => setFilter("person", f)} onClear={() => clearFilter("person")} />
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
           {threads.map((t) => (
@@ -311,15 +786,25 @@ export function MailClient() {
               <p className="text-xs truncate mt-0.5 text-[var(--text-secondary)]">
                 {t.latestMessage?.subject || t.subject_normalized || "(no subject)"}
               </p>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[11px] truncate text-[var(--text-tertiary)]">
+              <div className="flex items-center justify-between mt-0.5 gap-2">
+                <p className="text-[11px] truncate text-[var(--text-tertiary)] flex-1">
                   {t.latestMessage?.snippet ?? ""}
                 </p>
-                {t.unreadCount > 0 && (
-                  <span className="ml-2 shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--amber)] text-[var(--obsidian)] text-[10px] font-bold flex items-center justify-center">
-                    {t.unreadCount}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isAllMode && t.mailboxes && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-tertiary)] text-[var(--text-tertiary)]">
+                      {t.mailboxes.display_name}
+                    </span>
+                  )}
+                  {t.deal_thread_id && (
+                    <Link2 className="w-3 h-3 text-[var(--amber)]" aria-label="Linked to a case" />
+                  )}
+                  {t.unreadCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--amber)] text-[var(--obsidian)] text-[10px] font-bold flex items-center justify-center">
+                      {t.unreadCount}
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
           ))}
@@ -338,7 +823,8 @@ export function MailClient() {
           <div className="flex-1 flex flex-col p-4 gap-3 overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                {replyTo ? "Reply" : "New message"} — from {currentMailbox?.address}
+                {replyTo ? "Reply" : "New message"} — from{" "}
+                {replyTo ? openMailbox?.address : currentMailbox?.address}
               </h2>
               <button
                 onClick={() => setComposeOpen(false)}
@@ -381,82 +867,106 @@ export function MailClient() {
             </div>
           </div>
         ) : selectedThread ? (
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messagesLoading && (
-              <p className="text-xs text-[var(--text-tertiary)]">Loading…</p>
-            )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`rounded-xl border p-4 ${
-                  m.direction === "outbound"
-                    ? "border-[var(--amber)]/30 bg-[var(--amber)]/5"
-                    : "border-[var(--border-subtle)] bg-[var(--surface-secondary)]"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {m.from_name || m.from_address}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)] ml-2">
-                      to {m.to_addresses.join(", ")}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] text-[var(--text-tertiary)]">
-                      {m.sent_at ? new Date(m.sent_at).toLocaleString() : ""}
-                    </span>
-                    {canSend && (
-                      <button
-                        onClick={() => startReply(m)}
-                        className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-primary)]"
-                        title="Reply"
-                      >
-                        <Reply className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="p-3 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 shrink-0">
+              {threadCase ? (
+                <div className="inline-flex items-center gap-1.5">
+                  <Link
+                    href={`/admin/deals/${threadCase.id}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--amber)]/15 text-[var(--amber-dark)] border border-[var(--amber)]/30 hover:bg-[var(--amber)]/25 transition-colors"
+                  >
+                    {threadCase.title ?? "Case"} · {threadCase.status}
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                  <button
+                    onClick={() => void unlinkCase()}
+                    className="p-1 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                    title="Unlink case"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </div>
-                <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
-                  {m.subject ?? "(no subject)"}
-                </p>
-                {m.text_body ? (
-                  <div className="text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words">
-                    {m.text_body}
+              ) : (
+                <CaseLinkPopover threadId={selectedThread} onLinked={onCaseLinked} />
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messagesLoading && (
+                <p className="text-xs text-[var(--text-tertiary)]">Loading…</p>
+              )}
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`rounded-xl border p-4 ${
+                    m.direction === "outbound"
+                      ? "border-[var(--amber)]/30 bg-[var(--amber)]/5"
+                      : "border-[var(--border-subtle)] bg-[var(--surface-secondary)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                        {m.from_name || m.from_address}
+                      </span>
+                      <span className="text-xs text-[var(--text-tertiary)] ml-2">
+                        to {m.to_addresses.join(", ")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-[var(--text-tertiary)]">
+                        {m.sent_at ? new Date(m.sent_at).toLocaleString() : ""}
+                      </span>
+                      {canReply && (
+                        <button
+                          onClick={() => startReply(m)}
+                          className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-primary)]"
+                          title="Reply"
+                        >
+                          <Reply className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ) : m.html_body ? (
-                  // sandbox (no allow-scripts) keeps remote HTML inert
-                  <iframe
-                    sandbox=""
-                    srcDoc={m.html_body}
-                    className="w-full min-h-[200px] rounded-lg border border-[var(--border-subtle)] bg-white"
-                    title={`message-${m.id}`}
-                  />
-                ) : (
-                  <p className="text-xs text-[var(--text-tertiary)]">(empty body)</p>
-                )}
-                {m.email_attachments?.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {m.email_attachments.map((att) => (
-                      <button
-                        key={att.id}
-                        onClick={() => void downloadAttachment(att)}
-                        className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--amber)] transition-colors"
-                      >
-                        <Paperclip className="w-3 h-3" />
-                        {att.filename ?? "attachment"}
-                        {att.size_bytes ? (
-                          <span className="text-[var(--text-tertiary)]">
-                            ({Math.ceil(att.size_bytes / 1024)} KB)
-                          </span>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                  <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
+                    {m.subject ?? "(no subject)"}
+                  </p>
+                  {m.text_body ? (
+                    <div className="text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words">
+                      {m.text_body}
+                    </div>
+                  ) : m.html_body ? (
+                    // sandbox (no allow-scripts) keeps remote HTML inert
+                    <iframe
+                      sandbox=""
+                      srcDoc={m.html_body}
+                      className="w-full min-h-[200px] rounded-lg border border-[var(--border-subtle)] bg-white"
+                      title={`message-${m.id}`}
+                    />
+                  ) : (
+                    <p className="text-xs text-[var(--text-tertiary)]">(empty body)</p>
+                  )}
+                  {m.email_attachments?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {m.email_attachments.map((att) => (
+                        <button
+                          key={att.id}
+                          onClick={() => void downloadAttachment(att)}
+                          className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--amber)] transition-colors"
+                        >
+                          <Paperclip className="w-3 h-3" />
+                          {att.filename ?? "attachment"}
+                          {att.size_bytes ? (
+                            <span className="text-[var(--text-tertiary)]">
+                              ({Math.ceil(att.size_bytes / 1024)} KB)
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">

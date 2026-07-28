@@ -1,16 +1,18 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, type UserWithCompany } from "@/lib/queries/user";
+import { getCurrentUser } from "@/lib/queries/user";
 
 export default async function SystemLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = (await getCurrentUser()) as UserWithCompany;
-  const membership = user.company_members[0];
+  const user = await getCurrentUser();
 
-  // Only super admins can access system monitoring
-  if (!membership || membership.role !== "admin_super") {
+  // Only super admins can access system monitoring — check every membership,
+  // not just the first row, and tolerate an expired session.
+  const isSuper =
+    user?.company_members?.some((m) => m.role === "admin_super") ?? false;
+  if (!isSuper) {
     redirect("/admin/dashboard");
   }
 

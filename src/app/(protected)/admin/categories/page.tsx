@@ -14,8 +14,8 @@ export default async function AdminCategoriesPage() {
     getCurrentUser(),
   ]);
 
-  const role = user?.company_members?.[0]?.role;
-  const canDelete = role === "admin_super";
+  const canDelete =
+    user?.company_members?.some((m) => m.role === "admin_super") ?? false;
 
   return (
     <div className="space-y-6">

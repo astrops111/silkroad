@@ -39,7 +39,7 @@ export const handler: EventHandler = async (event, supabase) => {
     metadata:     { shipmentId: shipment_id, declarationNo: shipment.customs_declaration_no },
   }).catch(() => {});
 
-  // Buyer email from logistic@ + deal-thread CRM activity (idempotent on retry)
+  // Buyer email from logistics@ + deal-thread CRM activity (idempotent on retry)
   await notifyShipmentMilestone(supabase, {
     eventId: event.id,
     shipmentId: shipment_id,

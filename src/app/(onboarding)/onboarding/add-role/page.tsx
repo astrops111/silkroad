@@ -21,24 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ShoppingCart, Factory, Loader2 } from "lucide-react";
 import { addCompanyRole } from "@/lib/actions/onboarding";
-
-const COUNTRIES = [
-  { code: "GH", name: "Ghana", region: "africa_west" },
-  { code: "NG", name: "Nigeria", region: "africa_west" },
-  { code: "KE", name: "Kenya", region: "africa_east" },
-  { code: "TZ", name: "Tanzania", region: "africa_east" },
-  { code: "UG", name: "Uganda", region: "africa_east" },
-  { code: "RW", name: "Rwanda", region: "africa_east" },
-  { code: "ET", name: "Ethiopia", region: "africa_east" },
-  { code: "ZA", name: "South Africa", region: "africa_south" },
-  { code: "CM", name: "Cameroon", region: "africa_central" },
-  { code: "CD", name: "DR Congo", region: "africa_central" },
-  { code: "EG", name: "Egypt", region: "africa_north" },
-  { code: "MA", name: "Morocco", region: "africa_north" },
-  { code: "SN", name: "Senegal", region: "africa_west" },
-  { code: "CI", name: "Ivory Coast", region: "africa_west" },
-  { code: "CN", name: "China", region: "cn" },
-];
+import { ONBOARDING_COUNTRIES as COUNTRIES } from "@/lib/constants/regions";
 
 const INDUSTRIES = [
   "Electronics & Technology",

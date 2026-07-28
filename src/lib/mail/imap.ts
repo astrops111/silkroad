@@ -7,6 +7,7 @@ import { resolveContact } from "@/lib/crm/contacts";
 import { logActivity } from "@/lib/crm/activities";
 import { ensureSupportTicketForEmail } from "@/lib/support/tickets";
 import { sendMailboxEmail } from "./smtp";
+import { sendTelegramNotification, telegramChatIdForMailbox, tgEsc } from "@/lib/telegram/notify";
 
 type DB = SupabaseClient<Database>;
 type MailboxRow = Database["public"]["Tables"]["mailboxes"]["Row"];
@@ -220,8 +221,9 @@ async function insertMessage(
 
     // Support mailbox → ticket intake (append to existing thread ticket
     // or open a new one with auto-acknowledgement)
+    let ticketId: string | null = null;
     if (mailbox.address.toLowerCase().startsWith("support@")) {
-      await ensureSupportTicketForEmail({
+      ticketId = await ensureSupportTicketForEmail({
         emailMessageId: row.id,
         threadId,
         mailboxId: mailbox.id,
@@ -233,6 +235,30 @@ async function insertMessage(
     } else {
       // Per-mailbox auto-response (support@ is covered by the ticket ack)
       await maybeAutoReply(supabase, mailbox, fromAddress, parsed.subject ?? null);
+    }
+
+    // Telegram ops push — only for fresh mail, so a first-sync backfill of
+    // old messages doesn't flood the chat. Never throws, no-ops unconfigured.
+    const ageMs = parsed.date ? Date.now() - parsed.date.getTime() : 0;
+    if (ageMs < 48 * 3600 * 1000) {
+      const fromName = parsed.from?.value?.[0]?.name;
+      const snippet = textBody ? textBody.replace(/\s+/g, " ").trim().slice(0, 300) : "";
+      await sendTelegramNotification(
+        [
+          `📬 <b>New email</b> — ${tgEsc(mailbox.address)}`,
+          ``,
+          `From: ${tgEsc(fromName ? `${fromName} <${fromAddress}>` : fromAddress)}`,
+          `Subject: <b>${tgEsc(parsed.subject)}</b>`,
+          ...(snippet ? [``, tgEsc(snippet)] : []),
+          ...(ticketId ? [``, `🎫 Support ticket opened/updated`] : []),
+        ].join("\n"),
+        {
+          chatId: telegramChatIdForMailbox(mailbox.address),
+          ...(process.env.NEXT_PUBLIC_APP_URL
+            ? { button: { text: "Open webmail", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/mail` } }
+            : {}),
+        }
+      );
     }
   }
 

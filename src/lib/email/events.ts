@@ -6,6 +6,8 @@ import {
   sendEmail,
 } from "./index";
 import { formatMoney } from "@/lib/payments/currency-config";
+import { sendTelegramNotification, tgEsc } from "@/lib/telegram/notify";
+import { sendMailboxEmail } from "@/lib/mail/smtp";
 
 /**
  * Email event dispatcher — call these from webhooks, API routes, and triggers
@@ -17,7 +19,7 @@ import { formatMoney } from "@/lib/payments/currency-config";
  * Fires at order creation (pre-payment) so ops can begin sourcing.
  */
 const OPS_NOTIFICATION_EMAIL =
-  process.env.OPS_NOTIFICATION_EMAIL ?? "logistic@silkroad.africa";
+  process.env.OPS_NOTIFICATION_EMAIL ?? "logistics@silkroad.africa";
 
 function esc(v: string | null | undefined): string {
   if (!v) return "—";
@@ -26,6 +28,33 @@ function esc(v: string | null | undefined): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Ops email — sent from the sales@ mailbox over SMTP so it lands in the
+ * webmail Sent folder and threads with replies; falls back to Resend when
+ * the mailbox or its credential is unavailable.
+ */
+async function sendOpsEmail(subject: string, html: string, template: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { data: box } = await supabase
+    .from("mailboxes")
+    .select("id, credential_ref")
+    .ilike("address", "sales@%")
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (box && process.env[box.credential_ref]) {
+    const result = await sendMailboxEmail(supabase, {
+      mailboxId: box.id,
+      to: [OPS_NOTIFICATION_EMAIL],
+      subject,
+      html,
+    });
+    if (result.success) return;
+  }
+  await sendEmail({ to: OPS_NOTIFICATION_EMAIL, subject, html }, template);
 }
 
 /**
@@ -48,7 +77,10 @@ export async function onBuyerRequestSubmitted(buyerRequestId: string) {
 
   if (!req) return;
 
-  const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/superadmin/buyer-requests/${req.id}`;
+  // Deep-link into the unified pipeline queue pre-filtered to this request
+  // (there is no per-request detail page; the queue's search matches the
+  // 8-char request number derived from the id).
+  const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/admin/quotes?source=buyer_request&q=${req.id.slice(0, 8)}`;
 
   const html = `
     <div style="font-family:system-ui,sans-serif;max-width:680px;margin:0 auto;color:#14110F;">
@@ -89,13 +121,23 @@ export async function onBuyerRequestSubmitted(buyerRequestId: string) {
     </div>
   `;
 
-  await sendEmail(
-    {
-      to: OPS_NOTIFICATION_EMAIL,
-      subject: `[Buyer Request] ${req.title.slice(0, 80)} — ${req.name}`,
-      html,
-    },
-    "buyer_request_submitted"
+  await sendOpsEmail(`[Buyer Request] ${req.title.slice(0, 80)} — ${req.name}`, html, "buyer_request_submitted");
+
+  await sendTelegramNotification(
+    [
+      `🛎 <b>New Buyer Request</b>`,
+      ``,
+      `<b>${tgEsc(req.title)}</b>`,
+      `${tgEsc(req.description?.slice(0, 300))}`,
+      ``,
+      `Category: ${tgEsc(req.category)} · Qty: ${tgEsc(req.quantity)}`,
+      `Budget: ${tgEsc(req.budget_usd)} USD · Timeline: ${tgEsc(req.timeline)}`,
+      `From: ${tgEsc(req.name)} (${tgEsc(req.company_name)}, ${tgEsc(req.country_code)})`,
+      `Contact: ${tgEsc(req.email)} · ${tgEsc(req.phone)}`,
+    ].join("\n"),
+    process.env.NEXT_PUBLIC_APP_URL
+      ? { button: { text: "Open in admin", url: adminUrl } }
+      : {}
   );
 }
 
@@ -122,7 +164,7 @@ export async function onOrderPlacedOpsNotify(purchaseOrderId: string) {
 
   const { data: supplierOrders } = await supabase
     .from("supplier_orders")
-    .select("id, order_number, subtotal, shipping_fee, tax_amount, total_amount, currency, supplier_id")
+    .select("id, order_number, subtotal, shipping_fee, tax_amount, total_amount, currency, supplier_id, ship_to_country, ship_to_city")
     .eq("purchase_order_id", purchaseOrderId);
 
   const supplierIds = Array.from(new Set((supplierOrders || []).map((s) => s.supplier_id)));
@@ -163,7 +205,7 @@ export async function onOrderPlacedOpsNotify(purchaseOrderId: string) {
       .map(
         (it) => `
           <tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${it.product_name}${it.variant_name ? ` <span style="color:#888;">(${it.variant_name})</span>` : ""}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${esc(it.product_name)}${it.variant_name ? ` <span style="color:#888;">(${esc(it.variant_name)})</span>` : ""}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">${it.quantity}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">${formatMoney(it.unit_price, it.currency)}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">${formatMoney(it.subtotal, it.currency)}</td>
@@ -175,7 +217,8 @@ export async function onOrderPlacedOpsNotify(purchaseOrderId: string) {
       <div style="margin:16px 0;padding:12px;border:1px solid #eee;border-radius:8px;">
         <div style="font-weight:600;margin-bottom:6px;">Supplier Order ${so.order_number}</div>
         <div style="color:#555;font-size:13px;margin-bottom:8px;">
-          Supplier: <strong>${supplier?.name ?? "—"}</strong> (${supplier?.country_code ?? "—"})
+          Supplier: <strong>${esc(supplier?.name)}</strong> (${esc(supplier?.country_code)})
+          · Ship to: <strong>${esc([so.ship_to_city, so.ship_to_country].filter(Boolean).join(", "))}</strong>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
@@ -206,12 +249,12 @@ export async function onOrderPlacedOpsNotify(purchaseOrderId: string) {
 
       <h2 style="font-size:16px;margin:20px 0 8px;">Buyer</h2>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <tr><td style="padding:4px 0;width:140px;color:#666;">Name</td><td>${buyer?.full_name ?? "—"}</td></tr>
-        <tr><td style="padding:4px 0;color:#666;">Email</td><td>${buyer?.email ?? "—"}</td></tr>
-        <tr><td style="padding:4px 0;color:#666;">Phone</td><td>${buyer?.phone ?? "—"}</td></tr>
-        <tr><td style="padding:4px 0;color:#666;">Country</td><td>${buyer?.country_code ?? "—"}</td></tr>
-        <tr><td style="padding:4px 0;color:#666;">Company</td><td>${po.buyer_company_name ?? "—"}</td></tr>
-        <tr><td style="padding:4px 0;color:#666;">Tax ID</td><td>${po.buyer_tax_id ?? "—"}</td></tr>
+        <tr><td style="padding:4px 0;width:140px;color:#666;">Name</td><td>${esc(buyer?.full_name)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666;">Email</td><td>${esc(buyer?.email)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666;">Phone</td><td>${esc(buyer?.phone)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666;">Country</td><td>${esc(buyer?.country_code)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666;">Company</td><td>${esc(po.buyer_company_name)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666;">Tax ID</td><td>${esc(po.buyer_tax_id)}</td></tr>
       </table>
 
       <h2 style="font-size:16px;margin:20px 0 8px;">Order Items</h2>
@@ -225,17 +268,43 @@ export async function onOrderPlacedOpsNotify(purchaseOrderId: string) {
         <tr><td style="padding:4px 0;color:#666;font-weight:600;">Grand Total</td><td style="font-weight:600;">${formatMoney(po.grand_total, po.currency)}</td></tr>
       </table>
 
-      ${po.note ? `<h2 style="font-size:16px;margin:20px 0 8px;">Buyer Note</h2><div style="padding:10px;background:#fafafa;border-radius:6px;color:#333;white-space:pre-wrap;">${po.note}</div>` : ""}
+      ${po.note ? `<h2 style="font-size:16px;margin:20px 0 8px;">Buyer Note</h2><div style="padding:10px;background:#fafafa;border-radius:6px;color:#333;white-space:pre-wrap;">${esc(po.note)}</div>` : ""}
     </div>
   `;
 
-  await sendEmail(
-    {
-      to: OPS_NOTIFICATION_EMAIL,
-      subject: `[New Order] ${po.order_number} — ${formatMoney(po.grand_total, po.currency)}`,
-      html,
-    },
-    "ops_order_placed"
+  await sendOpsEmail(`[New Order] ${po.order_number} — ${formatMoney(po.grand_total, po.currency)}`, html, "ops_order_placed");
+
+  const tgOrderLines = (supplierOrders || []).flatMap((so) => {
+    const supplier = supplierMap.get(so.supplier_id) || null;
+    const soItems = itemsByOrder.get(so.id) || [];
+    const destination = [so.ship_to_city, so.ship_to_country].filter(Boolean).join(", ");
+    const lines = [
+      `<b>${tgEsc(so.order_number)}</b> — ${tgEsc(supplier?.name)} (${tgEsc(supplier?.country_code)}) · ${tgEsc(formatMoney(so.total_amount, so.currency))}`,
+      `Ship to: ${tgEsc(destination)}`,
+      ...soItems.slice(0, 6).map((it) =>
+        `• ${tgEsc(it.product_name)}${it.variant_name ? ` (${tgEsc(it.variant_name)})` : ""} — ${it.quantity} × ${tgEsc(formatMoney(it.unit_price, it.currency))} = ${tgEsc(formatMoney(it.subtotal, it.currency))}`
+      ),
+    ];
+    if (soItems.length > 6) lines.push(`… and ${soItems.length - 6} more items`);
+    lines.push("");
+    return lines;
+  });
+
+  await sendTelegramNotification(
+    [
+      `🛒 <b>New Order Placed</b> — <b>${tgEsc(po.order_number)}</b>`,
+      ``,
+      `Buyer: ${tgEsc(buyer?.full_name)} (${tgEsc(po.buyer_company_name)}, ${tgEsc(buyer?.country_code)})`,
+      `Contact: ${tgEsc(buyer?.email)} · ${tgEsc(buyer?.phone)}`,
+      ``,
+      ...tgOrderLines,
+      `Subtotal: ${tgEsc(formatMoney(po.subtotal, po.currency))} · Shipping: ${tgEsc(formatMoney(po.total_shipping, po.currency))} · Tax: ${tgEsc(formatMoney(po.total_tax, po.currency))}`,
+      `Grand total: <b>${tgEsc(formatMoney(po.grand_total, po.currency))}</b>`,
+      ...(po.note ? [``, `Note: ${tgEsc(po.note.slice(0, 300))}`] : []),
+    ].join("\n"),
+    process.env.NEXT_PUBLIC_APP_URL
+      ? { button: { text: "Open orders", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/orders` } }
+      : {}
   );
 }
 
@@ -332,8 +401,10 @@ export async function onRfqSubmitted(rfqId: string) {
   const { data: rfq } = await supabase
     .from("rfqs")
     .select(`
-      id, rfq_number, title, quantity, unit, deadline, buyer_company_name,
+      id, rfq_number, title, description, quantity, unit, deadline, buyer_company_name,
       buyer_user_id, invited_supplier_ids,
+      delivery_country, delivery_city, target_price, target_currency,
+      required_by, sample_required, trade_term,
       user_profiles!rfqs_buyer_user_id_fkey ( email, full_name )
     `)
     .eq("id", rfqId)
@@ -346,6 +417,47 @@ export async function onRfqSubmitted(rfqId: string) {
   const deadline = rfq.deadline
     ? new Date(rfq.deadline).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })
     : "—";
+
+  // Requested products + price estimate. Item prices are stored in cents;
+  // the form-level target_price is a raw buyer-entered number, so the two
+  // estimates are formatted differently.
+  const { data: rfqItems } = await supabase
+    .from("rfq_items")
+    .select("product_name, quantity, unit, target_unit_price, currency")
+    .eq("rfq_id", rfqId)
+    .order("sort_order");
+
+  const items = rfqItems ?? [];
+  const pricedItems = items.filter((it) => it.target_unit_price != null);
+  const itemsTotalCents = pricedItems.reduce((sum, it) => sum + it.quantity * (it.target_unit_price as number), 0);
+  const estimate = pricedItems.length
+    ? `${formatMoney(itemsTotalCents, pricedItems[0].currency ?? rfq.target_currency ?? "USD")} (from ${pricedItems.length} item${pricedItems.length === 1 ? "" : "s"})`
+    : rfq.target_price
+      ? `${(rfq.target_price * rfq.quantity).toLocaleString("en")} ${rfq.target_currency ?? "USD"} (target ${rfq.target_price.toLocaleString("en")} × ${rfq.quantity})`
+      : null;
+  const destination = [rfq.delivery_city, rfq.delivery_country].filter(Boolean).join(", ") || null;
+
+  const itemRowsHtml = items.length
+    ? `
+      <h3 style="font-size:14px;margin:16px 0 6px;">Requested products</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#fafafa;">
+          <th style="padding:6px 8px;text-align:left;">Product</th>
+          <th style="padding:6px 8px;text-align:center;">Qty</th>
+          <th style="padding:6px 8px;text-align:right;">Target unit</th>
+          <th style="padding:6px 8px;text-align:right;">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${items.map((it) => `
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #eee;">${esc(it.product_name)}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;">${it.quantity} ${esc(it.unit)}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${it.target_unit_price != null ? formatMoney(it.target_unit_price, it.currency ?? "USD") : "—"}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${it.target_unit_price != null ? formatMoney(it.quantity * it.target_unit_price, it.currency ?? "USD") : "—"}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`
+    : "";
 
   for (const supplierId of rfq.invited_supplier_ids ?? []) {
     const { data: supplierMember } = await supabase
@@ -384,9 +496,11 @@ export async function onRfqSubmitted(rfqId: string) {
               <tr><td style="padding:6px 0;width:120px;color:#666;">RFQ</td><td>${esc(rfq.rfq_number)}</td></tr>
               <tr><td style="padding:6px 0;color:#666;">Title</td><td>${esc(rfq.title)}</td></tr>
               <tr><td style="padding:6px 0;color:#666;">Quantity</td><td>${rfq.quantity} ${esc(rfq.unit)}</td></tr>
+              <tr><td style="padding:6px 0;color:#666;">Deliver to</td><td>${esc(destination)}</td></tr>
               <tr><td style="padding:6px 0;color:#666;">Quote deadline</td><td>${deadline}</td></tr>
             </table>
-            <a href="${appUrl}/supplier/rfq/${rfq.id}/quote" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Submit Your Quote</a>
+            ${itemRowsHtml}
+            <a href="${appUrl}/supplier/rfq/${rfq.id}/quote" style="display: inline-block; margin-top: 12px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Submit Your Quote</a>
           </div>
         `,
       }, "rfq_submitted_supplier");
@@ -408,22 +522,49 @@ export async function onRfqSubmitted(rfqId: string) {
     }, "rfq_submitted_buyer");
   }
 
-  await sendEmail({
-    to: OPS_NOTIFICATION_EMAIL,
-    subject: `[RFQ] ${rfq.rfq_number} — ${rfq.title.slice(0, 80)}`,
-    html: `
-      <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+  await sendOpsEmail(`[RFQ] ${rfq.rfq_number} — ${rfq.title.slice(0, 80)}`, `
+      <div style="font-family: system-ui, sans-serif; max-width: 640px; margin: 0 auto;">
         <h2 style="color: #14110F;">New RFQ Submitted</h2>
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <tr><td style="padding:6px 0;width:140px;color:#666;">RFQ</td><td>${esc(rfq.rfq_number)}</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Title</td><td>${esc(rfq.title)}</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Buyer</td><td>${esc(rfq.buyer_company_name)} (${esc(buyer?.email)})</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Quantity</td><td>${rfq.quantity} ${esc(rfq.unit)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Destination</td><td>${esc(destination)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Price estimate</td><td>${esc(estimate)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Trade term</td><td>${esc(rfq.trade_term)}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Sample required</td><td>${rfq.sample_required ? "Yes" : "No"}</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Required by</td><td>${esc(rfq.required_by)}</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Deadline</td><td>${deadline}</td></tr>
         </table>
+        ${rfq.description ? `<h3 style="font-size:14px;margin:16px 0 6px;">Description</h3><div style="padding:10px;background:#fafafa;border-radius:6px;font-size:13px;white-space:pre-wrap;">${esc(rfq.description)}</div>` : ""}
+        ${itemRowsHtml}
+        ${appUrl ? `<p style="margin-top:20px;"><a href="${appUrl}/admin/quotes" style="display:inline-block;padding:10px 18px;background:#D89F2E;color:#14110F;text-decoration:none;border-radius:9999px;font-weight:600;">Open in admin</a></p>` : ""}
       </div>
-    `,
-  }, "rfq_submitted_ops");
+    `, "rfq_submitted_ops");
+
+  const tgItemLines = items.slice(0, 10).map((it) =>
+    `• ${tgEsc(it.product_name)} — ${tgEsc(it.quantity)} ${tgEsc(it.unit)}${it.target_unit_price != null ? ` @ ${tgEsc(formatMoney(it.target_unit_price, it.currency ?? "USD"))}` : ""}`
+  );
+  if (items.length > 10) tgItemLines.push(`… and ${items.length - 10} more items`);
+
+  await sendTelegramNotification(
+    [
+      `📋 <b>New RFQ Submitted</b> — <b>${tgEsc(rfq.rfq_number)}</b>`,
+      ``,
+      `<b>${tgEsc(rfq.title)}</b>`,
+      ...(rfq.description ? [tgEsc(rfq.description.slice(0, 300))] : []),
+      ``,
+      `Buyer: ${tgEsc(rfq.buyer_company_name)} (${tgEsc(buyer?.email)})`,
+      `Quantity: ${tgEsc(rfq.quantity)} ${tgEsc(rfq.unit)}`,
+      `Destination: ${tgEsc(destination)}`,
+      `Price estimate: ${tgEsc(estimate)}`,
+      `Deadline: ${tgEsc(deadline)} · Sample: ${rfq.sample_required ? "Yes" : "No"}`,
+      `Invited suppliers: ${(rfq.invited_supplier_ids ?? []).length}`,
+      ...(tgItemLines.length ? [``, `<b>Requested products</b>`, ...tgItemLines] : []),
+    ].join("\n"),
+    appUrl ? { button: { text: "Open in admin", url: `${appUrl}/admin/quotes` } } : {}
+  );
 }
 
 /**
@@ -464,8 +605,8 @@ export async function onQuotationReceived(rfqId: string, supplierName: string) {
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #14110F;">New Quotation Received</h1>
-        <p style="color: #4C463D;">Hi ${buyer.full_name},</p>
-        <p style="color: #4C463D;"><strong>${supplierName}</strong> has submitted a quotation for your RFQ <strong>${rfq.rfq_number}</strong> — "${rfq.title}".</p>
+        <p style="color: #4C463D;">Hi ${esc(buyer.full_name)},</p>
+        <p style="color: #4C463D;"><strong>${esc(supplierName)}</strong> has submitted a quotation for your RFQ <strong>${esc(rfq.rfq_number)}</strong> — "${esc(rfq.title)}".</p>
         <p style="color: #4C463D;">Review and compare quotes to find the best deal.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/rfq" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">View Quotations</a>
       </div>
@@ -522,8 +663,8 @@ export async function onQuotationAccepted(quotationId: string) {
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #14110F;">Your Quotation Was Accepted!</h1>
-        <p style="color: #4C463D;">Hi ${supplier.full_name},</p>
-        <p style="color: #4C463D;">Great news! <strong>${rfq?.buyer_company_name || "A buyer"}</strong> has accepted your quotation <strong>${q.quotation_number}</strong> for "${rfq?.title || "RFQ"}" worth <strong>${formatMoney(q.total_amount, q.currency)}</strong>.</p>
+        <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+        <p style="color: #4C463D;">Great news! <strong>${esc(rfq?.buyer_company_name || "A buyer")}</strong> has accepted your quotation <strong>${esc(q.quotation_number)}</strong> for "${esc(rfq?.title || "RFQ")}" worth <strong>${formatMoney(q.total_amount, q.currency)}</strong>.</p>
         <p style="color: #4C463D;">The order will be created shortly. Prepare for fulfillment!</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/supplier/orders" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">View Orders</a>
       </div>
@@ -711,9 +852,9 @@ export async function onShipmentDispatched(shipmentId: string) {
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #14110F;">Your Order is On Its Way!</h1>
-        <p style="color: #4C463D;">Hi ${buyer.full_name},</p>
-        <p style="color: #4C463D;">Order <strong>${so.order_number}</strong> has been dispatched.</p>
-        ${shipment.tracking_number ? `<p style="color: #4C463D;">Tracking: <strong>${shipment.tracking_number}</strong></p>` : ""}
+        <p style="color: #4C463D;">Hi ${esc(buyer.full_name)},</p>
+        <p style="color: #4C463D;">Order <strong>${esc(so.order_number)}</strong> has been dispatched.</p>
+        ${shipment.tracking_number ? `<p style="color: #4C463D;">Tracking: <strong>${esc(shipment.tracking_number)}</strong></p>` : ""}
         <p style="color: #4C463D;">Estimated delivery: <strong>${eta}</strong></p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/orders" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Track Order</a>
       </div>
@@ -758,8 +899,8 @@ export async function onShipmentDelivered(shipmentId: string) {
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #14110F;">Order Delivered!</h1>
-        <p style="color: #4C463D;">Hi ${buyer.full_name},</p>
-        <p style="color: #4C463D;">Your order <strong>${so.order_number}</strong> has been delivered successfully.</p>
+        <p style="color: #4C463D;">Hi ${esc(buyer.full_name)},</p>
+        <p style="color: #4C463D;">Your order <strong>${esc(so.order_number)}</strong> has been delivered successfully.</p>
         <p style="color: #4C463D;">Please confirm delivery and leave a review for the supplier.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/orders" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Confirm Delivery</a>
       </div>
@@ -824,10 +965,7 @@ export async function onSettlementKycBlocked(settlementId: string) {
     }, "settlement_kyc_blocked");
   }
 
-  await sendEmail({
-    to: OPS_NOTIFICATION_EMAIL,
-    subject: `[Action] Settlement blocked — KYC unverified: ${esc(company?.name ?? settlement.supplier_id)}`,
-    html: `
+  await sendOpsEmail(`[Action] Settlement blocked — KYC unverified: ${esc(company?.name ?? settlement.supplier_id)}`, `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #C0392B;">Settlement Blocked — KYC Unverified</h2>
         <table style="border-collapse: collapse; width: 100%;">
@@ -836,10 +974,23 @@ export async function onSettlementKycBlocked(settlementId: string) {
           <tr><td style="padding: 8px; color: #4C463D;"><strong>Amount</strong></td><td style="padding: 8px;">${formatMoney(settlement.net_payout, settlement.currency)}</td></tr>
           <tr><td style="padding: 8px; color: #4C463D;"><strong>Reason</strong></td><td style="padding: 8px;">KYC_UNVERIFIED — supplier has not completed platform verification</td></tr>
         </table>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/settings/verification" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Review in Admin</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/verification" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Review in Admin</a>
       </div>
-    `,
-  }, "settlement_kyc_blocked_ops");
+    `, "settlement_kyc_blocked_ops");
+
+  await sendTelegramNotification(
+    [
+      `⛔️ <b>Settlement Blocked — KYC Unverified</b>`,
+      ``,
+      `Settlement: ${tgEsc(settlement.settlement_number)}`,
+      `Supplier: ${tgEsc(company?.name ?? settlement.supplier_id)}`,
+      `Amount: <b>${tgEsc(formatMoney(settlement.net_payout, settlement.currency))}</b>`,
+      `Reason: supplier has not completed platform verification`,
+    ].join("\n"),
+    process.env.NEXT_PUBLIC_APP_URL
+      ? { button: { text: "Review in admin", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/verification` } }
+      : {}
+  );
 }
 
 /**
@@ -898,10 +1049,7 @@ export async function onSettlementXTransferRejected(settlementId: string) {
     }, "settlement_xtransfer_rejected");
   }
 
-  await sendEmail({
-    to: OPS_NOTIFICATION_EMAIL,
-    subject: `[Action] XTransfer payee rejected — re-register required: ${esc(company?.name ?? settlement.supplier_id)}`,
-    html: `
+  await sendOpsEmail(`[Action] XTransfer payee rejected — re-register required: ${esc(company?.name ?? settlement.supplier_id)}`, `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #C0392B;">XTransfer Beneficiary Rejected</h2>
         <table style="border-collapse: collapse; width: 100%;">
@@ -913,8 +1061,21 @@ export async function onSettlementXTransferRejected(settlementId: string) {
         </table>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/payments" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Review in Admin</a>
       </div>
-    `,
-  }, "settlement_xtransfer_rejected_ops");
+    `, "settlement_xtransfer_rejected_ops");
+
+  await sendTelegramNotification(
+    [
+      `🚫 <b>Payout Failed — XTransfer Payee Rejected</b>`,
+      ``,
+      `Settlement: ${tgEsc(settlement.settlement_number)}`,
+      `Supplier: ${tgEsc(company?.name ?? settlement.supplier_id)}`,
+      `Amount: <b>${tgEsc(formatMoney(settlement.net_payout, settlement.currency))}</b>`,
+      `Next step: re-register supplier with corrected banking details, then retry settlement`,
+    ].join("\n"),
+    process.env.NEXT_PUBLIC_APP_URL
+      ? { button: { text: "Review in admin", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/payments` } }
+      : {}
+  );
 }
 
 /**
@@ -947,8 +1108,8 @@ export async function onSettlementPaid(settlementId: string) {
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #14110F;">Payout Processed!</h1>
-        <p style="color: #4C463D;">Hi ${supplier.full_name},</p>
-        <p style="color: #4C463D;">Your settlement <strong>${settlement.settlement_number}</strong> of <strong>${formatMoney(settlement.net_payout, settlement.currency)}</strong> has been paid out.</p>
+        <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+        <p style="color: #4C463D;">Your settlement <strong>${esc(settlement.settlement_number)}</strong> of <strong>${formatMoney(settlement.net_payout, settlement.currency)}</strong> has been paid out.</p>
         <p style="color: #4C463D;">The funds should arrive in your account within 1-3 business days.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/supplier/settlements" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">View Settlements</a>
       </div>

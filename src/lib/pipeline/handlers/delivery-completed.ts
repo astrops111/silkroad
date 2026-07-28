@@ -100,7 +100,7 @@ export const handler: EventHandler = async (event, supabase) => {
       .eq("id", order.purchase_order_id);
   }
 
-  // ── 5. Buyer email from logistic@ + deal-thread CRM activity (idempotent) ───
+  // ── 5. Buyer email from logistics@ + deal-thread CRM activity (idempotent) ───
   await notifyShipmentMilestone(supabase, {
     eventId: event.id,
     shipmentId: shipment_id,

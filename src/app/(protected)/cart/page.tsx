@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCartStore } from "@/stores/cart";
+import { DESTINATION_COUNTRIES } from "@/lib/constants/countries";
 import {
   PLATFORM_MIN_GROUP_ORDER_VALUE,
   shippingModeLabel,
@@ -43,6 +44,8 @@ export default function CartPage() {
   const [rfqOpen, setRfqOpen] = useState(false);
   const [rfqNote, setRfqNote] = useState("");
   const [rfqDeadline, setRfqDeadline] = useState("");
+  const [rfqCountry, setRfqCountry] = useState("");
+  const [rfqCity, setRfqCity] = useState("");
   const [rfqStatus, setRfqStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [rfqError, setRfqError] = useState<string | null>(null);
   const [createdRfqs, setCreatedRfqs] = useState<
@@ -60,6 +63,8 @@ export default function CartPage() {
           items,
           note: rfqNote || undefined,
           deadline: rfqDeadline || undefined,
+          deliveryCountry: rfqCountry || undefined,
+          deliveryCity: rfqCity || undefined,
         }),
       });
       const data = await res.json();
@@ -342,6 +347,27 @@ export default function CartPage() {
                 rows={3}
                 className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={rfqCountry}
+                  onChange={(e) => setRfqCountry(e.target.value)}
+                  className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)]"
+                >
+                  <option value="">Deliver to country…</option>
+                  {DESTINATION_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Delivery city (e.g. Accra)"
+                  value={rfqCity}
+                  onChange={(e) => setRfqCity(e.target.value)}
+                  className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                />
+              </div>
               <div className="flex items-center gap-3">
                 <label className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
                   Quote deadline

@@ -63,7 +63,7 @@ export default function RequestSupplierForm({ prefill, categories, locale }: Pro
     roleAtCompany: "",
     companyName: "",
     companyNameLocal: "",
-    countryCode: "CN",
+    countryCode: "",
     city: "",
     website: "",
     yearsInBusiness: "",
@@ -257,7 +257,7 @@ export default function RequestSupplierForm({ prefill, categories, locale }: Pro
                       set("countryCode", e.target.value.toUpperCase())
                     }
                     maxLength={2}
-                    placeholder="CN"
+                    placeholder="e.g. NG, ZA, US, CN"
                   />
                 </div>
                 <div className="space-y-1.5">

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Clock, CheckCircle2, TrendingUp, Landmark, XCircle, AlertTriangle } from "lucide-react";
 import { getCurrentUser } from "@/lib/queries/user";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 import { getSupplierSettlements } from "@/lib/settlement/engine";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ const METHOD_LABELS: Record<string, string> = {
 
 export default async function SupplierSettlementsPage() {
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
   if (!membership || !canSupply(membership.companies?.type)) {
     redirect("/dashboard");
   }

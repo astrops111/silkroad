@@ -229,7 +229,7 @@ export async function processSettlement(settlementId: string) {
   // ── Get supplier payout method ───────────────────────────────────────────
   const { data: profile } = await supabase
     .from("supplier_profiles")
-    .select("stripe_account_id, mobile_money_number, mobile_money_provider, bank_code, bank_account_number, xtransfer_payee_id, xtransfer_payout_currency, xtransfer_payee_status")
+    .select("stripe_account_id, mobile_money_number, mobile_money_provider, bank_code, bank_account_number, wise_recipient_id, xtransfer_payee_id, xtransfer_payout_currency, xtransfer_payee_status")
     .eq("company_id", settlement.supplier_id)
     .single();
 
@@ -286,17 +286,67 @@ export async function processSettlement(settlementId: string) {
 
       payoutMethod    = "stripe";
       payoutReference = transfer.id;
+    } else if (profile?.wise_recipient_id) {
+      const { executeWisePayout, wiseConfigured } = await import("@/lib/payments/wise-payout");
+      if (!wiseConfigured()) {
+        throw new Error("WISE_NOT_CONFIGURED: supplier has a Wise recipient but WISE_API_TOKEN / WISE_PROFILE_ID are not set");
+      }
+      const result = await executeWisePayout({
+        recipientId: profile.wise_recipient_id,
+        amountMajor: Number(settlement.net_payout) / 100,
+        currency:    settlement.currency,
+        reference:   settlement.settlement_number,
+      });
+      // funded=false means the transfer exists but the balance couldn't cover
+      // it — leave in processing for manual funding rather than claiming paid.
+      payoutMethod    = result.funded ? "wise" : "wise_unfunded";
+      payoutReference = result.transferId;
     } else if (profile?.mobile_money_number) {
-      payoutMethod    = profile.mobile_money_provider ?? "mobile_money";
-      payoutReference = `MM-${Date.now().toString(36)}`;
+      // Flutterwave mobile-money disbursement (M-Pesa, MTN MoMo, Airtel, ...).
+      // Completes asynchronously — the transfer.completed webhook flips the
+      // settlement to 'paid'.
+      const { flutterwaveGateway } = await import("@/lib/payments/gateways/flutterwave");
+      const result = await flutterwaveGateway.transfer!({
+        recipientPhone:    profile.mobile_money_number,
+        recipientProvider: profile.mobile_money_provider ?? undefined,
+        amount:            Number(settlement.net_payout) / 100,
+        currency:          settlement.currency,
+        reference:         settlement.settlement_number,
+      });
+      if (!result.success) {
+        throw new Error(`FLW_TRANSFER_FAILED: ${result.error ?? "Flutterwave mobile-money transfer rejected"}`);
+      }
+      payoutMethod    = "flutterwave_momo";
+      payoutReference = result.transferId;
+    } else if (profile?.bank_account_number && profile?.bank_code) {
+      // Flutterwave bank disbursement — same async completion via webhook.
+      const { flutterwaveGateway } = await import("@/lib/payments/gateways/flutterwave");
+      const result = await flutterwaveGateway.transfer!({
+        recipientAccountId: `${profile.bank_account_number}@${profile.bank_code}`,
+        amount:             Number(settlement.net_payout) / 100,
+        currency:           settlement.currency,
+        reference:          settlement.settlement_number,
+      });
+      if (!result.success) {
+        throw new Error(`FLW_TRANSFER_FAILED: ${result.error ?? "Flutterwave bank transfer rejected"}`);
+      }
+      payoutMethod    = "flutterwave_bank";
+      payoutReference = result.transferId;
     } else {
-      payoutMethod    = "bank_transfer";
-      payoutReference = `BANK-${Date.now().toString(36)}`;
+      // No configured destination — fail loudly instead of fabricating a
+      // reference and pretending the supplier was paid.
+      throw new Error(
+        "NO_PAYOUT_METHOD: supplier has no payout destination (XTransfer payee, Stripe account, Wise recipient, mobile money, or bank account)"
+      );
     }
 
-    // XTransfer is async — transfer/create returns PROCESSING, not SUCCESS.
-    // All other gateways confirm synchronously so they go straight to 'paid'.
-    const isAsync = payoutMethod === "xtransfer";
+    // Async rails confirm via webhook (XTransfer status webhook, Flutterwave
+    // transfer.completed) — hold at 'processing'. Stripe transfers and funded
+    // Wise transfers are synchronous, so they go straight to 'paid'.
+    const isAsync =
+      payoutMethod === "xtransfer" ||
+      payoutMethod === "wise_unfunded" ||
+      payoutMethod.startsWith("flutterwave_");
     await supabase
       .from("settlements")
       .update({

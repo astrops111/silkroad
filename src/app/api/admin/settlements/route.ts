@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin, isAuthError } from "@/lib/auth/guard";
 import { randomBytes } from "crypto";
 import { logAdminAction } from "@/lib/logging/admin-audit";
@@ -136,7 +136,9 @@ export async function POST(request: NextRequest) {
       logistics_charges: logisticsCharges,
       net_payout: netPayout,
       currency: "USD",
-      status: "pending",
+      // 'ready' — the status claim_settlement() claims, so admin-generated
+      // settlements can be paid out through the engine like engine-generated ones.
+      status: "ready",
       supplier_order_ids: orders.map((o) => o.id),
     })
     .select("id")
@@ -172,14 +174,57 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Missing settlementId or action" }, { status: 400 });
   }
 
+  // 'process' executes the actual payout through the settlement engine
+  // (XTransfer / Stripe transfer / Wise / Flutterwave momo/bank, by supplier
+  // configuration). mark_paid / fail remain manual overrides for money moved
+  // outside the platform.
+  if (action === "process") {
+    const service = createServiceClient();
+    // The engine's atomic claim only picks up ready/failed rows; promote
+    // legacy pending/calculating rows first so the button works on them too.
+    await service
+      .from("settlements")
+      .update({ status: "ready", updated_at: new Date().toISOString() })
+      .eq("id", settlementId)
+      .in("status", ["pending", "calculating"]);
+
+    const { processSettlement } = await import("@/lib/settlement/engine");
+    const result = await processSettlement(settlementId);
+
+    const { data: row } = await service
+      .from("settlements")
+      .select("settlement_number")
+      .eq("id", settlementId)
+      .maybeSingle();
+
+    await logAdminAction({
+      adminId: auth.profile.id,
+      actionType: "settlement_payout_process",
+      targetEntity: "settlement",
+      targetId: settlementId,
+      targetLabel: row?.settlement_number,
+      reason: result.success
+        ? `payout executed via ${result.data?.payoutMethod} (${result.data?.status})`
+        : `payout failed: ${result.error}`,
+    });
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json({
+      success: true,
+      settlementId,
+      action,
+      payoutMethod: result.data?.payoutMethod,
+      payoutStatus: result.data?.status,
+    });
+  }
+
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
 
   switch (action) {
-    case "process":
-      updates.status = "processing";
-      break;
     case "mark_paid":
       updates.status = "paid";
       updates.paid_at = new Date().toISOString();

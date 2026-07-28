@@ -14,7 +14,7 @@ const ADMIN_ROLES = ["admin_super", "admin_moderator"];
 
 async function requireAdminWrite(): Promise<{ success: false; error: string } | { success: true; data: { role: string } }> {
   const user = await getCurrentUser();
-  const role = user?.company_members?.[0]?.role;
+  const role = user?.company_members?.find((m) => ADMIN_ROLES.includes(m.role))?.role;
   if (!role || !ADMIN_ROLES.includes(role)) {
     return { success: false, error: "Forbidden — admin role required" };
   }

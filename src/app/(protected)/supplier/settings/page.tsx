@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/queries/user";
 import { getCompanyWithProfile } from "@/lib/queries/supplier";
-import { canSupply } from "@/lib/company-access";
+import { canSupply, findSupplierMembership } from "@/lib/company-access";
 import SettingsForm from "./settings-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function SupplierSettingsPage() {
   const user = await getCurrentUser();
-  const membership = user?.company_members?.[0];
+  const membership = findSupplierMembership(user?.company_members);
 
   if (!membership || !canSupply(membership.companies?.type)) {
     redirect("/dashboard");

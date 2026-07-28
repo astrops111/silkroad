@@ -16,7 +16,7 @@ export type ActionResult<T = undefined> =
 
 async function requireAdminWrite(): Promise<ActionResult<{ userId: string }>> {
   const user = await getCurrentUser();
-  const role = user?.company_members?.[0]?.role;
+  const role = user?.company_members?.find((m) => WRITE_ROLES.includes(m.role))?.role;
   if (!role || !WRITE_ROLES.includes(role)) {
     return { success: false, error: "Forbidden — admin role required" };
   }

@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { syncOpportunityStage } from "@/lib/crm/opportunities";
 import { resolveContact } from "@/lib/crm/contacts";
+import { logActivity } from "@/lib/crm/activities";
 
 export interface EnsureDealThreadInput {
   rfqId: string;
@@ -132,5 +133,95 @@ export async function findDealBySupplierOrder(supplierOrderId: string): Promise<
     return data?.id ?? null;
   } catch {
     return null;
+  }
+}
+
+export interface CreateCaseInput {
+  title: string;
+  buyerCompanyId?: string | null;
+  supplierCompanyId?: string | null;
+  rfqId?: string | null;
+}
+
+/**
+ * Create a "case" — a deal_thread that doesn't require an RFQ, for
+ * non-sales email threads (support, logistics, general correspondence)
+ * that still benefit from the same cross-mailbox linking + CRM timeline
+ * as an RFQ-driven deal. Returns null on failure.
+ */
+export async function createCase(input: CreateCaseInput): Promise<string | null> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("deal_threads")
+      .insert({
+        rfq_id: input.rfqId ?? null,
+        title: input.title,
+        buyer_company_id: input.buyerCompanyId ?? null,
+        supplier_company_id: input.supplierCompanyId ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      console.error("[deals/threads] createCase error:", error?.message);
+      return null;
+    }
+
+    await syncOpportunityStage(data.id);
+    return data.id;
+  } catch (err) {
+    console.error("[deals/threads] createCase error:", err);
+    return null;
+  }
+}
+
+/** Link an email thread to a case (deal_thread), logging the link as a CRM activity. */
+export async function linkThreadToCase(
+  threadId: string,
+  dealThreadId: string
+): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from("email_threads")
+      .update({ deal_thread_id: dealThreadId })
+      .eq("id", threadId);
+
+    if (error) {
+      console.error("[deals/threads] linkThreadToCase error:", error.message);
+      return false;
+    }
+
+    await logActivity({
+      activityType: "note",
+      dealThreadId,
+      referenceType: "email_thread",
+      referenceId: threadId,
+      metadata: { action: "email_thread_linked" },
+    });
+    return true;
+  } catch (err) {
+    console.error("[deals/threads] linkThreadToCase error:", err);
+    return false;
+  }
+}
+
+/** Unlink an email thread from whatever case it's attached to. */
+export async function unlinkThreadFromCase(threadId: string): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from("email_threads")
+      .update({ deal_thread_id: null })
+      .eq("id", threadId);
+    if (error) {
+      console.error("[deals/threads] unlinkThreadFromCase error:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[deals/threads] unlinkThreadFromCase error:", err);
+    return false;
   }
 }

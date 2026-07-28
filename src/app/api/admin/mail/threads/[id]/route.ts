@@ -18,7 +18,9 @@ export async function GET(
 
   const { data: thread, error: threadError } = await supabase
     .from("email_threads")
-    .select("id, mailbox_id, subject_normalized, first_message_at, last_message_at, message_count, deal_thread_id")
+    .select(
+      "id, mailbox_id, subject_normalized, first_message_at, last_message_at, message_count, deal_thread_id, deal_threads ( title, status )"
+    )
     .eq("id", id)
     .maybeSingle();
 

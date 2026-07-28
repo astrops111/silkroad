@@ -83,7 +83,7 @@ export default async function SuppliersPage() {
               Verified Suppliers
             </h1>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Browse {suppliers.length}+ verified manufacturers and exporters across China and Africa
+              Browse {suppliers.length}+ verified manufacturers and exporters across Africa and global markets
             </p>
 
             {/* Search */}

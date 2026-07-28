@@ -26,9 +26,10 @@ const COUNTRIES = [
 ];
 
 const MARKET_REGIONS = [
-  { value: "cn", label: "China" }, { value: "sea", label: "SE Asia" },
+  { value: "cn", label: "China" },
   { value: "africa_west", label: "Africa – West" }, { value: "africa_east", label: "Africa – East" },
-  { value: "africa_south", label: "Africa – South" }, { value: "global", label: "Global" },
+  { value: "africa_south", label: "Africa – South" }, { value: "africa_central", label: "Africa – Central" },
+  { value: "africa_north", label: "Africa – North" }, { value: "global", label: "Global" },
 ];
 
 const TRADE_TERMS = ["EXW", "FOB", "CIF", "DDP", "DAP", "FCA"];
@@ -47,8 +48,8 @@ export default function NewSupplierPage() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    name: "", nameLocal: "", email: "", countryCode: "CN", city: "", stateProvince: "",
-    industry: "", website: "", description: "", marketRegion: "cn", taxId: "",
+    name: "", nameLocal: "", email: "", countryCode: "", city: "", stateProvince: "",
+    industry: "", website: "", description: "", marketRegion: "", taxId: "",
     verificationStatus: "unverified",
     factoryCountry: "", moqDefault: "", leadTimeDays: "", tradeTerms: "", commissionRate: "",
   });
@@ -195,12 +196,14 @@ export default function NewSupplierPage() {
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Country</label>
               <select value={form.countryCode} onChange={(e) => set("countryCode", e.target.value)} className={inputCls} style={inputStyle}>
+                <option value="" disabled>Select a country…</option>
                 {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Market Region</label>
               <select value={form.marketRegion} onChange={(e) => set("marketRegion", e.target.value)} className={inputCls} style={inputStyle}>
+                <option value="" disabled>Select a region…</option>
                 {MARKET_REGIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>

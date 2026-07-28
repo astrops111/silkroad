@@ -1,5 +1,6 @@
 import type { EventHandler } from "../types";
 import { logActivity } from "@/lib/logging";
+import { notifyShipmentMilestone } from "../milestone-notify";
 
 /**
  * customs.hold_resolved
@@ -40,6 +41,15 @@ export const handler: EventHandler = async (event, supabase) => {
     targetLabel:  shipment?.shipment_number ?? shipment_id,
     metadata:     { shipmentId: shipment_id, resolutionNote: p.resolutionNote },
   }).catch(() => {});
+
+  await notifyShipmentMilestone(supabase, {
+    eventId: event.id,
+    shipmentId: shipment_id,
+    supplierOrderId: event.supplier_order_id,
+    milestone: "customs_hold_resolved",
+    headline: "Customs Hold Resolved",
+    detail: `Good news — the customs hold on shipment ${shipment.shipment_number ?? ""} has been resolved and your goods are moving again.`,
+  });
 
   return {
     success: true,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin, requireSuperAdmin, isAuthError } from "@/lib/auth/guard";
+import { logAdminAction } from "@/lib/logging/admin-audit";
+import { sendEmail } from "@/lib/email";
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_]+/g, "-").replace(/^-+|-+$/g, "") +
@@ -99,7 +101,7 @@ export async function PATCH(request: NextRequest) {
   if (isAuthError(auth)) return auth;
 
   const supabase = await createClient();
-  const { supplierId, action } = await request.json();
+  const { supplierId, action, reason } = await request.json();
 
   if (!supplierId || !action) {
     return NextResponse.json(
@@ -153,6 +155,88 @@ export async function PATCH(request: NextRequest) {
       .update({ is_active: true })
       .eq("supplier_id", supplierId)
       .eq("moderation_status", "approved");
+  }
+
+  // Audit + notify the supplier owners (fire-and-forget: the status change
+  // already succeeded, so notification failures must not fail the request).
+  try {
+    const service = createServiceClient();
+    const [{ data: company }, { data: owners }] = await Promise.all([
+      service.from("companies").select("name").eq("id", supplierId).single(),
+      service
+        .from("company_members")
+        .select("role, user_profiles!user_id ( id, email, full_name )")
+        .eq("company_id", supplierId)
+        .eq("role", "supplier_owner"),
+    ]);
+
+    await logAdminAction({
+      adminId: auth.profile.id,
+      actionType: `supplier_${action}`,
+      targetEntity: "company",
+      targetId: supplierId,
+      targetLabel: company?.name ?? undefined,
+      reason: reason || undefined,
+      supportingEvidence: { newStatus },
+    });
+
+    const approved = action === "approve" || action === "reinstate";
+    const notifType = approved ? "supplier_verified" : "supplier_suspended";
+    const subject = approved
+      ? `Your supplier account on SilkRoad Africa is ${action === "approve" ? "verified" : "reinstated"}`
+      : action === "reject"
+      ? "Your SilkRoad Africa verification was not approved"
+      : "Your SilkRoad Africa supplier account has been suspended";
+    const bodyLine = approved
+      ? "Your verification is complete — your listings are live and settlement payouts are unblocked."
+      : action === "reject"
+      ? "Your verification submission was not approved. Please review the note below, update your documents, and resubmit from Settings → Verification."
+      : "Your supplier account has been suspended and your listings are no longer visible.";
+
+    type OwnerRow = {
+      user_profiles: { id: string; email: string | null; full_name: string | null }[] | null;
+    };
+    await Promise.all(
+      ((owners ?? []) as OwnerRow[]).flatMap((o) => {
+        const profile = o.user_profiles?.[0];
+        if (!profile) return [];
+        const tasks: Promise<unknown>[] = [
+          Promise.resolve(
+            service.rpc("create_notification", {
+              p_user_id: profile.id,
+              p_company_id: supplierId,
+              p_title: approved ? "Verification approved" : action === "reject" ? "Verification rejected" : "Account suspended",
+              p_body: reason ? `${bodyLine} Note: ${reason}` : bodyLine,
+              p_type: notifType,
+              p_icon: approved ? "shield-check" : "shield-alert",
+              p_action_url: "/supplier/verification",
+            })
+          ),
+        ];
+        if (profile.email) {
+          tasks.push(
+            sendEmail(
+              {
+                to: profile.email,
+                subject,
+                html: `
+                  <div style="font-family:system-ui,sans-serif;max-width:640px;margin:0 auto;color:#14110F;">
+                    <h1 style="margin:0 0 12px 0;font-size:18px;">${subject}</h1>
+                    <p style="font-size:14px;line-height:1.6;">Hello ${profile.full_name ?? ""},</p>
+                    <p style="font-size:14px;line-height:1.6;">${bodyLine}</p>
+                    ${reason ? `<p style="font-size:14px;line-height:1.6;padding:12px;background:#fafafa;border-radius:8px;"><strong>Reviewer note:</strong> ${String(reason).replace(/</g, "&lt;")}</p>` : ""}
+                  </div>
+                `,
+              },
+              `supplier_${action}`
+            )
+          );
+        }
+        return tasks;
+      })
+    );
+  } catch (notifyErr) {
+    console.error("[admin/suppliers] post-decision notify failed:", notifyErr);
   }
 
   return NextResponse.json({

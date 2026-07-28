@@ -35,9 +35,19 @@ const SOURCE_VARIANT: Record<PipelineSource, "default" | "secondary" | "outline"
   ops_freight_quote: "outline",
 };
 
-export function QuotesPipelineList({ initialRows }: { initialRows: PipelineRow[] }) {
-  const [query, setQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<PipelineSource | "all">("all");
+export function QuotesPipelineList({
+  initialRows,
+  initialSource,
+  initialQuery,
+}: {
+  initialRows: PipelineRow[];
+  initialSource?: string;
+  initialQuery?: string;
+}) {
+  const [query, setQuery] = useState(initialQuery ?? "");
+  const [sourceFilter, setSourceFilter] = useState<PipelineSource | "all">(
+    SOURCES.includes(initialSource as PipelineSource) ? (initialSource as PipelineSource) : "all"
+  );
   const [stageFilter, setStageFilter] = useState<PipelineStage | "all">("all");
 
   const filtered = useMemo(() => {

@@ -179,7 +179,8 @@ async function fetchBuyerRequests(supabase: Supa, sinceIso?: string): Promise<Pi
     validUntil: null,
     createdAt: r.created_at ?? "",
     updatedAt: r.updated_at ?? null,
-    detailUrl: `/admin/buyer-requests/${r.id}`,  // future page
+    // No per-request detail page exists yet; self-link filtered to this row.
+    detailUrl: `/admin/quotes?source=buyer_request&q=${r.id.slice(0, 8)}`,
   }));
 }
 

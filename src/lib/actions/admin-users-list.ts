@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/queries/user";
+import { logAdminAction } from "@/lib/logging/admin-audit";
 import type { MarketRegion, PlatformRole } from "@/lib/supabase/database.types";
 
 const ADMIN_ROLES = ["admin_super", "admin_moderator", "admin_support"] as const;
@@ -40,14 +41,25 @@ function slugify(text: string): string {
   );
 }
 
-async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
+type AdminCaller = { id: string; email: string | null; isSuper: boolean };
+
+async function requireAdmin(): Promise<
+  { ok: true; caller: AdminCaller } | { ok: false; error: string }
+> {
   const caller = await getCurrentUser();
   if (!caller) return { ok: false, error: "Not authenticated" };
   const isAdmin = caller.company_members.some((m) =>
     (ADMIN_ROLES as readonly string[]).includes(m.role)
   );
   if (!isAdmin) return { ok: false, error: "Forbidden — admin only" };
-  return { ok: true };
+  return {
+    ok: true,
+    caller: {
+      id: caller.id,
+      email: caller.email ?? null,
+      isSuper: caller.company_members.some((m) => m.role === "admin_super"),
+    },
+  };
 }
 
 export async function listUsers(
@@ -147,6 +159,10 @@ export async function addRoleToUser(input: AddRoleInput): Promise<AddRoleResult>
   const admin = createServiceClient();
 
   if (input.role === "admin") {
+    // Granting an admin role hands out admin_super — only super admins may do it.
+    if (!guard.caller.isSuper) {
+      return { success: false, error: "Only super admins can grant admin roles" };
+    }
     // Ensure a shared admin company exists, then attach the user to it.
     let { data: adminCo } = await admin
       .from("companies")
@@ -182,6 +198,14 @@ export async function addRoleToUser(input: AddRoleInput): Promise<AddRoleResult>
       is_primary: false,
     });
     if (memberErr) return { success: false, error: memberErr.message };
+    await logAdminAction({
+      adminId: guard.caller.id,
+      adminEmail: guard.caller.email ?? undefined,
+      actionType: "user_role_granted",
+      targetEntity: "user",
+      targetId: input.userId,
+      supportingEvidence: { role: "admin_super" },
+    });
     return { success: true };
   }
 
@@ -222,6 +246,16 @@ export async function addRoleToUser(input: AddRoleInput): Promise<AddRoleResult>
       factory_country: input.countryCode,
     });
   }
+
+  await logAdminAction({
+    adminId: guard.caller.id,
+    adminEmail: guard.caller.email ?? undefined,
+    actionType: "user_role_granted",
+    targetEntity: "user",
+    targetId: input.userId,
+    targetLabel: input.companyName,
+    supportingEvidence: { role: platformRole, companyId: company.id },
+  });
 
   return { success: true };
 }

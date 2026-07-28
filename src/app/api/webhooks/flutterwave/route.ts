@@ -54,6 +54,58 @@ export async function POST(req: NextRequest) {
   }
 
   const event = payload.event as string;
+
+  // ── Payout transfers (settlement disbursements) ──────────────────────────
+  // The settlement engine's Flutterwave rail is async: transfers land here as
+  // transfer.completed with data.status SUCCESSFUL or FAILED. Match on the
+  // reference we generated at transfer time (settlements.payout_reference).
+  if (event?.startsWith("transfer.")) {
+    const t = payload.data as Record<string, unknown> | undefined;
+    const reference = t?.reference as string | undefined;
+    const transferStatus = ((t?.status as string) ?? "").toUpperCase();
+
+    if (reference) {
+      const supabaseT = createServiceClient();
+      const { data: settlement } = await supabaseT
+        .from("settlements")
+        .select("id, status")
+        .eq("payout_reference", reference)
+        .maybeSingle();
+
+      if (settlement && settlement.status === "processing") {
+        const now = new Date().toISOString();
+        if (transferStatus === "SUCCESSFUL") {
+          await supabaseT
+            .from("settlements")
+            .update({ status: "paid", paid_at: now, updated_at: now })
+            .eq("id", settlement.id);
+          try {
+            const { onSettlementPaid } = await import("@/lib/email/events");
+            await onSettlementPaid(settlement.id);
+          } catch (e) {
+            console.error("[webhooks/flutterwave] settlement-paid notify failed:", e);
+          }
+        } else if (transferStatus === "FAILED") {
+          await supabaseT
+            .from("settlements")
+            .update({ status: "failed", updated_at: now })
+            .eq("id", settlement.id);
+        }
+        // PENDING/other → wait for the terminal event
+      }
+
+      await logWebhookDelivery({
+        webhookType: "flutterwave",
+        eventType: event,
+        externalEventId: reference,
+        httpStatusCode: 200,
+        processingTimeMs: Date.now() - startTime,
+        status: "delivered",
+      });
+    }
+    return NextResponse.json({ received: true });
+  }
+
   if (!event?.startsWith("charge.") && !event?.startsWith("chargeback.")) {
     return NextResponse.json({ received: true });
   }

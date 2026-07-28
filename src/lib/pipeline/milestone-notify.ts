@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email";
 import { logActivity, activityExists } from "@/lib/crm/activities";
 import { findDealBySupplierOrder, attachToDealThread } from "@/lib/deals/threads";
 import { postDealMessage, type DealMessageReference } from "@/lib/deals/messages";
+import { sendTelegramNotification, tgEsc } from "@/lib/telegram/notify";
 
 type DB = SupabaseClient<Database>;
 
@@ -19,7 +20,7 @@ export interface MilestoneNotifyInput {
 }
 
 /**
- * Buyer-facing shipment milestone: one email (from logistic@ so replies
+ * Buyer-facing shipment milestone: one email (from logistics@ so replies
  * land in the webmail and thread onto the deal), one in-app notification,
  * one CRM activity on the deal thread. Pipeline handlers re-run on retry,
  * so the CRM activity doubles as the send-once guard. Never throws.
@@ -95,7 +96,7 @@ export async function notifyShipmentMilestone(
       const { data: logisticBox } = await supabase
         .from("mailboxes")
         .select("id, credential_ref")
-        .ilike("address", "logistic@%")
+        .ilike("address", "logistics@%")
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
@@ -120,6 +121,17 @@ export async function notifyShipmentMilestone(
         );
       }
     }
+
+    // Ops Telegram leg — inside the activityExists guard, so retries don't double-post
+    await sendTelegramNotification(
+      [
+        `🚚 <b>${tgEsc(input.headline)}</b>`,
+        ``,
+        `Order: ${tgEsc(so.order_number)}`,
+        `${tgEsc(input.detail)}`,
+        `Buyer: ${tgEsc(buyer?.full_name)} (${tgEsc(buyer?.email)})`,
+      ].join("\n")
+    );
 
     await logActivity({
       activityType: "shipment_milestone",
