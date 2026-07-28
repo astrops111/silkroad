@@ -446,7 +446,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (soError) {
-      console.error("[orders] Failed to create supplier order:", soError);
+      console.error("[orders] Failed to create supplier order:", soError.message, soError.code, soError.details, soError.hint);
       failedGroups.push(soData.order_number);
       continue;
     }
