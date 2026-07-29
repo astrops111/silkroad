@@ -435,6 +435,7 @@ export function MailClient() {
   const searchParams = useSearchParams();
   const initialThreadId = useRef(searchParams.get("threadId"));
   const initialMailboxId = useRef(searchParams.get("mailboxId"));
+  const suppressNextThreadClear = useRef(false);
 
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [selectedMailbox, setSelectedMailbox] = useState<string | "all" | null>(null);
@@ -516,8 +517,17 @@ export function MailClient() {
   }, [selectedMailbox, search, filters]);
 
   useEffect(() => {
-    setSelectedThread(null);
-    setMessages([]);
+    // A ?threadId= deep link opens its thread synchronously on mount (see
+    // below), before the mailboxes fetch resolves and sets selectedMailbox
+    // for the first time. That first mailbox assignment changes loadThreads'
+    // identity and would otherwise re-run this effect and clear the thread
+    // we just deep-linked to — so skip the clear exactly once for it.
+    if (suppressNextThreadClear.current) {
+      suppressNextThreadClear.current = false;
+    } else {
+      setSelectedThread(null);
+      setMessages([]);
+    }
     void loadThreads();
   }, [loadThreads]);
 
@@ -564,6 +574,7 @@ export function MailClient() {
     if (initialThreadId.current) {
       const id = initialThreadId.current;
       initialThreadId.current = null;
+      suppressNextThreadClear.current = true;
       void openThread(id);
     }
   }, [openThread]);
