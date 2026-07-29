@@ -130,7 +130,10 @@ export async function notifyShipmentMilestone(
         `Order: ${tgEsc(so.order_number)}`,
         `${tgEsc(input.detail)}`,
         `Buyer: ${tgEsc(buyer?.full_name)} (${tgEsc(buyer?.email)})`,
-      ].join("\n")
+      ].join("\n"),
+      process.env.NEXT_PUBLIC_APP_URL
+        ? { button: { text: "Open order", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/orders/${so.purchase_order_id}` } }
+        : {}
     );
 
     await logActivity({

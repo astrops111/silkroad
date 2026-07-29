@@ -37,6 +37,8 @@ export interface TelegramNotifyOptions {
   chatId?: string;
   /** Inline "open in admin"-style button. */
   button?: { text: string; url: string };
+  /** Deliver without a push alert/sound — for low-priority notices only. */
+  silent?: boolean;
 }
 
 /**
@@ -93,6 +95,7 @@ export async function sendTelegramNotification(
         text: truncateHtml(html, 4096),
         parse_mode: "HTML",
         link_preview_options: { is_disabled: true },
+        disable_notification: options.silent === true,
         ...(options.button && isPublicUrl(options.button.url)
           ? {
               reply_markup: {

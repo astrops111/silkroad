@@ -303,7 +303,7 @@ export async function onOrderPlacedOpsNotify(purchaseOrderId: string) {
       ...(po.note ? [``, `Note: ${tgEsc(po.note.slice(0, 300))}`] : []),
     ].join("\n"),
     process.env.NEXT_PUBLIC_APP_URL
-      ? { button: { text: "Open orders", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/orders` } }
+      ? { button: { text: "Open order", url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/orders/${po.id}` } }
       : {}
   );
 }
@@ -459,63 +459,20 @@ export async function onRfqSubmitted(rfqId: string) {
       </table>`
     : "";
 
-  for (const supplierId of rfq.invited_supplier_ids ?? []) {
-    const { data: supplierMember } = await supabase
-      .from("company_members")
-      .select("user_id, user_profiles ( email, full_name )")
-      .eq("company_id", supplierId)
-      .eq("is_primary", true)
-      .single();
-
-    const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
-
-    if (supplierMember?.user_id) {
-      await supabase.rpc("create_notification", {
-        p_user_id:        supplierMember.user_id,
-        p_company_id:     supplierId,
-        p_title:          "New RFQ Received",
-        p_body:           `${rfq.buyer_company_name ?? "A buyer"} requests a quote — ${rfq.rfq_number}: ${rfq.title}`,
-        p_type:           "rfq",
-        p_icon:           "file-text",
-        p_action_url:     `/supplier/rfq/${rfq.id}/quote`,
-        p_reference_type: "rfq",
-        p_reference_id:   rfqId,
-      });
-    }
-
-    if (supplier?.email) {
-      await sendEmail({
-        to: supplier.email,
-        subject: `New RFQ ${rfq.rfq_number} — ${rfq.title}`,
-        html: `
-          <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #14110F;">New Request for Quotation</h1>
-            <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
-            <p style="color: #4C463D;"><strong>${esc(rfq.buyer_company_name) ?? "A buyer"}</strong> has requested a quote from you.</p>
-            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:12px 0;">
-              <tr><td style="padding:6px 0;width:120px;color:#666;">RFQ</td><td>${esc(rfq.rfq_number)}</td></tr>
-              <tr><td style="padding:6px 0;color:#666;">Title</td><td>${esc(rfq.title)}</td></tr>
-              <tr><td style="padding:6px 0;color:#666;">Quantity</td><td>${rfq.quantity} ${esc(rfq.unit)}</td></tr>
-              <tr><td style="padding:6px 0;color:#666;">Deliver to</td><td>${esc(destination)}</td></tr>
-              <tr><td style="padding:6px 0;color:#666;">Quote deadline</td><td>${deadline}</td></tr>
-            </table>
-            ${itemRowsHtml}
-            <a href="${appUrl}/supplier/rfq/${rfq.id}/quote" style="display: inline-block; margin-top: 12px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Submit Your Quote</a>
-          </div>
-        `,
-      }, "rfq_submitted_supplier");
-    }
-  }
+  // Suppliers are NOT notified here — every RFQ is held for admin review
+  // (see 00133_rfq_admin_gated_supplier_visibility.sql) and only becomes
+  // visible to a supplier once an admin assigns it via
+  // POST /api/admin/rfqs/[id]/assign, which fires onRfqAssignedToSupplier.
 
   if (buyer?.email) {
     await sendEmail({
       to: buyer.email,
-      subject: `RFQ Sent — ${rfq.rfq_number}`,
+      subject: `RFQ Received — ${rfq.rfq_number}`,
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #14110F;">Your RFQ Has Been Sent</h1>
+          <h1 style="color: #14110F;">Your RFQ Has Been Received</h1>
           <p style="color: #4C463D;">Hi ${esc(buyer.full_name)},</p>
-          <p style="color: #4C463D;">Your request for quotation <strong>${esc(rfq.rfq_number)}</strong> — "${esc(rfq.title)}" has been sent to the supplier. We'll notify you as soon as a quote comes in.</p>
+          <p style="color: #4C463D;">Your request for quotation <strong>${esc(rfq.rfq_number)}</strong> — "${esc(rfq.title)}" is being reviewed by our team. We'll notify you as soon as a quote comes in.</p>
           <a href="${appUrl}/dashboard/rfq" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Track Your RFQs</a>
         </div>
       `,
@@ -560,11 +517,78 @@ export async function onRfqSubmitted(rfqId: string) {
       `Destination: ${tgEsc(destination)}`,
       `Price estimate: ${tgEsc(estimate)}`,
       `Deadline: ${tgEsc(deadline)} · Sample: ${rfq.sample_required ? "Yes" : "No"}`,
-      `Invited suppliers: ${(rfq.invited_supplier_ids ?? []).length}`,
+      `⏳ Not yet visible to suppliers — assign a supplier or respond directly to release it.`,
       ...(tgItemLines.length ? [``, `<b>Requested products</b>`, ...tgItemLines] : []),
     ].join("\n"),
-    appUrl ? { button: { text: "Open in admin", url: `${appUrl}/admin/quotes` } } : {}
+    appUrl ? { button: { text: "Assign / Respond", url: `${appUrl}/admin/rfqs/${rfq.id}` } } : {}
   );
+}
+
+/**
+ * Admin assigned a supplier to an RFQ (draft to confirm) or responded on
+ * their behalf directly (a submitted quote). This is the only point a
+ * supplier learns an RFQ exists — see 00133_rfq_admin_gated_supplier_visibility.sql.
+ */
+export async function onRfqAssignedToSupplier(
+  rfqId: string,
+  supplierId: string,
+  mode: "draft" | "binding",
+  quotationId: string
+) {
+  const supabase = createServiceClient();
+
+  const { data: rfq } = await supabase
+    .from("rfqs")
+    .select("id, rfq_number, title, buyer_company_name, quantity, unit, deadline")
+    .eq("id", rfqId)
+    .single();
+  if (!rfq) return;
+
+  const { data: supplierMember } = await supabase
+    .from("company_members")
+    .select("user_id, user_profiles ( email, full_name )")
+    .eq("company_id", supplierId)
+    .eq("is_primary", true)
+    .single();
+  const supplier = supplierMember?.user_profiles as unknown as { email: string; full_name: string } | null;
+
+  const actionUrl = mode === "draft" ? `/supplier/rfq/${rfq.id}/quote` : `/supplier/rfq`;
+  const title = mode === "draft" ? "RFQ Assigned — Review Suggested Quote" : "Quote Submitted On Your Behalf";
+  const body = mode === "draft"
+    ? `${rfq.buyer_company_name ?? "A buyer"} requests a quote — ${rfq.rfq_number}: ${rfq.title}. We've prepared a suggested quote for you to review.`
+    : `We've submitted a quote on your behalf for ${rfq.rfq_number}: ${rfq.title}. Review it and be ready to fulfill if awarded.`;
+
+  if (supplierMember?.user_id) {
+    await supabase.rpc("create_notification", {
+      p_user_id:        supplierMember.user_id,
+      p_company_id:     supplierId,
+      p_title:          title,
+      p_body:           body,
+      p_type:           "rfq",
+      p_icon:           "file-text",
+      p_action_url:     actionUrl,
+      p_reference_type: mode === "draft" ? "rfq" : "quotation",
+      p_reference_id:   mode === "draft" ? rfqId : quotationId,
+    });
+  }
+
+  if (supplier?.email) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    await sendEmail({
+      to: supplier.email,
+      subject: `${title} — ${rfq.rfq_number}`,
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #14110F;">${title}</h1>
+          <p style="color: #4C463D;">Hi ${esc(supplier.full_name)},</p>
+          <p style="color: #4C463D;">${esc(body)}</p>
+          <a href="${appUrl}${actionUrl}" style="display: inline-block; margin-top: 12px; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">
+            ${mode === "draft" ? "Review & Submit" : "View Quote"}
+          </a>
+        </div>
+      `,
+    }, mode === "draft" ? "rfq_assigned_draft" : "rfq_assigned_binding");
+  }
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { EventHandler } from "../types";
 import { logActivity, logSystemEvent } from "@/lib/logging";
 import { sendEmail } from "@/lib/email";
+import { sendTelegramNotification, tgEsc } from "@/lib/telegram/notify";
 
 const OPS_NOTIFICATION_EMAIL =
   process.env.OPS_NOTIFICATION_EMAIL ?? "logistics@silkroad.africa";
@@ -68,6 +69,20 @@ export const handler: EventHandler = async (event, _supabase) => {
       message:  description,
       metadata: { eventType: event.event_type, orderId: targetId },
     }),
+    sendTelegramNotification(
+      [
+        `🟠 <b>Non-critical — ${isShipmentStall ? "Stall Alert" : isDemurrageWarn ? "Demurrage Warning" : "Ops Alert"}</b>`,
+        ``,
+        tgEsc(description),
+        ``,
+        `Target: ${tgEsc(targetType)} ${tgEsc(targetId)}`,
+        `Event: ${tgEsc(event.event_type)}`,
+      ].join("\n"),
+      {
+        chatId: process.env.TELEGRAM_ERRORS_CHAT_ID ?? process.env.TELEGRAM_OPS_CHAT_ID,
+        button: appUrl ? { text: "Open in admin", url: adminLink } : undefined,
+      }
+    ),
   ]);
 
   return {

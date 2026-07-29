@@ -142,7 +142,7 @@ async function fetchRfqQuotations(supabase: Supa, sinceIso?: string): Promise<Pi
     validUntil: r.valid_until,
     createdAt: r.created_at ?? "",
     updatedAt: r.updated_at ?? null,
-    detailUrl: r.rfq ? `/admin/logistics/quotes?rfq=${r.rfq.id}` : `/admin`,
+    detailUrl: r.rfq ? `/admin/rfqs/${r.rfq.id}` : `/admin`,
   }));
 }
 

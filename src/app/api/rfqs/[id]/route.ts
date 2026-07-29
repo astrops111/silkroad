@@ -35,8 +35,10 @@ export async function GET(
       `id, rfq_number, title, description, category_id, quantity, unit,
        target_price, target_currency, delivery_country, delivery_city,
        required_by, deadline, status, is_public, awarded_quotation_id,
-       buyer_company_name, created_at, updated_at,
+       buyer_company_name, invited_supplier_ids, supplier_visible_at,
+       created_at, updated_at,
        categories ( name ),
+       user_profiles!rfqs_buyer_user_id_fkey ( email, full_name, phone ),
        rfq_items (
          id, product_id, variant_id, product_name, description, quantity, unit,
          target_unit_price, specifications, hs_code, sort_order
@@ -59,12 +61,29 @@ export async function GET(
     return NextResponse.json({ error: "RFQ not found" }, { status: 404 });
   }
 
-  const { categories, target_currency, ...rest } = rfq as typeof rfq & {
+  const { categories, target_currency, user_profiles, invited_supplier_ids, ...rest } = rfq as typeof rfq & {
     categories: { name: string } | null;
     target_currency: string;
+    user_profiles: { email: string; full_name: string; phone: string | null } | null;
+    invited_supplier_ids: string[] | null;
   };
 
+  let invitedSuppliers: { id: string; name: string; country_code: string | null }[] = [];
+  if (invited_supplier_ids?.length) {
+    const { data: companies } = await supabase
+      .from("companies")
+      .select("id, name, country_code")
+      .in("id", invited_supplier_ids);
+    invitedSuppliers = companies ?? [];
+  }
+
   return NextResponse.json({
-    rfq: { ...rest, category: categories?.name ?? null, currency: target_currency },
+    rfq: {
+      ...rest,
+      category: categories?.name ?? null,
+      currency: target_currency,
+      buyer: user_profiles,
+      invitedSuppliers,
+    },
   });
 }

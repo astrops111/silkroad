@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { sanitizeText } from "@/lib/security/sanitize";
+import { sendTelegramNotification, tgEsc } from "@/lib/telegram/notify";
 
 // All pipeline + legacy activity types the enum supports
 export type ActivityType =
@@ -121,6 +122,32 @@ export async function logError(params: {
     console.error("[logging/activity] logError failed:", error.message);
     return null;
   }
+
+  // Errors otherwise sit silently in this table until someone looks — page
+  // the errors chat instead, at three real priority tiers: critical and
+  // error both ring (error is "major" — still needs same-day eyes), warning
+  // delivers silently so the chat stays scannable. Never throws, no-ops
+  // unconfigured.
+  {
+    const severity = params.severity ?? "error";
+    const label =
+      severity === "critical" ? `🔥 <b>Critical error</b>`
+      : severity === "error"  ? `🟠 <b>Major error</b>`
+      : `🟡 <b>Warning</b>`;
+    await sendTelegramNotification(
+      [
+        `${label} — ${tgEsc(params.errorCode)}`,
+        ``,
+        `Source: ${tgEsc(params.source)}`,
+        `${tgEsc(params.message)}`,
+      ].join("\n"),
+      {
+        chatId: process.env.TELEGRAM_ERRORS_CHAT_ID ?? process.env.TELEGRAM_OPS_CHAT_ID,
+        silent: severity === "warning",
+      }
+    );
+  }
+
   // DB trigger (trg_error_log_activity) auto-mirrors this into system_activity_log
   return data?.id ?? null;
 }
