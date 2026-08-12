@@ -7065,6 +7065,7 @@ export type Database = {
           name: string
           name_local: string | null
           origin_country: string | null
+          sales_unit: string | null
           sample_available: boolean | null
           sample_moq: number | null
           sample_price: number | null
@@ -7118,6 +7119,7 @@ export type Database = {
           name: string
           name_local?: string | null
           origin_country?: string | null
+          sales_unit?: string | null
           sample_available?: boolean | null
           sample_moq?: number | null
           sample_price?: number | null
@@ -7171,6 +7173,7 @@ export type Database = {
           name?: string
           name_local?: string | null
           origin_country?: string | null
+          sales_unit?: string | null
           sample_available?: boolean | null
           sample_moq?: number | null
           sample_price?: number | null
@@ -8465,7 +8468,7 @@ export type Database = {
           buyer_company_id: string | null
           buyer_company_name: string | null
           buyer_country: string | null
-          buyer_user_id: string
+          buyer_user_id: string | null
           category_id: string | null
           certifications_required: string[] | null
           commodity_id: string | null
@@ -8476,6 +8479,10 @@ export type Database = {
           delivery_city: string | null
           delivery_country: string | null
           description: string | null
+          guest_company: string | null
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
           id: string
           invited_supplier_ids: string[] | null
           is_public: boolean | null
@@ -8511,7 +8518,7 @@ export type Database = {
           buyer_company_id?: string | null
           buyer_company_name?: string | null
           buyer_country?: string | null
-          buyer_user_id: string
+          buyer_user_id?: string | null
           category_id?: string | null
           certifications_required?: string[] | null
           commodity_id?: string | null
@@ -8522,6 +8529,10 @@ export type Database = {
           delivery_city?: string | null
           delivery_country?: string | null
           description?: string | null
+          guest_company?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           invited_supplier_ids?: string[] | null
           is_public?: boolean | null
@@ -8557,7 +8568,7 @@ export type Database = {
           buyer_company_id?: string | null
           buyer_company_name?: string | null
           buyer_country?: string | null
-          buyer_user_id?: string
+          buyer_user_id?: string | null
           category_id?: string | null
           certifications_required?: string[] | null
           commodity_id?: string | null
@@ -8568,6 +8579,10 @@ export type Database = {
           delivery_city?: string | null
           delivery_country?: string | null
           description?: string | null
+          guest_company?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           invited_supplier_ids?: string[] | null
           is_public?: boolean | null
