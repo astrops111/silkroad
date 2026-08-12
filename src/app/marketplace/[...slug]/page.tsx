@@ -189,6 +189,7 @@ export default async function ProductDetailPage({
         janCode: product.jan_code ?? null,
         shelfLifeDays: product.shelf_life_days ?? null,
         boxPackQty: product.box_pack_qty ?? null,
+        salesUnit: product.sales_unit ?? null,
         shippingMode: product.shipping_mode ?? null,
         legalCategory: product.legal_category ?? null,
         skinHairType: product.skin_hair_type ?? null,

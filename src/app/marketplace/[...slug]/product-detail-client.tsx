@@ -28,6 +28,14 @@ import { applyMarkup } from "@/lib/pricing";
 import BuyNowDialog from "@/components/checkout/BuyNowDialog";
 import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 
+// OEM/private-label stock is quoted per piece and carries setup costs that sit
+// outside the unit price. Kept in sync with FEE_LINES in scripts/set-hodaf-oem.mjs,
+// which writes the same terms into the description so they also list under Specifications.
+const OEM_TERMS = [
+  "One-time label account setup fee: USD 500",
+  "Design & product fee: extra, quoted per project",
+];
+
 interface ProductData {
   id: string;
   supplierId: string;
@@ -47,6 +55,7 @@ interface ProductData {
   janCode: string | null;
   shelfLifeDays: number | null;
   boxPackQty: number | null;
+  salesUnit: string | null;
   shippingMode: string | null;
   legalCategory: string | null;
   skinHairType: string | null;
@@ -226,6 +235,18 @@ export default function ProductDetailClient({
   const effectiveJanCode = currentVariant?.janCode ?? product.janCode;
   const effectiveImages = currentVariant?.images.length ? currentVariant.images : images;
   const minBoxes = Math.max(1, Math.round(effectiveMoq / boxPackQty));
+
+  // Private-label goods: the unit price covers production only, so the setup
+  // and design fees are surfaced alongside the MOQ rather than buried in specs.
+  const isOem = product.brand?.trim().toUpperCase() === "OEM";
+
+  // What one orderable unit is called. box_pack_qty > 1 bundles pieces into a
+  // box; sales_unit means the pack is itself the priced SKU (base_price is its
+  // full price). Neither → the generic "unit", exactly as before.
+  const salesUnit = product.salesUnit?.trim() || null;
+  const unitNoun = boxPackQty > 1 ? "box" : salesUnit?.toLowerCase() ?? "unit";
+  const unitNounPlural = /(s|x|ch|sh)$/.test(unitNoun) ? `${unitNoun}es` : `${unitNoun}s`;
+  const countsUnits = boxPackQty > 1 || salesUnit !== null;
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [boxes, setBoxes] = useState(minBoxes);
@@ -624,7 +645,7 @@ export default function ProductDetailClient({
                       {formatMoney(boxPackQty > 1 ? boxPrice : unitPrice, product.currency)}
                     </span>
                     <span className="text-sm text-[var(--text-tertiary)]">
-                      {boxPackQty > 1 ? "/ box" : "/ unit"}
+                      / {unitNoun}
                     </span>
                   </div>
                   {boxPackQty > 1 && (
@@ -638,7 +659,9 @@ export default function ProductDetailClient({
                 <div className="mt-6 space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {boxPackQty > 1 ? "Boxes" : "Quantity"}
+                      {countsUnits
+                        ? unitNounPlural.charAt(0).toUpperCase() + unitNounPlural.slice(1)
+                        : "Quantity"}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -720,8 +743,8 @@ export default function ProductDetailClient({
                       <p className="text-[var(--text-tertiary)]">MOQ</p>
                       <p className="font-semibold text-[var(--text-primary)] mt-0.5">
                         {boxPackQty > 1
-                          ? `${minBoxes.toLocaleString()} boxes`
-                          : effectiveMoq.toLocaleString()}
+                          ? `${minBoxes.toLocaleString()} ${unitNounPlural}`
+                          : `${effectiveMoq.toLocaleString()}${salesUnit ? ` ${unitNounPlural}` : ""}`}
                       </p>
                     </div>
                     <div className="rounded-lg border border-[var(--border-subtle)] p-3">
@@ -742,6 +765,23 @@ export default function ProductDetailClient({
                       </p>
                     </div>
                   </div>
+
+                  {isOem && (
+                    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-secondary)] p-3 text-xs text-[var(--text-secondary)]">
+                      <span className="font-semibold text-[var(--text-primary)]">
+                        OEM / private label
+                      </span>{" "}
+                      — billed on top of the unit price:
+                      <ul className="mt-1.5 space-y-1">
+                        {OEM_TERMS.map((term) => (
+                          <li key={term} className="flex gap-1.5">
+                            <span aria-hidden>·</span>
+                            <span>{term}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {/* CTAs */}
@@ -897,7 +937,11 @@ export default function ProductDetailClient({
                         {product.weightKg != null && (
                           <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-2">
                             <dt className="text-xs text-[var(--text-tertiary)]">Weight per unit</dt>
-                            <dd className="text-xs font-medium text-[var(--text-primary)]">{product.weightKg} kg</dd>
+                            {/* weight_kg is NUMERIC(10,2) — show the two decimals it
+                                actually stores rather than a bare "0.5" / "0". */}
+                            <dd className="text-xs font-medium text-[var(--text-primary)]">
+                              {product.weightKg.toFixed(2)} kg
+                            </dd>
                           </div>
                         )}
                         {product.shelfLifeDays != null && (

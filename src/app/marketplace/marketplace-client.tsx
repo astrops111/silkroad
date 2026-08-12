@@ -40,9 +40,6 @@ import {
   Package,
   Truck,
   Info,
-  ShoppingCart,
-  Check,
-  Sparkles,
   Loader2,
 } from "lucide-react";
 
@@ -1022,11 +1019,45 @@ function ProductCard({
     setSimilarOpen(true);
   }
 
+  // Shared action row, rendered in one of three places depending on layout:
+  //   grid  (sm+)  — horizontal, docked directly under the image
+  //   list  (sm+)  — vertical stack in a dedicated right-hand column
+  //   mobile       — horizontal, at the foot of the content column
+  const actionRow = (orientation: "horizontal" | "vertical") => {
+    const vertical = orientation === "vertical";
+    return (
+      <div className={vertical ? "flex flex-col gap-2" : "flex items-center gap-2"}>
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          className={`${
+            vertical ? "w-full" : "flex-1"
+          } inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] sm:text-[13px] font-semibold transition-colors ${
+            justAdded
+              ? "bg-[var(--forest,#2f6b4f)] text-white"
+              : "bg-[var(--amber)] text-[var(--obsidian)] hover:bg-[var(--amber-dark)] hover:text-white"
+          }`}
+        >
+          {justAdded ? "Added" : "Add to Cart"}
+        </button>
+        <button
+          type="button"
+          onClick={handleOpenSimilar}
+          className={`${
+            vertical ? "w-full" : ""
+          } inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-[11px] sm:text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--amber)]/50 hover:text-[var(--text-primary)]`}
+        >
+          Similar Products
+        </button>
+      </div>
+    );
+  };
+
   return (
     <>
     <Link
       href={product.href ?? `/marketplace/${product.id}`}
-      className={`group card-elevated flex overflow-hidden ${isList ? "" : "sm:block"}`}
+      className={`group card-elevated flex overflow-hidden ${isList ? "" : "sm:flex-col"}`}
     >
       {/* Image area */}
       <div
@@ -1090,6 +1121,13 @@ function ProductCard({
           </div>
         )}
       </div>
+
+      {/* Actions — docked directly under the image (grid mode, sm and up) */}
+      {!isList && (
+        <div className="hidden sm:block border-b border-[var(--border-subtle)] px-5 py-3">
+          {actionRow("horizontal")}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col">
@@ -1209,39 +1247,20 @@ function ProductCard({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-[var(--border-subtle)] flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] sm:text-[13px] font-semibold transition-colors ${
-              justAdded
-                ? "bg-[var(--forest,#2f6b4f)] text-white"
-                : "bg-[var(--amber)] text-[var(--obsidian)] hover:bg-[var(--amber-dark)] hover:text-white"
-            }`}
-          >
-            {justAdded ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                Added
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="w-3.5 h-3.5" />
-                Add to Cart
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenSimilar}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-[11px] sm:text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--amber)]/50 hover:text-[var(--text-primary)]"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Similar
-          </button>
+        {/* Actions — mobile only. Too narrow there for either a docked bar under
+            the image or a right-hand column, so they sit at the foot of the
+            content column in both view modes. */}
+        <div className="mt-2 pt-2 border-t border-[var(--border-subtle)] sm:hidden">
+          {actionRow("horizontal")}
         </div>
       </div>
+
+      {/* Actions — right-hand vertical stack (list mode, sm and up) */}
+      {isList && (
+        <div className="hidden sm:flex w-44 shrink-0 flex-col justify-center gap-2 border-l border-[var(--border-subtle)] px-4 py-4">
+          {actionRow("vertical")}
+        </div>
+      )}
     </Link>
     <SimilarItemsDialog
       open={similarOpen}
@@ -1418,7 +1437,11 @@ function MoaBanner({
           ) : (
             t("moaBannerPerItem", { region: regionMeta(activeCountry).label })
           )
-        ) : (
+        ) : null}
+        {activeCountry === "CN" && (
+          <span className="font-medium text-[var(--text-primary)]"> {t("moaBannerCnFreight")}</span>
+        )}
+        {!activeCountry && (
           <>
             {t("moaBannerAll")}
             {Object.keys(rules).length > 0 && (

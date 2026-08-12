@@ -233,7 +233,9 @@ export default async function MarketplacePage({
         tradeTerm: p.trade_term ?? null,
         price: boxPackQty > 1 ? unitPrice * boxPackQty : unitPrice,
         moq: boxPackQty > 1 ? Math.max(1, Math.round((p.moq ?? 1) / boxPackQty)) : p.moq ?? 1,
-        unit: boxPackQty > 1 ? "Box" : "Piece",
+        // sales_unit names the priced unit outright (a "Box" that is itself the
+        // SKU); box_pack_qty instead prices pieces and bundles them into a box.
+        unit: boxPackQty > 1 ? "Box" : p.sales_unit ?? "Piece",
         boxPackQty: boxPackQty > 1 ? boxPackQty : undefined,
         unitPrice,
         leadTimeDays: p.lead_time_days ?? null,
