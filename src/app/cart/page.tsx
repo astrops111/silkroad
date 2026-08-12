@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCartStore } from "@/stores/cart";
 import { DESTINATION_COUNTRIES } from "@/lib/constants/countries";
@@ -10,6 +11,8 @@ import {
   shippingModeLabel,
 } from "@/lib/logistics/rates/config";
 import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/ui/navbar";
+import { Footer } from "@/components/ui/footer";
 import {
   ShoppingCart,
   Trash2,
@@ -22,6 +25,8 @@ import {
   MessageSquare,
   Send,
   ExternalLink,
+  FileText,
+  LogIn,
 } from "lucide-react";
 
 function formatPrice(cents: number, currency: string) {
@@ -31,8 +36,85 @@ function formatPrice(cents: number, currency: string) {
   }).format(cents / 100);
 }
 
-export default function CartPage() {
+/**
+ * Quantity control for one cart line: minus / typed input / plus.
+ * Boxed SKUs (boxPackQty > 1) are entered and stepped in whole boxes; the
+ * store always holds pieces, so every value is multiplied back up on commit.
+ */
+function QuantityStepper({
+  quantity,
+  moq,
+  boxPackQty,
+  onChange,
+}: {
+  quantity: number;
+  moq: number;
+  boxPackQty?: number;
+  onChange: (pieces: number) => void;
+}) {
+  const step = boxPackQty && boxPackQty > 1 ? boxPackQty : 1;
+  const boxed = step > 1;
+  const displayQty = boxed ? Math.round(quantity / step) : quantity;
+  const minDisplay = Math.max(1, boxed ? Math.round(moq / step) : moq);
+
+  const [draft, setDraft] = useState(String(displayQty));
+  // Re-sync during render when the store value changes from outside the input
+  // (+/- buttons, MOQ clamp) — an effect here would cascade an extra render.
+  const [syncedQty, setSyncedQty] = useState(displayQty);
+  if (syncedQty !== displayQty) {
+    setSyncedQty(displayQty);
+    setDraft(String(displayQty));
+  }
+
+  function commit() {
+    const parsed = parseInt(draft, 10);
+    const next = Number.isNaN(parsed) ? minDisplay : Math.max(minDisplay, parsed);
+    setDraft(String(next));
+    if (next !== displayQty) onChange(next * step);
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => onChange(quantity - step)}
+        disabled={displayQty <= minDisplay}
+        aria-label="Decrease quantity"
+        className="w-8 h-8 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <Minus className="w-3 h-3" />
+      </button>
+
+      <input
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        aria-label={boxed ? "Quantity in boxes" : "Quantity in pieces"}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setDraft(String(displayQty));
+        }}
+        className="w-16 h-8 text-center text-sm font-medium rounded-md border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)]"
+      />
+
+      <button
+        onClick={() => onChange(quantity + step)}
+        aria-label="Increase quantity"
+        className="w-8 h-8 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)]"
+      >
+        <Plus className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+function CartPageContent() {
   const t = useTranslations("cart");
+  const searchParams = useSearchParams();
+  // The cart drawer's "View Quote" links here with ?rfq=1 to land the buyer
+  // straight on the request-for-quote form.
+  const wantsRfq = searchParams.get("rfq") === "1";
   const { items, removeItem, updateQuantity, getTotal, clearCart, getItemsByShippingGroup } =
     useCartStore();
 
@@ -40,17 +122,52 @@ export default function CartPage() {
   const shippingGroups = useMemo(() => getItemsByShippingGroup(), [items, getItemsByShippingGroup]);
   const anyBelowMinimum = shippingGroups.some((g) => !g.meetsMinimum);
 
-  // RFQ panel state
-  const [rfqOpen, setRfqOpen] = useState(false);
+  // RFQ panel state — opens pre-expanded when arriving from the drawer's
+  // "View Quote" link (/cart?rfq=1)
+  const [rfqOpen, setRfqOpen] = useState(wantsRfq);
+  const rfqPanelRef = useRef<HTMLDivElement>(null);
   const [rfqNote, setRfqNote] = useState("");
   const [rfqDeadline, setRfqDeadline] = useState("");
   const [rfqCountry, setRfqCountry] = useState("");
   const [rfqCity, setRfqCity] = useState("");
   const [rfqStatus, setRfqStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  // Guest contact details — only collected, and only required, when signed out.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestCompany, setGuestCompany] = useState("");
   const [rfqError, setRfqError] = useState<string | null>(null);
   const [createdRfqs, setCreatedRfqs] = useState<
     { rfqId: string; rfqNumber: string; supplierName: string }[]
   >([]);
+
+  // Guests must leave a name and a plausible email before we can quote them.
+  const missingGuestDetails =
+    signedIn === false && (!guestName.trim() || !/^\S+@\S+\.\S+$/.test(guestEmail.trim()));
+
+  useEffect(() => {
+    if (wantsRfq) rfqPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [wantsRfq]);
+
+  // /cart is a public route, so the page has to ask who (if anyone) is signed
+  // in. /api/me answers `{ user: null }` for anonymous visitors.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setSignedIn(!!d?.user);
+      })
+      .catch(() => {
+        // Treat an unreachable probe as signed-out: the guest fields are
+        // additive, and the API re-validates identity anyway.
+        if (!cancelled) setSignedIn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSendRfq() {
     setRfqStatus("loading");
@@ -65,6 +182,14 @@ export default function CartPage() {
           deadline: rfqDeadline || undefined,
           deliveryCountry: rfqCountry || undefined,
           deliveryCity: rfqCity || undefined,
+          guest: signedIn
+            ? undefined
+            : {
+                name: guestName,
+                email: guestEmail,
+                phone: guestPhone || undefined,
+                company: guestCompany || undefined,
+              },
         }),
       });
       const data = await res.json();
@@ -94,12 +219,24 @@ export default function CartPage() {
           {t("empty")}
         </h1>
         <p className="text-[var(--text-tertiary)] mb-6">{t("emptyDesc")}</p>
-        <Link href="/marketplace">
-          <Button>
-            <Package className="w-4 h-4" />
-            Browse Products
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button asChild>
+            <Link href="/marketplace">
+              <Package className="w-4 h-4" />
+              Browse Products
+            </Link>
           </Button>
-        </Link>
+          {/* An empty cart is the most likely moment to be looking for
+              already-submitted RFQs. Guests have none to look at. */}
+          {signedIn !== false && (
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/rfq">
+                <FileText className="w-4 h-4" />
+                View my RFQs
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -175,7 +312,12 @@ export default function CartPage() {
                   key={`${item.productId}-${item.variantId}`}
                   className="flex items-center gap-4 p-4"
                 >
-                  <div className="w-16 h-16 rounded-lg bg-[var(--surface-tertiary)] flex items-center justify-center shrink-0">
+                  {/* /marketplace/{id} resolves a bare product id and 301s to
+                      the canonical SEO URL. */}
+                  <Link
+                    href={`/marketplace/${item.productId}`}
+                    className="w-16 h-16 rounded-lg bg-[var(--surface-tertiary)] flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
+                  >
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
@@ -185,12 +327,15 @@ export default function CartPage() {
                     ) : (
                       <Package className="w-6 h-6 text-[var(--text-tertiary)]" />
                     )}
-                  </div>
+                  </Link>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                    <Link
+                      href={`/marketplace/${item.productId}`}
+                      className="block text-sm font-medium text-[var(--text-primary)] truncate hover:text-[var(--amber-dark)] hover:underline transition-colors"
+                    >
                       {item.productName}
-                    </p>
+                    </Link>
                     <p className="text-xs text-[var(--text-tertiary)]">
                       {item.boxPackQty && item.boxPackQty > 1
                         ? `${formatPrice(item.unitPrice * item.boxPackQty, item.currency)} / box · MOQ: ${Math.round(item.moq / item.boxPackQty).toLocaleString()} boxes`
@@ -198,39 +343,15 @@ export default function CartPage() {
                     </p>
                   </div>
 
-                  {/* Quantity controls — steps by whole boxes when boxPackQty is set */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.productId,
-                          item.quantity - (item.boxPackQty ?? 1),
-                          item.variantId
-                        )
-                      }
-                      className="w-8 h-8 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)] disabled:opacity-40"
-                      disabled={item.quantity <= item.moq}
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="w-12 text-center text-sm font-medium">
-                      {item.boxPackQty && item.boxPackQty > 1
-                        ? Math.round(item.quantity / item.boxPackQty)
-                        : item.quantity}
-                    </span>
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.productId,
-                          item.quantity + (item.boxPackQty ?? 1),
-                          item.variantId
-                        )
-                      }
-                      className="w-8 h-8 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-secondary)]"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
+                  {/* Quantity — typed or stepped, in boxes when boxPackQty is set */}
+                  <QuantityStepper
+                    quantity={item.quantity}
+                    moq={item.moq}
+                    boxPackQty={item.boxPackQty}
+                    onChange={(pieces) =>
+                      updateQuantity(item.productId, pieces, item.variantId)
+                    }
+                  />
 
                   <div className="text-right shrink-0 w-24">
                     <p className="text-sm font-semibold text-[var(--obsidian)]">
@@ -312,7 +433,11 @@ export default function CartPage() {
         )}
 
         {/* RFQ panel */}
-        <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
+        <div
+          id="request-quote"
+          ref={rfqPanelRef}
+          className="mt-4 pt-4 border-t border-[var(--border-subtle)]"
+        >
           {rfqStatus === "success" ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
@@ -326,7 +451,7 @@ export default function CartPage() {
                       {r.supplierName} — <span className="font-mono">{r.rfqNumber}</span>
                     </span>
                     <Link
-                      href="/dashboard/rfq"
+                      href={`/dashboard/rfq/${r.rfqId}`}
                       className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center gap-1 transition-colors"
                     >
                       View <ExternalLink className="w-3 h-3" />
@@ -334,12 +459,113 @@ export default function CartPage() {
                   </li>
                 ))}
               </ul>
+              {signedIn === false ? (
+                // A guest has no dashboard to link to — the quote comes back
+                // by email, so offer the account that would let them track it.
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    We&apos;ve emailed a copy to{" "}
+                    <span className="font-medium">{guestEmail}</span>. Our team will
+                    reply with quotes shortly.
+                  </p>
+                  <Button variant="outline" asChild className="w-full">
+                    <Link href="/auth/register">
+                      <FileText className="w-4 h-4" />
+                      Create an account to track it
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <Button asChild className="w-full mt-3">
+                  <Link
+                    href={
+                      createdRfqs.length === 1
+                        ? `/dashboard/rfq/${createdRfqs[0].rfqId}`
+                        : "/dashboard/rfq"
+                    }
+                  >
+                    <FileText className="w-4 h-4" />
+                    {createdRfqs.length === 1 ? "View RFQ" : "View my RFQs"}
+                  </Link>
+                </Button>
+              )}
             </div>
           ) : rfqOpen ? (
             <div className="space-y-3">
               <p className="text-xs font-medium text-[var(--text-primary)]">
                 Request quotes from all suppliers in your cart
               </p>
+
+              {/* Signed-out visitors submit as guests — we need a way to
+                  send the quote back to them. */}
+              {signedIn === false && (
+                <div className="space-y-3 p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)]">
+                  {/* Sign-in first: an account holder shouldn't retype details
+                      we already have. The cart lives in localStorage, so it
+                      survives the round trip. */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-[var(--text-primary)]">
+                        Already have an account?
+                      </p>
+                      <p className="text-[11px] text-[var(--text-tertiary)]">
+                        Sign in and we&apos;ll use your saved details. Your cart is kept.
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" asChild className="shrink-0">
+                      <Link href={`/auth/login?redirect=${encodeURIComponent("/cart?rfq=1")}`}>
+                        <LogIn className="w-3.5 h-3.5" />
+                        Sign in
+                      </Link>
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+                    <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                      or continue as a guest
+                    </span>
+                    <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+                  </div>
+
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    No account needed — just tell us where to send your quote.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Your name *"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    />
+                    <input
+                      type="email"
+                      required
+                      placeholder="Email *"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone (optional)"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Company (optional)"
+                      value={guestCompany}
+                      onChange={(e) => setGuestCompany(e.target.value)}
+                      className="w-full text-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    />
+                  </div>
+                </div>
+              )}
+
               <textarea
                 placeholder="Optional note to suppliers (e.g. required certifications, delivery timeline, preferred specs)…"
                 value={rfqNote}
@@ -394,7 +620,7 @@ export default function CartPage() {
                 <Button
                   size="sm"
                   onClick={handleSendRfq}
-                  disabled={rfqStatus === "loading" || anyBelowMinimum}
+                  disabled={rfqStatus === "loading" || anyBelowMinimum || missingGuestDetails}
                   className="flex-1"
                 >
                   {rfqStatus === "loading" ? (
@@ -418,8 +644,38 @@ export default function CartPage() {
               Request quotes from suppliers instead
             </button>
           )}
+
+          {/* Always reachable for account holders. Hidden for guests, whose
+              RFQs live in their inbox rather than a dashboard. */}
+          {signedIn !== false && (
+            <Button variant="outline" asChild className="w-full mt-3">
+              <Link href="/dashboard/rfq">
+                <FileText className="w-4 h-4" />
+                View my RFQs &amp; quotations
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+// useSearchParams needs a Suspense boundary above it (see next docs:
+// 01-app/03-api-reference/04-functions/use-search-params.md#prerendering)
+export default function CartPage() {
+  return (
+    <>
+      {/* Public route — guests build a cart and request a quote without an
+          account, so this page carries the marketing navbar/footer rather
+          than the dashboard shell. */}
+      <Navbar />
+      <main className="pt-[104px] lg:pt-[140px] pb-20 px-6 lg:px-10 min-h-screen bg-[var(--surface-secondary)]">
+        <Suspense fallback={null}>
+          <CartPageContent />
+        </Suspense>
+      </main>
+      <Footer />
+    </>
   );
 }
