@@ -54,6 +54,9 @@ export function CookieBanner() {
     }
 
     if (!isConsentRecorded()) {
+      // Reads localStorage, which isn't available during SSR — has to be
+      // checked client-side on mount. See region-provider.tsx for the same pattern.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisible(true);
     }
 

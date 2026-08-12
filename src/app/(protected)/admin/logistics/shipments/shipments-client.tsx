@@ -90,6 +90,9 @@ export function ShipmentsListClient({
   const [methodFilter, setMethodFilter] = useState("all");
 
   const kpis = useMemo(() => {
+    // "Delivered (30d)" is inherently a wall-clock cutoff — there's no way to
+    // derive it purely from props. Recomputed whenever `shipments` changes.
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const d30 = now - 30 * 86_400_000;
     const active = shipments.filter(

@@ -141,10 +141,9 @@ function FilterCombo({
   }, [open]);
 
   useEffect(() => {
-    if (!open || !search.trim()) {
-      setResults([]);
-      return;
-    }
+    if (!open || !search.trim()) return;
+    // Marks the in-flight fetch below — can't be derived from render inputs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const t = setTimeout(() => {
       fetch(`/api/admin/mail/filters?type=${type}&search=${encodeURIComponent(search)}`)
@@ -154,6 +153,10 @@ function FilterCombo({
     }, 250);
     return () => clearTimeout(t);
   }, [search, open, type]);
+
+  // Rather than resetting `results` via the effect above when the search box
+  // is cleared, just don't show stale results instead of storing "no results".
+  const visibleResults = search.trim() ? results : [];
 
   if (active) {
     return (
@@ -186,10 +189,10 @@ function FilterCombo({
           />
           <div className="mt-1 max-h-56 overflow-y-auto">
             {loading && <p className="px-2 py-2 text-[11px] text-[var(--text-tertiary)]">Searching…</p>}
-            {!loading && search.trim() && results.length === 0 && (
+            {!loading && search.trim() && visibleResults.length === 0 && (
               <p className="px-2 py-2 text-[11px] text-[var(--text-tertiary)]">No matches</p>
             )}
-            {results.map((r) => (
+            {visibleResults.map((r) => (
               <button
                 key={r.id}
                 onClick={() => {

@@ -347,7 +347,7 @@ export default function NewResourceListingForm({ categories, supplierCompanyId }
             <CardTitle className="text-base">Compliance references</CardTitle>
             <CardDescription>
               Required for this category before an admin can approve the listing — you can add
-              these later from your listing if you don't have them yet.
+              these later from your listing if you don&apos;t have them yet.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

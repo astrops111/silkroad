@@ -182,7 +182,7 @@ export function ShipmentTrackingPanel({
               <Select value={newStatus || "_none"} onValueChange={(v) => setNewStatus(v === "_none" ? "" : (v as ShipmentStatus))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">(don't change status)</SelectItem>
+                  <SelectItem value="_none">(don&apos;t change status)</SelectItem>
                   {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
                 </SelectContent>
               </Select>

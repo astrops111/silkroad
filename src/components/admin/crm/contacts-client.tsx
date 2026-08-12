@@ -39,6 +39,9 @@ export function ContactsClient() {
   }, [search]);
 
   useEffect(() => {
+    // Fetches from the network — can't be derived purely from props/state,
+    // so this has to live in an effect (refetches when `search` changes).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
