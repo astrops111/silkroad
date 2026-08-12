@@ -97,7 +97,9 @@ function buildCspHeader(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
-    "upgrade-insecure-requests",
+    // Dev serves plain HTTP on localhost; upgrading would point the browser
+    // at https://localhost and fail with ERR_SSL_PROTOCOL_ERROR.
+    ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ];
   return directives.join("; ");
 }
@@ -146,6 +148,17 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!user && !isPublicRoute(pathname)) {
+    // fetch() callers can't use a login redirect — they'd follow it and choke
+    // on the login page HTML (or, with upgrade-insecure-requests, an SSL
+    // error). Gated APIs answer 401 JSON; only document navigations redirect.
+    if (pathname.startsWith("/api/")) {
+      const unauthorized = NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+      if (csp) unauthorized.headers.set("Content-Security-Policy", csp);
+      return unauthorized;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     url.searchParams.set("redirect", pathname);

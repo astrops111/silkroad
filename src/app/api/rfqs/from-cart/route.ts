@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { randomBytes } from "crypto";
 import { z } from "zod/v4";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -340,15 +340,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create RFQs" }, { status: 500 });
   }
 
-  // Notify supplier + buyer + ops (email and in-app). Awaited so the sends
-  // complete before the serverless response ends; failures never block the RFQ.
-  for (const rfq of created) {
-    try {
-      await onRfqSubmitted(rfq.rfqId);
-    } catch (err) {
-      console.error("[rfqs/from-cart] Notification failed for", rfq.rfqId, err);
+  // Notify supplier + buyer + ops (email and in-app). Scheduled with
+  // next/server `after` so SMTP latency never holds up the buyer's response;
+  // the platform keeps the handler alive until the sends finish, and
+  // failures never block the RFQ.
+  after(async () => {
+    for (const rfq of created) {
+      try {
+        await onRfqSubmitted(rfq.rfqId);
+      } catch (err) {
+        console.error("[rfqs/from-cart] Notification failed for", rfq.rfqId, err);
+      }
     }
-  }
+  });
 
   return NextResponse.json({
     success: true,

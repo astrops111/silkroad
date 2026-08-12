@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Package } from "lucide-react";
 import { applyMarkup } from "@/lib/pricing";
+import { useCurrentUser } from "@/components/ui/user-menu";
 
 interface RecommendedProduct {
   product_id: string;
@@ -32,11 +33,15 @@ export function RecommendationRail({
   forMe?: boolean;
 }) {
   const [items, setItems] = useState<RecommendedProduct[]>([]);
+  const { user } = useCurrentUser();
 
   useEffect(() => {
     let cancelled = false;
     const params = productId ? `productId=${productId}` : forMe ? "forMe=true" : "";
     if (!params) return;
+    // Personalized recommendations are auth-gated (401 for guests) — skip
+    // the round trip until a signed-in user resolves.
+    if (forMe && !user) return;
 
     fetch(`/api/ai/recommendations?${params}`)
       .then(async (res) => (res.ok ? res.json() : null))
@@ -49,7 +54,7 @@ export function RecommendationRail({
     return () => {
       cancelled = true;
     };
-  }, [productId, forMe]);
+  }, [productId, forMe, user]);
 
   if (items.length === 0) return null;
 

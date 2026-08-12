@@ -206,6 +206,9 @@ export function Navbar() {
   const { user: currentUser } = useCurrentUser();
 
   useEffect(() => {
+    // /api/messages is auth-gated (401 for guests) — only signed-in users
+    // have conversations to count.
+    if (!currentUser) return;
     let cancelled = false;
     fetch("/api/messages")
       .then((res) => (res.ok ? res.json() : null))
@@ -221,7 +224,7 @@ export function Navbar() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [currentUser]);
 
   const isSell =
     pathname.startsWith("/commodities") || pathname.startsWith("/request-export");
