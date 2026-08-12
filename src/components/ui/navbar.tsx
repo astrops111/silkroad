@@ -24,6 +24,7 @@ import {
   FileText,
   ArrowRight,
   Megaphone,
+  LogOut,
   Coffee,
   Leaf,
   Sprout,
@@ -32,6 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { RegionPicker } from "@/components/ui/region-picker";
+import { UserMenu, useCurrentUser } from "@/components/ui/user-menu";
 import { useCartStore } from "@/stores/cart";
 
 type Subgroup = { label: string; href: string };
@@ -197,9 +199,11 @@ export function Navbar() {
   const scopeRef = useRef<HTMLDivElement>(null);
   const categoryStripRef = useRef<HTMLDivElement>(null);
 
-  const cartCount = useCartStore((s) => s.getItemCount());
+  // Distinct SKUs in the cart, not total pieces — a 500-pc line reads as "1"
+  const cartCount = useCartStore((s) => s.items.length);
   const openCart = useCartStore((s) => s.openCart);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const { user: currentUser } = useCurrentUser();
 
   useEffect(() => {
     let cancelled = false;
@@ -448,22 +452,35 @@ export function Navbar() {
                 <span className="text-[10px] mt-0.5">{t("saved")}</span>
               </Link>
 
-              <Link
-                href="/auth/login"
-                aria-label={tc("signIn")}
-                className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
-              >
-                <User className="w-5 h-5" />
-                <span className="text-[10px] mt-0.5">{tc("signIn")}</span>
-              </Link>
+              {currentUser ? (
+                <>
+                  <div className="hidden md:block">
+                    <UserMenu user={currentUser} />
+                  </div>
+                  <div className="md:hidden">
+                    <UserMenu user={currentUser} variant="compact" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    aria-label={tc("signIn")}
+                    className="hidden md:flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+                  >
+                    <User className="w-5 h-5" />
+                    <span className="text-[10px] mt-0.5">{tc("signIn")}</span>
+                  </Link>
 
-              <Link
-                href="/auth/login"
-                aria-label={tc("signIn")}
-                className="md:hidden p-2.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
-              >
-                <User className="w-5 h-5" />
-              </Link>
+                  <Link
+                    href="/auth/login"
+                    aria-label={tc("signIn")}
+                    className="md:hidden p-2.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] transition-colors"
+                  >
+                    <User className="w-5 h-5" />
+                  </Link>
+                </>
+              )}
 
               <button
                 type="button"
@@ -698,21 +715,52 @@ export function Navbar() {
                 </span>
                 <RegionPicker variant="full" />
               </div>
-              <Link
-                href="/auth/login"
-                className="btn-primary w-full !text-base !py-3.5"
-                onClick={() => setMobileOpen(false)}
-              >
-                <User className="w-4 h-4" />
-                {tc("signIn")}
-              </Link>
-              <Link
-                href="/auth/register"
-                className="btn-outline w-full !text-base !py-3.5"
-                onClick={() => setMobileOpen(false)}
-              >
-                {t("createAccount")}
-              </Link>
+              {currentUser ? (
+                <>
+                  <p className="px-1 text-[15px] font-semibold text-[var(--text-primary)]">
+                    {t("greeting", { name: currentUser.name })}
+                  </p>
+                  <Link
+                    href="/dashboard"
+                    className="btn-primary w-full !text-base !py-3.5"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {tc("dashboard")}
+                  </Link>
+                  <Link
+                    href="/dashboard/settings"
+                    className="btn-outline w-full !text-base !py-3.5"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {t("accountHeading")}
+                  </Link>
+                  <a
+                    href="/auth/logout"
+                    className="flex items-center justify-center gap-2 w-full py-3.5 text-base font-medium text-[var(--terracotta)]"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {tc("signOut")}
+                  </a>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="btn-primary w-full !text-base !py-3.5"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <User className="w-4 h-4" />
+                    {tc("signIn")}
+                  </Link>
+                  <Link
+                    href="/auth/register"
+                    className="btn-outline w-full !text-base !py-3.5"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {t("createAccount")}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

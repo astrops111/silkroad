@@ -35,6 +35,7 @@ import {
   Gem,
   PanelLeftClose,
   PanelLeftOpen,
+  Workflow,
 } from "lucide-react";
 
 const navSections = [
@@ -47,6 +48,7 @@ const navSections = [
   {
     label: "Trade",
     items: [
+      { name: "Trade Flows", href: "/admin/trade-flows", icon: Workflow },
       { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
       { name: "Suppliers", href: "/admin/suppliers", icon: Users },
       { name: "Buyers", href: "/admin/buyers", icon: UserCircle2 },

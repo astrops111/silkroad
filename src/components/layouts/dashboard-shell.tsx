@@ -24,6 +24,7 @@ import {
   ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
+  Ship,
 } from "lucide-react";
 
 type SearchHit = { id: string; title: string; subtitle: string; href: string };
@@ -152,6 +153,7 @@ function HeaderSearch() {
 const BUYER_NAV = [
   { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
   { icon: ShoppingCart, label: "Orders", href: "/dashboard/orders" },
+  { icon: Ship, label: "Order Tracking", href: "/dashboard/trade-flows" },
   { icon: ClipboardList, label: "My Quotes", href: "/quotes" },
   { icon: FileText, label: "RFQ & Quotations", href: "/dashboard/rfq" },
   { icon: Sparkles, label: "AI Supplier Match", href: "/dashboard/rfq/match" },
@@ -197,7 +199,8 @@ export function DashboardShell({
   const unreadMessages = useUnreadMessagesCount();
   const messagesHref = companyType === "supplier" ? "/supplier/messages" : "/dashboard/messages";
   const isBuyer = companyType !== "supplier";
-  const cartCount = useCartStore((s) => s.getItemCount());
+  // Distinct SKUs in the cart, not total pieces — a 500-pc line reads as "1"
+  const cartCount = useCartStore((s) => s.items.length);
   const openCart = useCartStore((s) => s.openCart);
 
   return (
