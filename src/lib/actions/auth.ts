@@ -11,6 +11,7 @@ import {
 } from "@/lib/validators/auth";
 import type { MarketRegion, PlatformRole } from "@/lib/supabase/database.types";
 import { logLoginAttempt } from "@/lib/logging/sessions";
+import { claimGuestRfqs } from "@/lib/rfq/claim-guest-rfqs";
 import {
   getLockoutState,
   MAX_FAILED_ATTEMPTS,
@@ -90,6 +91,14 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
     email,
     status: "success",
   });
+
+  // Adopt any RFQs this person sent as a guest before registering. Awaited so
+  // the dashboard shows them on the very first page load after login; it
+  // swallows its own errors, so it can never fail the sign-in.
+  const {
+    data: { user: signedInUser },
+  } = await supabase.auth.getUser();
+  if (signedInUser) await claimGuestRfqs(signedInUser.id);
 
   return { success: true };
 }

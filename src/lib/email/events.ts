@@ -403,6 +403,7 @@ export async function onRfqSubmitted(rfqId: string) {
     .select(`
       id, rfq_number, title, description, quantity, unit, deadline, buyer_company_name,
       buyer_user_id, invited_supplier_ids,
+      guest_name, guest_email, guest_phone, guest_company,
       delivery_country, delivery_city, target_price, target_currency,
       required_by, sample_required, trade_term,
       user_profiles!rfqs_buyer_user_id_fkey ( email, full_name )
@@ -412,7 +413,15 @@ export async function onRfqSubmitted(rfqId: string) {
 
   if (!rfq) return;
 
-  const buyer = rfq.user_profiles as unknown as { email: string; full_name: string } | null;
+  // Guest RFQs (submitted from the public cart) have no profile to join —
+  // their contact details live on the RFQ itself. See 00136_guest_rfqs.sql.
+  const profileBuyer = rfq.user_profiles as unknown as { email: string; full_name: string } | null;
+  const isGuest = !profileBuyer && !!rfq.guest_email;
+  const buyer: { email: string; full_name: string } | null =
+    profileBuyer ??
+    (rfq.guest_email
+      ? { email: rfq.guest_email, full_name: rfq.guest_name ?? "there" }
+      : null);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const deadline = rfq.deadline
     ? new Date(rfq.deadline).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })
@@ -473,7 +482,14 @@ export async function onRfqSubmitted(rfqId: string) {
           <h1 style="color: #14110F;">Your RFQ Has Been Received</h1>
           <p style="color: #4C463D;">Hi ${esc(buyer.full_name)},</p>
           <p style="color: #4C463D;">Your request for quotation <strong>${esc(rfq.rfq_number)}</strong> — "${esc(rfq.title)}" is being reviewed by our team. We'll notify you as soon as a quote comes in.</p>
-          <a href="${appUrl}/dashboard/rfq" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Track Your RFQs</a>
+          ${
+            isGuest
+              ? // No account to sign into — quote it back over email, and offer
+                // registration so they can track it themselves next time.
+                `<p style="color: #4C463D;">You submitted this as a guest, so we'll reply to this address directly. Quote reference: <strong>${esc(rfq.rfq_number)}</strong>.</p>
+                 ${appUrl ? `<a href="${appUrl}/auth/register" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Create an account to track it</a>` : ""}`
+              : `<a href="${appUrl}/dashboard/rfq" style="display: inline-block; padding: 12px 24px; background: #D89F2E; color: #14110F; text-decoration: none; border-radius: 9999px; font-weight: 600;">Track Your RFQs</a>`
+          }
         </div>
       `,
     }, "rfq_submitted_buyer");
@@ -485,7 +501,8 @@ export async function onRfqSubmitted(rfqId: string) {
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <tr><td style="padding:6px 0;width:140px;color:#666;">RFQ</td><td>${esc(rfq.rfq_number)}</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Title</td><td>${esc(rfq.title)}</td></tr>
-          <tr><td style="padding:6px 0;color:#666;">Buyer</td><td>${esc(rfq.buyer_company_name)} (${esc(buyer?.email)})</td></tr>
+          <tr><td style="padding:6px 0;color:#666;">Buyer</td><td>${esc(rfq.buyer_company_name)} (${esc(buyer?.email)})${isGuest ? ` <strong style="color:#B4541F;">— GUEST, no account</strong>` : ""}</td></tr>
+          ${isGuest ? `<tr><td style="padding:6px 0;color:#666;">Guest contact</td><td>${esc(rfq.guest_name)}${rfq.guest_phone ? ` · ${esc(rfq.guest_phone)}` : ""}${rfq.guest_company ? ` · ${esc(rfq.guest_company)}` : ""}</td></tr>` : ""}
           <tr><td style="padding:6px 0;color:#666;">Quantity</td><td>${rfq.quantity} ${esc(rfq.unit)}</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Destination</td><td>${esc(destination)}</td></tr>
           <tr><td style="padding:6px 0;color:#666;">Price estimate</td><td>${esc(estimate)}</td></tr>
@@ -512,7 +529,10 @@ export async function onRfqSubmitted(rfqId: string) {
       `<b>${tgEsc(rfq.title)}</b>`,
       ...(rfq.description ? [tgEsc(rfq.description.slice(0, 300))] : []),
       ``,
-      `Buyer: ${tgEsc(rfq.buyer_company_name)} (${tgEsc(buyer?.email)})`,
+      `Buyer: ${tgEsc(rfq.buyer_company_name)} (${tgEsc(buyer?.email)})${isGuest ? " ⚠️ GUEST — no account" : ""}`,
+      ...(isGuest
+        ? [`Contact: ${tgEsc(rfq.guest_name)}${rfq.guest_phone ? ` · ${tgEsc(rfq.guest_phone)}` : ""}${rfq.guest_company ? ` · ${tgEsc(rfq.guest_company)}` : ""}`]
+        : []),
       `Quantity: ${tgEsc(rfq.quantity)} ${tgEsc(rfq.unit)}`,
       `Destination: ${tgEsc(destination)}`,
       `Price estimate: ${tgEsc(estimate)}`,

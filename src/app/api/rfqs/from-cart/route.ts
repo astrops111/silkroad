@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { z } from "zod/v4";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { PLATFORM_MIN_GROUP_ORDER_VALUE } from "@/lib/logistics/rates/config";
 import { onRfqSubmitted } from "@/lib/email/events";
 import { ensureDealThread } from "@/lib/deals/threads";
 import { postDealMessage } from "@/lib/deals/messages";
 import { logActivity } from "@/lib/crm/activities";
+
+// Per-IP throttle for anonymous submissions. In-memory and per-instance,
+// same trade-off as /api/ai/assistant — enough to stop a casual flood.
+const GUEST_WINDOW_MS = 10 * 60 * 1000;
+const GUEST_MAX_PER_WINDOW = 5;
+const guestHits = new Map<string, { count: number; windowStart: number }>();
+
+function guestRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = guestHits.get(ip);
+  if (!entry || now - entry.windowStart > GUEST_WINDOW_MS) {
+    guestHits.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  entry.count++;
+  return entry.count > GUEST_MAX_PER_WINDOW;
+}
 
 const cartItemSchema = z.object({
   productId: z.string().min(1),
@@ -22,8 +39,18 @@ const cartItemSchema = z.object({
   boxPackQty: z.number().int().positive().optional(),
 });
 
+// Contact details for a signed-out visitor. Required only when there is no
+// session — an account-holder's details come from their profile instead.
+const guestSchema = z.object({
+  name: z.string().trim().min(1, "Your name is required").max(120),
+  email: z.email("A valid email is required").max(200),
+  phone: z.string().trim().max(40).optional(),
+  company: z.string().trim().max(200).optional(),
+});
+
 const fromCartSchema = z.object({
   items: z.array(cartItemSchema).min(1, "Cart is empty"),
+  guest: guestSchema.optional(),
   note: z.string().max(2000).optional(),
   deadline: z
     .string()
@@ -48,15 +75,6 @@ export async function POST(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("id, country_code")
-    .eq("auth_id", user.id)
-    .single();
-
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
   let rawBody: unknown;
   try {
@@ -73,17 +91,62 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { items, note, deadline, deliveryCountry, deliveryCity } = parsed.data;
+  const { items, guest, note, deadline, deliveryCountry, deliveryCity } = parsed.data;
 
-  const { data: membership } = await supabase
-    .from("company_members")
-    .select("company_id, companies ( name )")
-    .eq("user_id", profile.id)
-    .limit(1)
-    .single();
+  // Identity: either a signed-in profile or inline guest contact details.
+  let profileId: string | null = null;
+  let buyerCountry: string | null = null;
+  let companyId: string | null = null;
+  let buyerCompanyName: string | null = null;
 
-  const buyerCompanyName =
-    (membership?.companies as unknown as { name: string } | null)?.name ?? null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("id, country_code")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
+    profileId = profile.id;
+    buyerCountry = profile.country_code;
+
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("company_id, companies ( name )")
+      .eq("user_id", profile.id)
+      .limit(1)
+      .single();
+
+    companyId = membership?.company_id ?? null;
+    buyerCompanyName =
+      (membership?.companies as unknown as { name: string } | null)?.name ?? null;
+  } else {
+    // Anonymous submission — the public endpoint's only spam control, so
+    // rate-limit before touching the database.
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    if (guestRateLimited(ip)) {
+      return NextResponse.json(
+        { error: "Too many quote requests — please try again in a few minutes" },
+        { status: 429 }
+      );
+    }
+
+    if (!guest) {
+      return NextResponse.json(
+        { error: "Your name and email are required to request a quote" },
+        { status: 400 }
+      );
+    }
+
+    buyerCountry = deliveryCountry ?? null;
+    buyerCompanyName = guest.company ?? null;
+  }
+
+  // Guest RFQs can't satisfy the "buyer_user_id = get_user_profile_id()"
+  // insert check, so they're written with the service client. Signed-in
+  // buyers keep going through RLS exactly as before.
+  const db = user ? supabase : createServiceClient();
 
   // Group by supplier — one RFQ per supplier
   const supplierGroups = new Map<string, { supplierName: string; items: typeof items }>();
@@ -148,20 +211,24 @@ export async function POST(request: NextRequest) {
         ? group.items[0].productName
         : `${group.items.length} products from ${group.supplierName}`;
 
-    const { data: rfq, error: rfqError } = await supabase
+    const { data: rfq, error: rfqError } = await db
       .from("rfqs")
       .insert({
         rfq_number: rfqNumber,
-        buyer_user_id: profile.id,
-        buyer_company_id: membership?.company_id ?? null,
+        buyer_user_id: profileId,
+        buyer_company_id: companyId,
         buyer_company_name: buyerCompanyName,
-        buyer_country: profile.country_code,
+        buyer_country: buyerCountry,
+        guest_name: guest?.name ?? null,
+        guest_email: guest?.email.toLowerCase() ?? null,
+        guest_phone: guest?.phone ?? null,
+        guest_company: guest?.company ?? null,
         title,
         description: note ?? null,
         quantity: totalQty,
         unit: rfqUnit,
         target_currency: currency,
-        delivery_country: deliveryCountry ?? profile.country_code,
+        delivery_country: deliveryCountry ?? buyerCountry,
         delivery_city: deliveryCity ?? null,
         invited_supplier_ids: [supplierId],
         is_public: false,
@@ -213,19 +280,19 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const { error: rfqItemsError } = await supabase.from("rfq_items").insert(rfqItems);
+    const { error: rfqItemsError } = await db.from("rfq_items").insert(rfqItems);
     if (rfqItemsError) {
       console.error("[rfqs/from-cart] Failed to insert rfq_items for", rfq.id, rfqItemsError);
       failed.push(group.supplierName);
       continue;
     }
 
-    const { error: logError } = await supabase.from("rfq_activity_log").insert({
+    const { error: logError } = await db.from("rfq_activity_log").insert({
       rfq_id: rfq.id,
-      actor_user_id: profile.id,
-      actor_company_id: membership?.company_id ?? null,
+      actor_user_id: profileId,
+      actor_company_id: companyId,
       action: "published",
-      details: { source: "cart", rfqNumber },
+      details: { source: guest ? "cart_guest" : "cart", rfqNumber },
     });
     if (logError) {
       console.error("[rfqs/from-cart] Activity log failed for", rfq.id, logError);
@@ -241,15 +308,15 @@ export async function POST(request: NextRequest) {
     const dealThreadId = await ensureDealThread({
       rfqId: rfq.id,
       title,
-      buyerCompanyId: membership?.company_id ?? null,
-      buyerUserId: profile.id,
+      buyerCompanyId: companyId,
+      buyerUserId: profileId,
       supplierCompanyId: supplierId,
     });
     await logActivity({
       activityType: "rfq_submitted",
       actorType: "user",
-      actorUserId: profile.id,
-      companyId: membership?.company_id ?? null,
+      actorUserId: profileId,
+      companyId,
       dealThreadId,
       referenceType: "rfq",
       referenceId: rfq.id,
@@ -263,7 +330,7 @@ export async function POST(request: NextRequest) {
     if (dealThreadId) {
       await postDealMessage(dealThreadId, {
         body: `RFQ ${rfqNumber} submitted — ${group.items.length} item${group.items.length === 1 ? "" : "s"}. Suppliers have been invited to quote.`,
-        actorUserId: profile.id,
+        actorUserId: profileId,
         references: [{ type: "rfq", id: rfq.id, label: rfqNumber }],
       });
     }

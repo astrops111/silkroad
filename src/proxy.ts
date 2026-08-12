@@ -19,6 +19,13 @@ const publicRoutes = [
   "/resources",
   "/sell",
   "/help",
+  // Cart / quote builder is deliberately anonymous — guests build a cart and
+  // request a quote without an account. Checkout stays gated.
+  "/cart",
+  // The quote submission itself. Without this, an anonymous POST is redirected
+  // to the login page HTML and the form fails on JSON parse. The route
+  // validates guest contact details and rate-limits by IP internally.
+  "/api/rfqs/from-cart",
   "/auth/login",
   "/auth/register",
   "/auth/forgot-password",
@@ -28,6 +35,10 @@ const publicRoutes = [
   // feature-flag gated inside the route). Without this, logged-out visitors'
   // POSTs are redirected to the login page HTML and the widget errors out.
   "/api/ai/assistant",
+  // Navbar identity probe. It answers `{ user: null }` for anonymous
+  // visitors, so gating it here would only redirect the fetch to the login
+  // page HTML on every public page load.
+  "/api/me",
 ];
 
 const publicPrefixes = [

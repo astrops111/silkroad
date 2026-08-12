@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ orders: fullOrders, total: count ?? 0, limit, offset });
 }
 import { onOrderPlacedOpsNotify } from "@/lib/email/events";
+import { createTradeFlowFromOrder } from "@/lib/trade-flow/create";
 import {
   shippingGroupKey,
   shippingModeToMethod,
@@ -506,6 +507,10 @@ export async function POST(request: NextRequest) {
   // Fire-and-forget ops notification — do not block the response.
   onOrderPlacedOpsNotify(purchaseOrder.id).catch((err) => {
     console.error("[orders] ops notification failed:", err);
+  });
+  // Open the admin-mediated trade flow for this order (idempotent, never throws)
+  createTradeFlowFromOrder(purchaseOrder.id).catch((err) => {
+    console.error("[orders] trade flow creation failed:", err);
   });
 
   return NextResponse.json({
