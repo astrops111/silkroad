@@ -11,7 +11,6 @@ import {
   Gavel,
   ShieldCheck,
   Route,
-  ChevronRight,
   Settings2,
   AlertTriangle,
 } from "lucide-react";

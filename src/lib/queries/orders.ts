@@ -40,22 +40,25 @@ export async function getSupplierOrders(
   const limit = options?.limit ?? 20;
   const offset = (page - 1) * limit;
 
+  // Narrow projection: only the columns the supplier orders list renders.
+  // No `count: "exact"` — the sole caller does not paginate on a total.
   let query = supabase
     .from("supplier_orders")
-    .select("*, supplier_order_items (*)", { count: "exact" })
-    .eq("supplier_id", companyId)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .select(
+      "id, order_number, purchase_order_id, total_amount, currency, status, created_at, supplier_order_items (id)"
+    )
+    .eq("supplier_id", companyId);
 
   if (options?.status) {
     query = query.eq("status", options.status);
   }
 
-  const { data, count, error } = await query;
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   return {
     orders: data ?? [],
-    total: count ?? 0,
     error: error?.message,
   };
 }

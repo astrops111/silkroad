@@ -1,21 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Package, Search, Loader2, ArrowRight } from "lucide-react";
+import { Package, Search, ArrowRight } from "lucide-react";
 
-interface RecentProduct {
-  id: string;
-  name: string;
-  base_price: number;
-  currency: string;
-  supplier_name: string;
-  image_url: string | null;
-}
-
+// Placeholder page: no product data is loaded yet, so the "recently viewed"
+// and "frequently ordered" sections below intentionally render their empty
+// states. Reinstate state + a fetch here when the data source exists.
 export default function BuyerProductsPage() {
-  const [recentlyViewed] = useState<RecentProduct[]>([]);
-  const [frequentlyOrdered] = useState<RecentProduct[]>([]);
 
   return (
     <div className="space-y-6">

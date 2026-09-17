@@ -20,12 +20,17 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const unreadOnly = searchParams.get("unreadOnly") === "true";
   const type = searchParams.get("type");
-  const limit = parseInt(searchParams.get("limit") || "30", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const rawLimit = parseInt(searchParams.get("limit") || "30", 10);
+  const rawOffset = parseInt(searchParams.get("offset") || "0", 10);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 30;
+  const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
 
   let query = supabase
     .from("notifications")
-    .select("*", { count: "exact" })
+    .select(
+      "id, user_id, company_id, type, title, body, icon, action_url, reference_type, reference_id, is_read, read_at, created_at",
+      { count: "exact" }
+    )
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -33,18 +38,19 @@ export async function GET(request: NextRequest) {
   if (unreadOnly) query = query.eq("is_read", false);
   if (type) query = query.eq("type", type);
 
-  const { data, error, count } = await query;
+  // List + unread count are independent — run in parallel
+  const [{ data, error, count }, { count: unreadCount }] = await Promise.all([
+    query,
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .eq("is_read", false),
+  ]);
   if (error) {
     console.error('[notifications] fetch failed:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  // Unread count
-  const { count: unreadCount } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", profile.id)
-    .eq("is_read", false);
 
   return NextResponse.json({
     notifications: data || [],

@@ -43,7 +43,8 @@ interface Props {
 }
 
 const INCOTERMS = ["fob", "cif", "cpt", "fca", "dap", "exw"] as const;
-const INSTRUMENTS = ["lc_at_sight", "lc_usance", "tt_advance", "tt_against_docs"] as const;
+// Type-only: nothing iterates these, so a union avoids shipping a dead array.
+type Instrument = "lc_at_sight" | "lc_usance" | "tt_advance" | "tt_against_docs";
 const AGENCIES = ["SGS", "BV", "Intertek", "CCIC"] as const;
 
 export function ResourceQuoteForm({
@@ -70,7 +71,7 @@ export function ResourceQuoteForm({
     leadTimeDays: "",
     validityDays: "30",
     paymentInstrument: (rfqDefaults.paymentInstrument ??
-      "lc_at_sight") as (typeof INSTRUMENTS)[number],
+      "lc_at_sight") as Instrument,
     inspectionAgency: "SGS" as (typeof AGENCIES)[number],
     notes: "",
   });

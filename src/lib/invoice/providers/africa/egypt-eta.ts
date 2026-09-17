@@ -39,7 +39,7 @@ export const egyptEtaProvider: InvoiceProvider = {
       if (!accessToken) {
         return { success: false, error: "ETA authentication failed" };
       }
-    } catch (err) {
+    } catch {
       return { success: false, error: "ETA auth connection failed" };
     }
 
@@ -133,7 +133,9 @@ export const egyptEtaProvider: InvoiceProvider = {
     }
   },
 
-  async voidInvoice(invoiceNumber: string, reason: string) {
+  // Params are declared by the InvoiceProvider interface but unused in this
+  // not-yet-implemented stub.
+  async voidInvoice() {
     return { success: false, error: "ETA void requires cancellation request — not yet implemented" };
   },
 };

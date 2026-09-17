@@ -19,7 +19,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type {
   CarrierAdapter,
-  CarrierRateQuoteRequest,
   CarrierRateQuoteResponse,
   TrackingEventIngestion,
   TrackingPollRef,
@@ -73,7 +72,9 @@ export class SearatesAdapter implements CarrierAdapter {
 
   get enabled(): boolean { return Boolean(this.apiKey); }
 
-  async fetchRates(_req: CarrierRateQuoteRequest): Promise<CarrierRateQuoteResponse> {
+  // Tracking-only adapter: the request is ignored, so it is left off the
+  // implementation signature rather than accepted and discarded.
+  async fetchRates(): Promise<CarrierRateQuoteResponse> {
     return {
       adapterId: this.id,
       quotes: [],

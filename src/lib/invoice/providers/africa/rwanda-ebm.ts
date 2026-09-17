@@ -90,7 +90,9 @@ export const rwandaEbmProvider: InvoiceProvider = {
     }
   },
 
-  async voidInvoice(invoiceNumber: string, reason: string) {
+  // Params are declared by the InvoiceProvider interface but unused in this
+  // not-yet-implemented stub.
+  async voidInvoice() {
     return { success: false, error: "EBM void requires credit note — not yet implemented" };
   },
 };

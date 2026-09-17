@@ -35,7 +35,9 @@ export const genericPdfProvider: InvoiceProvider = {
     };
   },
 
-  async voidInvoice(invoiceNumber: string, reason: string) {
+  // Params are declared by the InvoiceProvider interface but unused here —
+  // voiding a generic PDF is just a DB status change made by the caller.
+  async voidInvoice() {
     // For generic PDF invoices, voiding is just a status change in the database
     // A credit note PDF would be generated
     return { success: true };

@@ -1,7 +1,9 @@
 import {
   listFreightLanes,
+  listOriginsMissingRateCards,
   listPortCountries,
   listPorts,
+  listShippingRates,
   listTariffRates,
   type RateSource,
 } from "@/lib/queries/logistics-reference";
@@ -12,18 +14,22 @@ import { FreightLanesManager } from "@/components/admin/logistics/FreightLanesMa
 import { TariffRatesManager } from "@/components/admin/logistics/TariffRatesManager";
 import { DocumentRequirementsManager } from "@/components/admin/logistics/DocumentRequirementsManager";
 import { BSAManager } from "@/components/admin/logistics/BSAManager";
+import { ShippingRatesManager } from "@/components/admin/logistics/ShippingRatesManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function LogisticsReferencePage() {
-  const [ports, lanes, bsaLanes, tariffs, portCountries, docReqs] = await Promise.all([
-    listPorts({ includeInactive: true }),
-    listFreightLanes({ includeInactive: true }),
-    listFreightLanes({ source: "bsa" as RateSource, includeInactive: true }),
-    listTariffRates({ includeInactive: true }),
-    listPortCountries(),
-    listDocumentRequirements({ includeInactive: true }),
-  ]);
+  const [ports, lanes, bsaLanes, tariffs, portCountries, docReqs, shippingRates, missingRateCards] =
+    await Promise.all([
+      listPorts({ includeInactive: true }),
+      listFreightLanes({ includeInactive: true }),
+      listFreightLanes({ source: "bsa" as RateSource, includeInactive: true }),
+      listTariffRates({ includeInactive: true }),
+      listPortCountries(),
+      listDocumentRequirements({ includeInactive: true }),
+      listShippingRates({ includeInactive: true }),
+      listOriginsMissingRateCards(),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -35,12 +41,20 @@ export default async function LogisticsReferencePage() {
           Logistics reference data
         </h1>
         <p className="mt-1 text-sm text-[var(--text-tertiary)]">
-          Ports, freight lanes, tariff rates, and BSA contracts that the landed-cost engine reads from. Internal — ops view.
+          Shipping rate cards that checkout charges from, plus the ports, freight lanes, tariff rates, and BSA contracts the landed-cost engine reads. Internal — ops view.
         </p>
       </div>
 
-      <Tabs defaultValue="bsa">
+      <Tabs defaultValue="shipping">
         <TabsList>
+          <TabsTrigger value="shipping">
+            Shipping rates ({shippingRates.length})
+            {missingRateCards.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-[var(--amber)]/25 px-1.5 text-[10px] font-semibold text-[var(--amber-dark)]">
+                {missingRateCards.length} missing
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="bsa">BSA contracts ({bsaLanes.length})</TabsTrigger>
           <TabsTrigger value="ports">Ports ({ports.length})</TabsTrigger>
           <TabsTrigger value="lanes">Market lanes ({lanes.length})</TabsTrigger>
@@ -48,6 +62,12 @@ export default async function LogisticsReferencePage() {
           <TabsTrigger value="docs">Doc requirements ({docReqs.length})</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="shipping" className="mt-4">
+          <ShippingRatesManager
+            initialRates={shippingRates}
+            missingRateCards={missingRateCards}
+          />
+        </TabsContent>
         <TabsContent value="bsa" className="mt-4">
           <BSAManager initialLanes={bsaLanes} ports={ports} />
         </TabsContent>

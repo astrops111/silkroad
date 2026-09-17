@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getCategories } from "@/lib/queries/categories";
+
+// Distinct supplier country codes for the filter sidebar — same for every
+// request, so cache it (300s) via the cookieless service client.
+const getSupplierCountriesCached = unstable_cache(
+  async (): Promise<string[]> => {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("companies")
+      .select("country_code")
+      .eq("type", "supplier")
+      .eq("is_active", true);
+    return [...new Set((data || []).map((c) => c.country_code))];
+  },
+  ["products-search-supplier-countries"],
+  { revalidate: 300, tags: ["catalog"] }
+);
 
 /**
  * GET /api/products/search — Full-text product search with filters
@@ -39,6 +57,14 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "24", 10), 1), 100);
   const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
 
+  // Country / verified filters are applied through the companies embed, which
+  // needs `!inner` so the filter restricts the product rows. Only use `!inner`
+  // when one of those filters is active so products still appear otherwise.
+  const filterBySupplier = Boolean(country) || verified === "true";
+  const companiesEmbed = filterBySupplier
+    ? "companies!products_supplier_id_fkey!inner"
+    : "companies!products_supplier_id_fkey";
+
   // Base query — only active, approved products
   let query = supabase
     .from("products")
@@ -48,7 +74,7 @@ export async function GET(request: NextRequest) {
       moq, lead_time_days, trade_term, sample_available, sample_price,
       is_featured, origin_country, weight_kg, created_at,
       supplier_id,
-      companies!products_supplier_id_fkey (
+      ${companiesEmbed} (
         id, name, slug, country_code, verification_status,
         supplier_profiles ( average_rating, total_orders, tier, response_rate )
       ),
@@ -66,6 +92,10 @@ export async function GET(request: NextRequest) {
   if (q) {
     query = query.textSearch("search_vector", q, { type: "websearch" });
   }
+
+  // Kick off the cached sidebar facets now so they overlap with the category
+  // slug lookup + main query below.
+  const facetsPromise = Promise.all([getCategories(), getSupplierCountriesCached()]);
 
   // Category filter
   if (category) {
@@ -91,16 +121,9 @@ export async function GET(request: NextRequest) {
   if (minMoq) query = query.gte("moq", parseInt(minMoq, 10));
   if (maxMoq) query = query.lte("moq", parseInt(maxMoq, 10));
 
-  // Country filter (supplier country)
+  // Country filter (supplier country) — via the inner companies embed
   if (country) {
-    const { data: supplierIds } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("country_code", country)
-      .eq("type", "supplier");
-    if (supplierIds) {
-      query = query.in("supplier_id", supplierIds.map((s) => s.id));
-    }
+    query = query.eq("companies.country_code", country).eq("companies.type", "supplier");
   }
 
   // Currency filter
@@ -109,16 +132,9 @@ export async function GET(request: NextRequest) {
   // Trade term filter
   if (tradeTerm) query = query.eq("trade_term", tradeTerm);
 
-  // Verified suppliers only
+  // Verified suppliers only — via the inner companies embed
   if (verified === "true") {
-    const { data: verifiedIds } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("verification_status", "verified")
-      .eq("type", "supplier");
-    if (verifiedIds) {
-      query = query.in("supplier_id", verifiedIds.map((s) => s.id));
-    }
+    query = query.eq("companies.verification_status", "verified").eq("companies.type", "supplier");
   }
 
   // Featured only
@@ -156,21 +172,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Get available categories for filter sidebar
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id, name, slug, parent_id, level")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
-
-  // Get available countries for filter
-  const { data: supplierCountries } = await supabase
-    .from("companies")
-    .select("country_code")
-    .eq("type", "supplier")
-    .eq("is_active", true);
-
-  const uniqueCountries = [...new Set((supplierCountries || []).map((c) => c.country_code))];
+  // Sidebar facets (cached): active categories + supplier country codes
+  const [allCategories, uniqueCountries] = await facetsPromise;
+  const categories = allCategories.map(({ id, name, slug, parent_id, level }) => ({
+    id, name, slug, parent_id, level,
+  }));
 
   return NextResponse.json({
     products: data || [],
@@ -178,7 +184,7 @@ export async function GET(request: NextRequest) {
     limit,
     offset,
     filters: {
-      categories: categories || [],
+      categories,
       countries: uniqueCountries,
       sort,
     },

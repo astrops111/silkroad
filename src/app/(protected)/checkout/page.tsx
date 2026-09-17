@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCartStore } from "@/stores/cart";
 import { DESTINATION_COUNTRIES } from "@/lib/constants/countries";
+import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 import {
   ArrowLeft, Ship, Shield, Loader2, CheckCircle2,
   Package, Minus, Plus, Trash2, Truck, FileText,
@@ -51,6 +52,34 @@ export default function CheckoutPage() {
 
   const supplierGroups = getItemsBySupplier();
   const subtotal = getTotal();
+
+  // Self-serve checkout is switched off. The cart no longer links here, but the
+  // route stays reachable by bookmark or back-button — say so plainly and point
+  // at the quotation route rather than show a form that cannot submit.
+  // Placed after every hook so hook order stays identical on both branches.
+  if (!CHECKOUT_FEATURES.checkout) {
+    return (
+      <div className="mx-auto max-w-lg px-6 py-20 text-center">
+        <FileText className="mx-auto mb-4 h-10 w-10 text-[var(--text-tertiary)]" aria-hidden />
+        <h1
+          className="mb-2 text-xl font-bold text-[var(--text-primary)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          Checkout is temporarily unavailable
+        </h1>
+        <p className="mb-6 text-sm text-[var(--text-secondary)]">
+          Orders are going through quotations right now — send a request from your cart and our
+          team will confirm freight, duties and taxes before anything is payable.
+        </p>
+        <Link
+          href="/cart?rfq=1"
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--amber)] px-4 py-2.5 text-sm font-semibold text-[var(--obsidian)]"
+        >
+          Request a quotation
+        </Link>
+      </div>
+    );
+  }
 
   const handleSubmitQuote = async () => {
     if (!destinationCountry) { setSubmitError("Please select a destination country."); return; }

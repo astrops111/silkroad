@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   ShieldCheck,
-  Sparkles,
   Loader2,
   AlertTriangle,
   CheckCircle2,
@@ -13,7 +12,6 @@ import {
   Globe,
   FileText,
   ArrowRight,
-  Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 

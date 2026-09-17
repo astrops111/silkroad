@@ -50,6 +50,8 @@ export async function searchProducts(options: {
 
   return {
     results: (data ?? []) as SearchResult[],
+    // LIMITATION: search_products RPC returns no total_count column, so this is
+    // the current page size, not the true match count (no "N results" / pagination).
     total: (data ?? []).length,
   };
 }

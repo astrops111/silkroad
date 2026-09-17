@@ -107,13 +107,6 @@ function translateCartonPack(cartonPack) {
 const translateUsage = (usage) =>
   !usage ? null : String(usage).trim() === "依包裝所示" ? "As directed on packaging" : String(usage);
 
-// "730天" -> "730 days"
-function translateShelfLife(shelfLife) {
-  if (!shelfLife) return null;
-  const m = String(shelfLife).match(/^(\d+)\s*天$/);
-  return m ? `${m[1]} days` : String(shelfLife);
-}
-
 const LEGAL_CATEGORY_EN = { 化妝品: "Cosmetics", 化妆品: "Cosmetics" };
 const translateLegalCategory = (c) => (c ? LEGAL_CATEGORY_EN[String(c).trim()] ?? String(c).trim() : null);
 

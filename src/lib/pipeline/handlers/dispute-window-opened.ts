@@ -7,7 +7,8 @@ import { DISPUTE_WINDOW_HOURS } from "@/lib/pipeline/config";
  * Opens a 72-hour window for buyer to raise disputes before settlement is released.
  * Schedules automatic closure by re-queuing dispute_window.closed 72h later.
  */
-export const handler: EventHandler = async (event, _supabase) => {
+// EventHandler also supplies a supabase client; this handler uses its own.
+export const handler: EventHandler = async (event) => {
   const { shipment_id, supplier_order_id, purchase_order_id } = event;
 
   await logActivity({

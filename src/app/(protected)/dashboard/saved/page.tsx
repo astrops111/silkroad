@@ -65,6 +65,9 @@ export default function SavedItemsPage() {
             <div key={item.productId} className="rounded-2xl border overflow-hidden" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
               <div className="h-40 bg-[var(--surface-secondary)] flex items-center justify-center">
                 {item.imageUrl ? (
+                  // Remote product image of unknown intrinsic size — next/image
+                  // would need remotePatterns plus a fixed-size wrapper here.
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-contain p-2" />
                 ) : (
                   <Package className="w-10 h-10" style={{ color: "var(--text-tertiary)" }} />

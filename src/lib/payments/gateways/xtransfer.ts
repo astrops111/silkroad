@@ -309,7 +309,8 @@ export const xtransferGateway: PaymentGateway = {
     };
   },
 
-  async refund(_transactionId: string, _amount: number, _currency: string): Promise<RefundResult> {
+  // Always throws, so the interface's arguments are never read.
+  async refund(): Promise<RefundResult> {
     throw new Error(
       "XTransfer collection refunds must be initiated via the XTransfer merchant portal"
     );

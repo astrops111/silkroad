@@ -231,6 +231,9 @@ export default function PromoteClient({
                 <div key={promo.id} className="rounded-2xl border p-5 flex items-center gap-4" style={{ background: "var(--surface-primary)", borderColor: "var(--border-subtle)" }}>
                   <div className="w-14 h-14 rounded-xl overflow-hidden bg-[var(--surface-secondary)] shrink-0">
                     {promo.products?.product_images?.[0]?.url ? (
+                      // Remote product image of unknown intrinsic size — next/image
+                      // would need remotePatterns plus a fixed-size wrapper here.
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={promo.products.product_images[0].url} alt="" className="w-full h-full object-contain p-1" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

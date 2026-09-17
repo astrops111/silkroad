@@ -3,7 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import type { Tables } from "@/lib/supabase/database.types";
-import { getProductOriginMap, getProductIdsByUseCase } from "./marketplace";
+import { getFacetCounts } from "./marketplace";
 
 export type Category = Tables<"categories">;
 export type CategoryWithChildren = Category & {
@@ -121,63 +121,20 @@ export type CategoryCountScope = {
 /** Per-category product counts. Pass `scope` to cross-filter against an
  *  active region/brand/use-case selection (e.g. selecting Korea narrows
  *  every category's count to that region) — omit it for the unfiltered
- *  counts admin views and category tickers use. */
+ *  counts admin views and category tickers use.
+ *
+ *  One GROUP BY in SQL (marketplace_facet_counts, 00141) via the shared
+ *  cached facet layer — previously this paged the whole 15k-row catalog to
+ *  Node in 1000-row slices and tallied in JS on every cache miss. */
 export async function getCategoryProductCounts(
   scope?: CategoryCountScope
 ): Promise<Record<string, number>> {
-  return getCategoryProductCountsCached(scope?.originCountries, scope?.brands, scope?.useCaseSlugs);
+  return getFacetCounts("category", {
+    originCountries: scope?.originCountries,
+    brands: scope?.brands,
+    useCaseSlugs: scope?.useCaseSlugs,
+  });
 }
-
-// Full-catalog scan (category_id over 15k+ products) that previously ran on
-// every marketplace/home render — cached (300s) via the cookieless service
-// client to stop the repeated full-table egress.
-const getCategoryProductCountsCached = unstable_cache(
-  async (
-    originCountries?: string[],
-    brands?: string[],
-    useCaseSlugs?: string[]
-  ): Promise<Record<string, number>> => {
-    const supabase = createServiceClient();
-    const [originMap, useCaseIds] = await Promise.all([
-      originCountries && originCountries.length > 0 ? getProductOriginMap() : Promise.resolve(null),
-      useCaseSlugs && useCaseSlugs.length > 0 ? getProductIdsByUseCase(useCaseSlugs) : Promise.resolve(null),
-    ]);
-    const useCaseSet = useCaseIds ? new Set(useCaseIds) : null;
-
-    // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
-    // products, so this must be paginated or counts are silently truncated.
-    const counts: Record<string, number> = {};
-    let from = 0;
-    const PAGE = 1000;
-    for (;;) {
-      const { data } = await supabase
-        .from("products")
-        .select("id, category_id, brand")
-        .eq("moderation_status", "approved")
-        .eq("is_active", true)
-        .not("category_id", "is", null)
-        .range(from, from + PAGE - 1);
-      if (!data || data.length === 0) break;
-      for (const row of data as { id: string; category_id: string | null; brand: string | null }[]) {
-        if (!row.category_id) continue;
-        if (originCountries && originCountries.length > 0) {
-          const country = originMap?.[row.id];
-          if (!country || !originCountries.includes(country)) continue;
-        }
-        if (brands && brands.length > 0) {
-          if (!row.brand || !brands.includes(row.brand)) continue;
-        }
-        if (useCaseSet && !useCaseSet.has(row.id)) continue;
-        counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
-      }
-      if (data.length < PAGE) break;
-      from += PAGE;
-    }
-    return counts;
-  },
-  ["category-product-counts"],
-  { revalidate: 300, tags: ["catalog"] }
-);
 
 export type TopCategoryWithCount = Category & { productCount: number };
 

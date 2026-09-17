@@ -33,6 +33,13 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      # Keep at least one instance warm so next/image's on-disk optimizer
+      # cache (.next/cache/images) survives between requests instead of
+      # resetting on every scale-to-zero cold start — cold starts were
+      # forcing a full re-fetch of every product image from Supabase
+      # Storage origin, inflating egress. See memory: supabase_linter_fixes.
+      - '--min-instances'
+      - '1'
       # --update-env-vars merges with vars set directly on the service
       # (CRON_SECRET, ANTHROPIC_API_KEY, MAIL_PW_*, RESEND_API_KEY, ...);
       # --set-env-vars would wipe them on every deploy.

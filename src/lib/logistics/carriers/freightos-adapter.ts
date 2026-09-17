@@ -127,7 +127,8 @@ export class FreightosAdapter implements CarrierAdapter {
   // Webhook event mapping. Freightos emits shipment events with a
   // stable schema; map their status codes onto our shipment_status enum.
   // ============================================================
-  parseWebhookPayload(payload: unknown, _headers: Record<string, string>): TrackingEventIngestion | null {
+  // The interface supplies headers too; this adapter reads only the payload.
+  parseWebhookPayload(payload: unknown): TrackingEventIngestion | null {
     if (!payload || typeof payload !== "object") return null;
     const p = payload as Record<string, unknown>;
 

@@ -10,7 +10,6 @@ import {
   Clock,
   Loader2,
   ArrowUpRight,
-  Filter,
 } from "lucide-react";
 import { useRegion } from "@/lib/providers/region-provider";
 import { formatDualCurrency, convertSync } from "@/lib/currency/formatter";

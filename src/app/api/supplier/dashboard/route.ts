@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/supplier/dashboard — Supplier dashboard stats + recent data
  * Returns KPIs, recent orders, product stats, revenue breakdown, inquiry count
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,9 +39,7 @@ export async function GET(request: NextRequest) {
   // KPI Queries (all in parallel)
   // ============================================================
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
   const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
 
@@ -53,7 +51,7 @@ export async function GET(request: NextRequest) {
     activeProductsResult,
     pendingProductsResult,
     supplierProfileResult,
-    recentOrdersResult,
+    recentOrdersChain,
     unreadMessagesResult,
     openRfqsResult,
     topProductsResult,
@@ -113,16 +111,28 @@ export async function GET(request: NextRequest) {
 
     // Recent orders (last 10). No FK between supplier_orders and
     // purchase_orders (both are RANGE-partitioned by created_at with a
-    // composite PK) — buyer info is fetched and merged in separately below.
-    supabase
-      .from("supplier_orders")
-      .select(`
-        id, order_number, purchase_order_id, subtotal, tax_amount, total_amount, currency,
-        status, shipping_method, created_at
-      `)
-      .eq("supplier_id", companyId)
-      .order("created_at", { ascending: false })
-      .limit(10),
+    // composite PK) — buyer info is fetched and merged in via a dependent
+    // chain that runs concurrently with the rest of the batch.
+    (async () => {
+      const recentOrdersResult = await supabase
+        .from("supplier_orders")
+        .select(`
+          id, order_number, purchase_order_id, subtotal, tax_amount, total_amount, currency,
+          status, shipping_method, created_at
+        `)
+        .eq("supplier_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      const recentPoIds = [...new Set((recentOrdersResult.data ?? []).map((o) => o.purchase_order_id))];
+      const { data: recentPos } = recentPoIds.length
+        ? await supabase.from("purchase_orders").select("id, buyer_company_name, buyer_user_id").in("id", recentPoIds)
+        : { data: [] as { id: string; buyer_company_name: string | null; buyer_user_id: string }[] };
+      const recentBuyerIds = [...new Set((recentPos ?? []).map((po) => po.buyer_user_id).filter(Boolean))];
+      const { data: recentBuyers } = recentBuyerIds.length
+        ? await supabase.from("user_profiles").select("id, full_name, country_code").in("id", recentBuyerIds)
+        : { data: [] as { id: string; full_name: string | null; country_code: string | null }[] };
+      return { recentOrdersResult, recentPos: recentPos ?? [], recentBuyers: recentBuyers ?? [] };
+    })(),
 
     // Unread messages
     supabase
@@ -137,19 +147,22 @@ export async function GET(request: NextRequest) {
       .eq("is_public", true)
       .in("status", ["open", "quoted"]),
 
-    // Top products by views/orders (from order items)
-    supabase
-      .from("supplier_order_items")
-      .select("product_name, quantity, subtotal, supplier_order_id")
-      .in(
-        "supplier_order_id",
-        (await supabase
-          .from("supplier_orders")
-          .select("id")
-          .eq("supplier_id", companyId)
-        ).data?.map((o) => o.id) || []
-      )
-      .limit(50),
+    // Top products by views/orders (from order items). supplier_order_items
+    // has no FK to the partitioned supplier_orders table, so PostgREST can't
+    // embed-filter by supplier_id — resolve the order ids first, but inside
+    // the batch so the round trip overlaps with the other queries instead of
+    // blocking them.
+    (async () => {
+      const { data: orderIds } = await supabase
+        .from("supplier_orders")
+        .select("id")
+        .eq("supplier_id", companyId);
+      return supabase
+        .from("supplier_order_items")
+        .select("product_name, quantity, subtotal, supplier_order_id")
+        .in("supplier_order_id", orderIds?.map((o) => o.id) || [])
+        .limit(50);
+    })(),
 
     // Monthly revenue for last 6 months
     supabase
@@ -163,17 +176,10 @@ export async function GET(request: NextRequest) {
 
   // Buyer info for recent orders — fetched separately since supplier_orders
   // has no FK to purchase_orders (see comment on the query above).
-  const recentPoIds = [...new Set((recentOrdersResult.data ?? []).map((o) => o.purchase_order_id))];
-  const { data: recentPos } = recentPoIds.length
-    ? await supabase.from("purchase_orders").select("id, buyer_company_name, buyer_user_id").in("id", recentPoIds)
-    : { data: [] as { id: string; buyer_company_name: string | null; buyer_user_id: string }[] };
-  const recentBuyerIds = [...new Set((recentPos ?? []).map((po) => po.buyer_user_id).filter(Boolean))];
-  const { data: recentBuyers } = recentBuyerIds.length
-    ? await supabase.from("user_profiles").select("id, full_name, country_code").in("id", recentBuyerIds)
-    : { data: [] as { id: string; full_name: string | null; country_code: string | null }[] };
-  const recentBuyerById = new Map((recentBuyers ?? []).map((b) => [b.id, b]));
+  const { recentOrdersResult, recentPos, recentBuyers } = recentOrdersChain;
+  const recentBuyerById = new Map(recentBuyers.map((b) => [b.id, b]));
   const poById = new Map(
-    (recentPos ?? []).map((po) => [
+    recentPos.map((po) => [
       po.id,
       { buyer_company_name: po.buyer_company_name, buyer: recentBuyerById.get(po.buyer_user_id) ?? null },
     ])

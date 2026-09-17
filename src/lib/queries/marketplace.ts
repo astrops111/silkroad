@@ -3,6 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import type { ProductWithDetails } from "./products";
+import type { Database } from "@/lib/supabase/database.types";
 import { MARKETPLACE_COUNTRIES, isMarketplaceCountry } from "@/lib/countries";
 
 // ─── Caching ────────────────────────────────────────────────────────────────
@@ -48,10 +49,12 @@ export type ProductPoolingInfo = {
 const getPoolingInfoByProductIdsCached = unstable_cache(
   async (productIds: string[]): Promise<Record<string, ProductPoolingInfo>> => {
     const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("products_pooling_info")
-      .select("id, pooling_group_type, group_moq, group_min_order_amount, group_country_code")
-      .in("id", productIds);
+    // RPC (not the products_pooling_info view) — bakes the id filter into
+    // the function body so Postgres still uses the products_pkey index;
+    // see the perf note in migration 00144.
+    const { data, error } = await supabase.rpc("get_products_pooling_info_by_ids", {
+      p_ids: productIds,
+    });
     if (error) {
       console.error("[marketplace] pooling info failed:", error);
       return {};
@@ -85,42 +88,39 @@ export type RegionPoolingRule = {
   products: number;
 };
 
-const getPoolingRulesByCountryCached = unstable_cache(
-  async (): Promise<Record<string, RegionPoolingRule[]>> => {
+type PoolingFacetRow = {
+  group_id: string;
+  country_code: string;
+  pooling_type: string | null;
+  min_order_amount: number | null;
+  products: number;
+};
+
+// One GROUP BY over products_pooling_info (marketplace_pooling_facets RPC,
+// 00141) — one row per active shipping group carrying live products. Both
+// the region pooling banner and the per-region group sub-filters derive
+// from it, so the catalog is aggregated once instead of being paged to
+// Node twice.
+const getPoolingFacetRowsCached = unstable_cache(
+  async (): Promise<PoolingFacetRow[]> => {
     const supabase = createServiceClient();
-    const rows = await fetchAllRows<{
-      pooling_group_type: string | null;
-      group_min_order_amount: number | null;
-      group_country_code: string | null;
-    }>((from, to) =>
-      supabase
-        .from("products_pooling_info")
-        .select("pooling_group_type, group_min_order_amount, group_country_code")
-        .range(from, to)
-    );
-
-    const byKey = new Map<string, { country: string } & RegionPoolingRule>();
-    for (const r of rows) {
-      if (!r.group_country_code || !r.pooling_group_type) continue;
-      const key = `${r.group_country_code}::${r.pooling_group_type}`;
-      let agg = byKey.get(key);
-      if (!agg) {
-        agg = { country: r.group_country_code, poolingType: r.pooling_group_type, minAmount: null, products: 0 };
-        byKey.set(key, agg);
-      }
-      agg.products++;
-      if (r.group_min_order_amount != null) {
-        agg.minAmount = Math.max(agg.minAmount ?? 0, r.group_min_order_amount);
-      }
+    const { data, error } = await supabase.rpc("marketplace_pooling_facets", {});
+    if (error) {
+      console.error("[marketplace] pooling facets failed:", error);
+      return [];
     }
-
-    const out: Record<string, RegionPoolingRule[]> = {};
-    for (const a of byKey.values()) {
-      (out[a.country] ??= []).push({ poolingType: a.poolingType, minAmount: a.minAmount, products: a.products });
-    }
-    return out;
+    // supabase-js can't infer the row type for a zero-arg RPC — pin it to
+    // the generated Returns type.
+    type RpcRow = Database["public"]["Functions"]["marketplace_pooling_facets"]["Returns"][number];
+    return ((data ?? []) as RpcRow[]).map((r) => ({
+      group_id: r.group_id,
+      country_code: r.country_code,
+      pooling_type: r.pooling_type ?? null,
+      min_order_amount: r.min_order_amount == null ? null : Number(r.min_order_amount),
+      products: Number(r.products),
+    }));
   },
-  ["marketplace-pooling-rules"],
+  ["marketplace-pooling-facet-rows"],
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
@@ -130,7 +130,26 @@ const getPoolingRulesByCountryCached = unstable_cache(
  * and their combined minimums. Aggregated from products_pooling_info.
  */
 export async function getPoolingRulesByCountry(): Promise<Record<string, RegionPoolingRule[]>> {
-  return getPoolingRulesByCountryCached();
+  const rows = await getPoolingFacetRowsCached();
+  const byKey = new Map<string, { country: string } & RegionPoolingRule>();
+  for (const r of rows) {
+    if (!r.country_code || !r.pooling_type) continue;
+    const key = `${r.country_code}::${r.pooling_type}`;
+    let agg = byKey.get(key);
+    if (!agg) {
+      agg = { country: r.country_code, poolingType: r.pooling_type, minAmount: null, products: 0 };
+      byKey.set(key, agg);
+    }
+    agg.products += r.products;
+    if (r.min_order_amount != null) {
+      agg.minAmount = Math.max(agg.minAmount ?? 0, r.min_order_amount);
+    }
+  }
+  const out: Record<string, RegionPoolingRule[]> = {};
+  for (const a of byKey.values()) {
+    (out[a.country] ??= []).push({ poolingType: a.poolingType, minAmount: a.minAmount, products: a.products });
+  }
+  return out;
 }
 
 export type ShippingGroupFacet = {
@@ -140,51 +159,6 @@ export type ShippingGroupFacet = {
   products: number;
 };
 
-const getShippingGroupFacetsCached = unstable_cache(
-  async (): Promise<Record<string, ShippingGroupFacet[]>> => {
-    const supabase = createServiceClient();
-    const rows = await fetchAllRows<{
-      pooling_group_type: string | null;
-      group_min_order_amount: number | null;
-      group_country_code: string | null;
-      group_id: string | null;
-    }>((from, to) =>
-      supabase
-        .from("products_pooling_info")
-        .select("pooling_group_type, group_min_order_amount, group_country_code, group_id")
-        .range(from, to)
-    );
-
-    const byId = new Map<string, { country: string } & ShippingGroupFacet>();
-    for (const r of rows) {
-      if (!r.group_id || !r.group_country_code) continue;
-      let agg = byId.get(r.group_id);
-      if (!agg) {
-        agg = {
-          country: r.group_country_code,
-          id: r.group_id,
-          poolingType: r.pooling_group_type ?? "custom",
-          minAmount: r.group_min_order_amount,
-          products: 0,
-        };
-        byId.set(r.group_id, agg);
-      }
-      agg.products++;
-    }
-
-    const out: Record<string, ShippingGroupFacet[]> = {};
-    for (const g of byId.values()) {
-      (out[g.country] ??= []).push({
-        id: g.id, poolingType: g.poolingType, minAmount: g.minAmount, products: g.products,
-      });
-    }
-    for (const list of Object.values(out)) list.sort((a, b) => b.products - a.products);
-    return out;
-  },
-  ["marketplace-shipping-group-facets"],
-  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
-);
-
 /**
  * Active shipping groups (MOA pools / groupage batches) per origin country,
  * for the marketplace sidebar's region sub-filters. Deliberately excludes the
@@ -192,27 +166,19 @@ const getShippingGroupFacetsCached = unstable_cache(
  * client-side from the group uuid.
  */
 export async function getShippingGroupFacets(): Promise<Record<string, ShippingGroupFacet[]>> {
-  return getShippingGroupFacetsCached();
-}
-
-// Product ids carrying any of the given use_case label slugs (e.g.
-// ["gaming", "business-office"] -> every product tagged with either).
-async function resolveProductIdsByUseCase(
-  supabase: ReturnType<typeof createServiceClient>,
-  slugs: string[]
-): Promise<string[]> {
-  const { data: labelRows } = await supabase
-    .from("labels")
-    .select("id")
-    .eq("kind", "use_case")
-    .in("slug", slugs);
-  const labelIds = (labelRows ?? []).map((l) => l.id);
-  if (labelIds.length === 0) return [];
-
-  const pairs = await fetchAllRows<{ product_id: string }>((from, to) =>
-    supabase.from("product_labels").select("product_id").in("label_id", labelIds).range(from, to)
-  );
-  return [...new Set(pairs.map((p) => p.product_id))];
+  const rows = await getPoolingFacetRowsCached();
+  const out: Record<string, ShippingGroupFacet[]> = {};
+  for (const r of rows) {
+    if (!r.group_id || !r.country_code) continue;
+    (out[r.country_code] ??= []).push({
+      id: r.group_id,
+      poolingType: r.pooling_type ?? "custom",
+      minAmount: r.min_order_amount,
+      products: r.products,
+    });
+  }
+  for (const list of Object.values(out)) list.sort((a, b) => b.products - a.products);
+  return out;
 }
 
 const searchProductsCached = unstable_cache(
@@ -222,25 +188,15 @@ const searchProductsCached = unstable_cache(
     const limit = filters.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    let useCaseProductIds: string[] | undefined;
-    if (filters.useCaseSlugs && filters.useCaseSlugs.length > 0) {
-      useCaseProductIds = await resolveProductIdsByUseCase(supabase, filters.useCaseSlugs);
-      if (useCaseProductIds.length === 0) {
-        return { products: [], total: 0, totalPages: 0, page, error: undefined };
-      }
-    }
-
-    // The origin RPC (search_product_ids) has no concept of label joins, so
-    // a use-case filter falls through to the direct query path below, which
-    // approximates origin filtering via products.origin_country directly
-    // (skipping the RPC's company-country fallback resolution).
-    if (
-      !filters.shippingGroupId &&
-      !useCaseProductIds &&
-      filters.originCountries &&
-      filters.originCountries.length > 0
-    ) {
-      return searchProductsByOrigin(supabase, filters, page, limit, offset);
+    // Origin (resolved via ports/company fallback) and use-case (label
+    // join) filters can't be expressed as PostgREST column filters, so
+    // they go through the search_product_ids RPC (00141): SQL resolves the
+    // matching id page + total, then the embeds are fetched for just that
+    // page. Everything else takes the single-query direct path below.
+    const hasUseCase = !!filters.useCaseSlugs && filters.useCaseSlugs.length > 0;
+    const hasOrigin = !!filters.originCountries && filters.originCountries.length > 0;
+    if (hasUseCase || (hasOrigin && !filters.shippingGroupId)) {
+      return searchProductsViaRpc(supabase, filters, page, limit, offset);
     }
 
     let query = supabase
@@ -283,13 +239,6 @@ const searchProductsCached = unstable_cache(
 
     if (filters.brands && filters.brands.length > 0) {
       query = query.in("brand", filters.brands);
-    }
-
-    if (useCaseProductIds) {
-      query = query.in("id", useCaseProductIds);
-      if (filters.originCountries && filters.originCountries.length > 0) {
-        query = query.in("origin_country", filters.originCountries);
-      }
     }
 
     if (filters.shippingGroupId) {
@@ -336,27 +285,38 @@ export async function searchProducts(filters: SearchFilters = {}) {
   return searchProductsCached(filters);
 }
 
-async function searchProductsByOrigin(
+async function searchProductsViaRpc(
   supabase: ReturnType<typeof createServiceClient>,
   filters: SearchFilters,
   page: number,
   limit: number,
   offset: number
 ) {
+  // A shipping group already pins the origin, so an explicit region
+  // selection is redundant alongside it (and the group's anchor country
+  // can differ from a product's resolved country) — mirror the direct
+  // path, which ignores originCountries when a group is set.
+  const originCountries =
+    !filters.shippingGroupId && filters.originCountries && filters.originCountries.length > 0
+      ? filters.originCountries
+      : undefined;
   const { data: rpcData, error: rpcError } = await supabase.rpc("search_product_ids", {
     p_category_ids:
       filters.categoryIds && filters.categoryIds.length > 0
         ? filters.categoryIds
         : filters.category
         ? [filters.category]
-        : null,
-    p_origin_countries: filters.originCountries ?? null,
-    p_search: filters.search ?? null,
-    p_price_min: filters.priceMin !== undefined ? Math.round(filters.priceMin * 100) : null,
-    p_price_max: filters.priceMax !== undefined ? Math.round(filters.priceMax * 100) : null,
-    p_moq_max: filters.moqMax ?? null,
-    p_brands: filters.brands && filters.brands.length > 0 ? filters.brands : null,
-    p_sort: filters.sort ?? "newest",
+        : undefined,
+    p_origin_countries: originCountries,
+    p_search: filters.search || undefined,
+    p_price_min: filters.priceMin !== undefined ? Math.round(filters.priceMin * 100) : undefined,
+    p_price_max: filters.priceMax !== undefined ? Math.round(filters.priceMax * 100) : undefined,
+    p_moq_max: filters.moqMax ?? undefined,
+    p_brands: filters.brands && filters.brands.length > 0 ? filters.brands : undefined,
+    p_use_case_slugs:
+      filters.useCaseSlugs && filters.useCaseSlugs.length > 0 ? filters.useCaseSlugs : undefined,
+    p_shipping_group_id: filters.shippingGroupId || undefined,
+    p_sort: filters.sort ?? "name",
     p_limit: limit,
     p_offset: offset,
   });
@@ -425,160 +385,79 @@ export async function getProductDetail(productId: string) {
   };
 }
 
-async function fetchAllRows<T>(
-  query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
-): Promise<T[]> {
-  let all: T[] = [];
-  let from = 0;
-  const PAGE = 1000;
-  for (;;) {
-    const { data } = await query(from, from + PAGE - 1);
-    if (!data || data.length === 0) break;
-    all = all.concat(data);
-    if (data.length < PAGE) break;
-    from += PAGE;
-  }
-  return all;
-}
+type FacetDimension = "category" | "brand" | "country" | "use_case";
 
-const getProductOriginMapCached = unstable_cache(
-  async (): Promise<Record<string, string | null>> => {
+export type FacetScope = {
+  categoryIds?: string[];
+  originCountries?: string[];
+  brands?: string[];
+  useCaseSlugs?: string[];
+};
+
+const nonEmpty = (v?: string[]) => (v && v.length > 0 ? v : undefined);
+
+// Every marketplace facet is a GROUP BY over the live catalog cross-
+// filtered by the other active facets. The marketplace_facet_counts RPC
+// (00141) does that in SQL and returns one row per bucket, replacing the
+// old approach of paging the entire 15k-row catalog to Node in 1000-row
+// slices and tallying in JS — per distinct filter combination.
+const getFacetCountsCached = unstable_cache(
+  async (dimension: FacetDimension, scope: FacetScope): Promise<Record<string, number>> => {
     const supabase = createServiceClient();
-    const rows = await fetchAllRows<{ id: string; resolved_country: string | null }>((from, to) =>
-      supabase.from("products_with_origin").select("id, resolved_country").range(from, to)
-    );
-    const map: Record<string, string | null> = {};
-    for (const r of rows) {
-      if (r.id) map[r.id] = r.resolved_country;
+    const { data, error } = await supabase.rpc("marketplace_facet_counts", {
+      p_dimension: dimension,
+      p_category_ids: nonEmpty(scope.categoryIds),
+      p_origin_countries: nonEmpty(scope.originCountries),
+      p_brands: nonEmpty(scope.brands),
+      p_use_case_slugs: nonEmpty(scope.useCaseSlugs),
+    });
+    if (error) {
+      console.error(`[marketplace] ${dimension} facets failed:`, error);
+      return {};
     }
-    return map;
-  },
-  ["marketplace-origin-map"],
-  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
-);
-
-/** Product id -> resolved origin country. Shared by every facet that needs to
- *  cross-filter against an active region selection (category counts, brand,
- *  use-case) without each re-scanning products_with_origin separately. */
-export async function getProductOriginMap(): Promise<Record<string, string | null>> {
-  return getProductOriginMapCached();
-}
-
-const getProductIdsByUseCaseCached = unstable_cache(
-  async (slugs: string[]): Promise<string[]> => {
-    const supabase = createServiceClient();
-    return resolveProductIdsByUseCase(supabase, slugs);
-  },
-  ["marketplace-usecase-product-ids"],
-  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
-);
-
-/** Product ids carrying any of the given use_case label slugs — cached so
- *  category counts can cross-filter against an active "Use" selection too. */
-export async function getProductIdsByUseCase(slugs: string[]): Promise<string[]> {
-  if (slugs.length === 0) return [];
-  return getProductIdsByUseCaseCached(slugs);
-}
-
-const getCountryFacetsCached = unstable_cache(
-  async (
-    categoryIds?: string[],
-    brands?: string[],
-    useCaseSlugs?: string[]
-  ): Promise<Record<string, number>> => {
-    const supabase = createServiceClient();
-    // Supabase caps unbounded selects at ~1000 rows — this catalog has 15k+
-    // products, so queries must be paginated or counts are silently
-    // truncated to whatever happened to be in the first page.
-    const [originMap, activeProducts, useCaseIds] = await Promise.all([
-      getProductOriginMapCached(),
-      fetchAllRows<{ id: string; brand: string | null }>((from, to) => {
-        let q = supabase
-          .from("products")
-          .select("id, brand")
-          .eq("moderation_status", "approved")
-          .eq("is_active", true);
-        if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
-        if (brands && brands.length > 0) q = q.in("brand", brands);
-        return q.range(from, to);
-      }),
-      useCaseSlugs && useCaseSlugs.length > 0
-        ? resolveProductIdsByUseCase(supabase, useCaseSlugs)
-        : Promise.resolve(null),
-    ]);
-
-    const useCaseSet = useCaseIds ? new Set(useCaseIds) : null;
-    const activeIds = new Set(
-      activeProducts.filter((p) => !useCaseSet || useCaseSet.has(p.id)).map((p) => p.id)
-    );
-    const counts: Record<string, number> = Object.fromEntries(
-      MARKETPLACE_COUNTRIES.map((code) => [code, 0])
-    );
-
-    for (const [id, country] of Object.entries(originMap)) {
-      if (!activeIds.has(id)) continue;
-      if (!isMarketplaceCountry(country)) continue;
-      counts[country] = (counts[country] ?? 0) + 1;
+    const counts: Record<string, number> = {};
+    for (const row of data ?? []) {
+      if (row.key) counts[row.key] = Number(row.n);
     }
-
     return counts;
   },
-  ["marketplace-country-facets"],
+  ["marketplace-facet-counts"],
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
+
+/** Facet counts for one dimension, scoped to the other active filters.
+ *  Undefined/empty scope arrays are normalised away so cache keys are
+ *  stable regardless of how the caller spelled "no filter". */
+export async function getFacetCounts(
+  dimension: FacetDimension,
+  scope: FacetScope = {}
+): Promise<Record<string, number>> {
+  return getFacetCountsCached(dimension, {
+    categoryIds: nonEmpty(scope.categoryIds),
+    originCountries: nonEmpty(scope.originCountries),
+    brands: nonEmpty(scope.brands),
+    useCaseSlugs: nonEmpty(scope.useCaseSlugs),
+  });
+}
 
 /** Region filter facet, scoped to the current category selection plus any
  *  active brand/use-case filters — so picking a brand or use-case narrows
- *  which regions show up here too. */
+ *  which regions show up here too. Always returns every marketplace
+ *  country (zero-filled) and nothing else. */
 export async function getCountryFacets(
   categoryIds?: string[],
   brands?: string[],
   useCaseSlugs?: string[]
 ): Promise<Record<string, number>> {
-  return getCountryFacetsCached(categoryIds, brands, useCaseSlugs);
+  const raw = await getFacetCounts("country", { categoryIds, brands, useCaseSlugs });
+  const counts: Record<string, number> = Object.fromEntries(
+    MARKETPLACE_COUNTRIES.map((code) => [code, 0])
+  );
+  for (const [country, n] of Object.entries(raw)) {
+    if (isMarketplaceCountry(country)) counts[country] = n;
+  }
+  return counts;
 }
-
-const getBrandFacetsCached = unstable_cache(
-  async (
-    categoryIds?: string[],
-    countries?: string[],
-    useCaseSlugs?: string[]
-  ): Promise<Record<string, number>> => {
-    const supabase = createServiceClient();
-    const [rows, originMap, useCaseIds] = await Promise.all([
-      fetchAllRows<{ id: string; brand: string | null }>((from, to) => {
-        let q = supabase
-          .from("products")
-          .select("id, brand")
-          .eq("moderation_status", "approved")
-          .eq("is_active", true)
-          .not("brand", "is", null);
-        if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
-        return q.range(from, to);
-      }),
-      countries && countries.length > 0 ? getProductOriginMapCached() : Promise.resolve(null),
-      useCaseSlugs && useCaseSlugs.length > 0
-        ? resolveProductIdsByUseCase(supabase, useCaseSlugs)
-        : Promise.resolve(null),
-    ]);
-
-    const useCaseSet = useCaseIds ? new Set(useCaseIds) : null;
-    const counts: Record<string, number> = {};
-    for (const row of rows) {
-      const brand = row.brand;
-      if (!brand) continue;
-      if (countries && countries.length > 0) {
-        const country = originMap?.[row.id];
-        if (!country || !countries.includes(country)) continue;
-      }
-      if (useCaseSet && !useCaseSet.has(row.id)) continue;
-      counts[brand] = (counts[brand] ?? 0) + 1;
-    }
-    return counts;
-  },
-  ["marketplace-brand-facets"],
-  { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
-);
 
 /** Brand filter facet, scoped to the current category selection plus any
  *  active region/use-case filters (so selecting Korea doesn't leave brands
@@ -588,64 +467,18 @@ export async function getBrandFacets(
   countries?: string[],
   useCaseSlugs?: string[]
 ): Promise<Record<string, number>> {
-  return getBrandFacetsCached(categoryIds, countries, useCaseSlugs);
+  return getFacetCounts("brand", { categoryIds, originCountries: countries, useCaseSlugs });
 }
 
 export type UseCaseFacet = { slug: string; name: string; count: number };
 
-const getUseCaseFacetsCached = unstable_cache(
-  async (
-    categoryIds?: string[],
-    countries?: string[],
-    brands?: string[]
-  ): Promise<UseCaseFacet[]> => {
+const getUseCaseLabelsCached = unstable_cache(
+  async (): Promise<{ slug: string; name: string }[]> => {
     const supabase = createServiceClient();
-    const { data: labelRows } = await supabase
-      .from("labels")
-      .select("id, slug, name")
-      .eq("kind", "use_case");
-    const labels = labelRows ?? [];
-    if (labels.length === 0) return [];
-    const labelIds = labels.map((l) => l.id);
-
-    const [pairs, activeProducts, originMap] = await Promise.all([
-      fetchAllRows<{ product_id: string; label_id: string }>((from, to) =>
-        supabase.from("product_labels").select("product_id, label_id").in("label_id", labelIds).range(from, to)
-      ),
-      fetchAllRows<{ id: string }>((from, to) => {
-        let q = supabase
-          .from("products")
-          .select("id")
-          .eq("moderation_status", "approved")
-          .eq("is_active", true);
-        if (categoryIds && categoryIds.length > 0) q = q.in("category_id", categoryIds);
-        if (brands && brands.length > 0) q = q.in("brand", brands);
-        return q.range(from, to);
-      }),
-      countries && countries.length > 0 ? getProductOriginMapCached() : Promise.resolve(null),
-    ]);
-
-    const activeIds = new Set(
-      activeProducts
-        .filter((p) => {
-          if (!countries || countries.length === 0) return true;
-          const country = originMap?.[p.id];
-          return !!country && countries.includes(country);
-        })
-        .map((p) => p.id)
-    );
-    const counts: Record<string, number> = {};
-    for (const pair of pairs) {
-      if (!activeIds.has(pair.product_id)) continue;
-      counts[pair.label_id] = (counts[pair.label_id] ?? 0) + 1;
-    }
-
-    return labels
-      .map((l) => ({ slug: l.slug, name: l.name, count: counts[l.id] ?? 0 }))
-      .filter((f) => f.count > 0)
-      .sort((a, b) => b.count - a.count);
+    const { data } = await supabase.from("labels").select("slug, name").eq("kind", "use_case");
+    return data ?? [];
   },
-  ["marketplace-use-case-facets"],
+  ["marketplace-use-case-labels"],
   { revalidate: FACET_TTL, tags: [CATALOG_TAG] }
 );
 
@@ -657,7 +490,14 @@ export async function getUseCaseFacets(
   countries?: string[],
   brands?: string[]
 ): Promise<UseCaseFacet[]> {
-  return getUseCaseFacetsCached(categoryIds, countries, brands);
+  const [labels, counts] = await Promise.all([
+    getUseCaseLabelsCached(),
+    getFacetCounts("use_case", { categoryIds, originCountries: countries, brands }),
+  ]);
+  return labels
+    .map((l) => ({ slug: l.slug, name: l.name, count: counts[l.slug] ?? 0 }))
+    .filter((f) => f.count > 0)
+    .sort((a, b) => b.count - a.count);
 }
 
 export async function getFeaturedProducts(limit = 8) {

@@ -100,22 +100,62 @@ export default async function MarketplacePage({
     useCaseSlugs: activeUseCases,
   };
 
+  // The category tree is cached and cheap, and everything else (facets,
+  // ticker counts, the product page itself) only depends on it — so resolve
+  // it first, derive the category scope, then fire every remaining query in
+  // ONE parallel wave instead of the previous four sequential round-trips.
+  const allCategories = await getCategories();
+
+  if (activeCategorySlug) {
+    const parentCat = allCategories.find((c) => c.slug === activeCategorySlug);
+    if (parentCat) {
+      // activeSubSlug may name a level-1 subcategory or a level-2 leaf
+      // (slugs are globally unique) — whichever it resolves to becomes the
+      // filter scope; falls back to the top category itself.
+      const scopeCat =
+        (activeSubSlug && allCategories.find((c) => c.slug === activeSubSlug)) || parentCat;
+      categoryIds = collectDescendantIds(scopeCat.id, allCategories);
+    }
+  }
+
   const [
     allTopCategories,
-    allCategories,
     directCounts,
     sidebarTopCategories,
     sidebarDirectCounts,
     poolingRules,
     groupFacets,
+    // Brand/Use/Region facets cross-filter against the current category
+    // selection AND each other — e.g. selecting Korea narrows the brand and
+    // use-case lists to only what's actually available from Korea.
+    brandFacets,
+    useFacets,
+    countryFacets,
+    searchResult,
   ] = await Promise.all([
     getTopLevelCategoriesWithCount(),
-    getCategories(),
     getCategoryProductCounts(),
     getTopLevelCategoriesWithCount(sidebarScope),
     getCategoryProductCounts(sidebarScope),
     getPoolingRulesByCountry(),
     getShippingGroupFacets(),
+    getBrandFacets(categoryIds, activeCountries, activeUseCases),
+    getUseCaseFacets(categoryIds, activeCountries, activeBrands),
+    getCountryFacets(categoryIds, activeBrands, activeUseCases),
+    // DB unreachable — the client renders a distinct load-error state. Caught
+    // here so one failed listing doesn't take the (independently cached)
+    // facets down with it.
+    searchProducts({
+      categoryIds,
+      originCountries: activeCountries,
+      brands: activeBrands,
+      useCaseSlugs: activeUseCases,
+      search: activeSearch ?? undefined,
+      shippingGroupId: activeGroupId ?? undefined,
+      sort: activeSort,
+      limit: pageSize,
+      page: currentPage,
+    }).catch(() => null),
   ]);
   // Ticker data (TopCategoryTicker/SubcategoryGrid) — unscoped by design, so
   // the visual category browser never shifts under a filter selection.
@@ -166,9 +206,6 @@ export default async function MarketplacePage({
   if (activeCategorySlug) {
     const parentCat = allCategories.find((c) => c.slug === activeCategorySlug);
     if (parentCat) {
-      // activeSubSlug may name a level-1 subcategory or a level-2 leaf
-      // (slugs are globally unique) — whichever it resolves to becomes the
-      // filter scope; falls back to the top category itself.
       const scopeCat =
         (activeSubSlug && allCategories.find((c) => c.slug === activeSubSlug)) || parentCat;
       const directChildren = allCategories.filter((c) => c.parent_id === scopeCat.id);
@@ -180,33 +217,19 @@ export default async function MarketplacePage({
         nameLocal: s.name_local,
         productCount: rollupCount(s.id),
       }));
-      categoryIds = collectDescendantIds(scopeCat.id, allCategories);
     }
   }
 
-  // Brand/Use/Region facets cross-filter against the current category
-  // selection AND each other — e.g. selecting Korea narrows the brand and
-  // use-case lists to only what's actually available from Korea.
-  const [brandFacets, useFacets, countryFacets] = await Promise.all([
-    getBrandFacets(categoryIds, activeCountries, activeUseCases),
-    getUseCaseFacets(categoryIds, activeCountries, activeBrands),
-    getCountryFacets(categoryIds, activeBrands, activeUseCases),
-  ]);
-
-  try {
-    const result = await searchProducts({
-      categoryIds,
-      originCountries: activeCountries,
-      brands: activeBrands,
-      useCaseSlugs: activeUseCases,
-      search: activeSearch ?? undefined,
-      shippingGroupId: activeGroupId ?? undefined,
-      sort: activeSort,
-      limit: pageSize,
-      page: currentPage,
-    });
+  if (!searchResult) {
+    loadFailed = true;
+  } else {
+    const result = searchResult;
     totalProductCount = result.total;
-    const poolingById = await getPoolingInfoByProductIds(result.products.map((p) => p.id));
+    // Pooling info depends on the page's product ids — the only query that
+    // genuinely has to wait for the listing.
+    const poolingById = await getPoolingInfoByProductIds(result.products.map((p) => p.id)).catch(
+      () => ({}) as Awaited<ReturnType<typeof getPoolingInfoByProductIds>>
+    );
     products = result.products.map((p) => {
       const pooling = poolingById[p.id];
       // Suppliers selling by the box (carton) — box_pack_qty > 1 — quote and
@@ -253,9 +276,6 @@ export default async function MarketplacePage({
         ],
       };
     });
-  } catch {
-    // DB unreachable — the client renders a distinct load-error state.
-    loadFailed = true;
   }
 
   // A ?page= past the end of the result set makes PostgREST reject the range,

@@ -158,7 +158,9 @@ export default function OrdersPage() {
   useEffect(() => {
     const debounce = setTimeout(fetchOrders, search ? 300 : 0);
     return () => clearTimeout(debounce);
-  }, [fetchOrders]);
+    // `search` only picks the debounce delay here; it already re-creates
+    // fetchOrders, so listing it changes nothing but satisfies the rule.
+  }, [fetchOrders, search]);
 
   useEffect(() => { setOffset(0); }, [statusFilter, search]);
 

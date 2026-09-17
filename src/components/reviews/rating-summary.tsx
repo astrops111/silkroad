@@ -7,7 +7,6 @@ interface RatingSummaryProps {
 }
 
 export function RatingSummary({ average, total, distribution }: RatingSummaryProps) {
-  const maxCount = Math.max(...Object.values(distribution), 1);
 
   return (
     <div className="flex gap-6 items-start">

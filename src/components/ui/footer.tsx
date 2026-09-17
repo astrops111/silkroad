@@ -222,6 +222,14 @@ export function Footer() {
               <span className="flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5" /> +250 788 000 000
               </span>
+              <a
+                href="https://whatsapp.com/channel/0029VbELZGvBlHpl6vNeDX38"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+              </a>
             </div>
           </div>
 

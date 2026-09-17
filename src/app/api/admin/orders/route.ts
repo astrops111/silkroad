@@ -48,15 +48,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Get supplier order counts per purchase order
+  // Get supplier order counts + payment info per purchase order (independent
+  // lookups — run them in parallel)
   const poIds = (orders || []).map((o) => o.id);
   const supplierOrderMap: Record<string, { count: number; suppliers: string[] }> = {};
+  const paymentMap: Record<string, string> = {};
 
   if (poIds.length > 0) {
-    const { data: sos } = await supabase
-      .from("supplier_orders")
-      .select("purchase_order_id, supplier_id, payment_gateway")
-      .in("purchase_order_id", poIds);
+    const [{ data: sos }, { data: payments }] = await Promise.all([
+      supabase
+        .from("supplier_orders")
+        .select("purchase_order_id, supplier_id, payment_gateway")
+        .in("purchase_order_id", poIds),
+      supabase
+        .from("payment_transactions")
+        .select("purchase_order_id, gateway, status")
+        .in("purchase_order_id", poIds),
+    ]);
 
     if (sos) {
       for (const so of sos) {
@@ -67,15 +75,6 @@ export async function GET(request: NextRequest) {
         supplierOrderMap[so.purchase_order_id].suppliers.push(so.supplier_id);
       }
     }
-  }
-
-  // Get payment info
-  const paymentMap: Record<string, string> = {};
-  if (poIds.length > 0) {
-    const { data: payments } = await supabase
-      .from("payment_transactions")
-      .select("purchase_order_id, gateway, status")
-      .in("purchase_order_id", poIds);
 
     if (payments) {
       for (const p of payments) {

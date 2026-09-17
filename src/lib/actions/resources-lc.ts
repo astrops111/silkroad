@@ -320,8 +320,7 @@ export async function transitionLcStatus(
     | "accepted"
     | "settled"
     | "expired"
-    | "cancelled",
-  _note?: string
+    | "cancelled"
 ): Promise<ActionResult<{ id: string; status: string }>> {
   const tier = await getCallerTierStatus();
   if (!tier.authenticated) {

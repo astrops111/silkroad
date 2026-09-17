@@ -79,53 +79,48 @@ export async function getStorefrontBySlug(slug: string): Promise<StorefrontData 
 
   if (!company) return null;
 
-  // Fetch supplier profile
-  const { data: profile } = await supabase
-    .from("supplier_profiles")
-    .select("tier, response_rate, on_time_delivery_rate, average_rating, total_orders, total_revenue, certifications, factory_address, factory_city, factory_country")
-    .eq("company_id", company.id)
-    .single();
+  // Everything below depends only on company.id — run in parallel.
+  const [{ data: profile }, { data: products }, { data: reviews }, { data: statsRows }] =
+    await Promise.all([
+      // Supplier profile
+      supabase
+        .from("supplier_profiles")
+        .select("tier, response_rate, on_time_delivery_rate, average_rating, total_orders, total_revenue, certifications, factory_address, factory_city, factory_country")
+        .eq("company_id", company.id)
+        .single(),
+      // Approved products (limit 12)
+      supabase
+        .from("products")
+        .select("id, name, slug, base_price, currency, moq, is_featured, product_images (url, is_primary)")
+        .eq("supplier_id", company.id)
+        .eq("moderation_status", "approved")
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .limit(12),
+      // Latest visible reviews
+      supabase
+        .from("reviews")
+        .select("id, rating, title, content, created_at, communication_rating, product_quality_rating, shipping_rating, images, is_verified_purchase, user_profiles:reviewer_user_id (full_name), companies:reviewer_company_id (name)")
+        .eq("supplier_company_id", company.id)
+        .eq("is_visible", true)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      // Review summary (aggregated in SQL instead of pulling every review row)
+      supabase.rpc("supplier_review_stats", { p_company_id: company.id }),
+    ]);
 
-  // Fetch approved products (limit 12)
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name, slug, base_price, currency, moq, is_featured, product_images (url, is_primary)")
-    .eq("supplier_id", company.id)
-    .eq("moderation_status", "approved")
-    .eq("is_active", true)
-    .order("name", { ascending: true })
-    .limit(12);
-
-  // Fetch reviews
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select("id, rating, title, content, created_at, communication_rating, product_quality_rating, shipping_rating, images, is_verified_purchase, user_profiles:reviewer_user_id (full_name), companies:reviewer_company_id (name)")
-    .eq("supplier_company_id", company.id)
-    .eq("is_visible", true)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  // Calculate review summary
-  const { data: allRatings } = await supabase
-    .from("reviews")
-    .select("rating, communication_rating, product_quality_rating, shipping_rating")
-    .eq("supplier_company_id", company.id)
-    .eq("is_visible", true);
-
-  const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  let ratingSum = 0;
-  let qualitySum = 0, qualityCount = 0;
-  let communicationSum = 0, communicationCount = 0;
-  let shippingSum = 0, shippingCount = 0;
-  for (const r of allRatings ?? []) {
-    distribution[r.rating] = (distribution[r.rating] ?? 0) + 1;
-    ratingSum += r.rating;
-    if (r.product_quality_rating != null) { qualitySum += r.product_quality_rating; qualityCount++; }
-    if (r.communication_rating != null) { communicationSum += r.communication_rating; communicationCount++; }
-    if (r.shipping_rating != null) { shippingSum += r.shipping_rating; shippingCount++; }
-  }
-  const totalReviews = allRatings?.length ?? 0;
+  const stats = statsRows?.[0];
+  const num = (v: unknown) => (v == null ? 0 : Number(v));
+  const distribution: Record<number, number> = {
+    1: num(stats?.star_1),
+    2: num(stats?.star_2),
+    3: num(stats?.star_3),
+    4: num(stats?.star_4),
+    5: num(stats?.star_5),
+  };
+  const totalReviews = num(stats?.total_reviews);
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const avgOrNull = (v: unknown) => (v == null ? null : round1(Number(v)));
 
   return {
     company,
@@ -149,12 +144,12 @@ export async function getStorefrontBySlug(slug: string): Promise<StorefrontData 
       isVerifiedPurchase: r.is_verified_purchase ?? false,
     })),
     reviewSummary: {
-      average: totalReviews > 0 ? round1(ratingSum / totalReviews) : 0,
+      average: totalReviews > 0 ? round1(Number(stats?.avg_rating ?? 0)) : 0,
       total: totalReviews,
       distribution,
-      qualityAverage: qualityCount > 0 ? round1(qualitySum / qualityCount) : null,
-      communicationAverage: communicationCount > 0 ? round1(communicationSum / communicationCount) : null,
-      shippingAverage: shippingCount > 0 ? round1(shippingSum / shippingCount) : null,
+      qualityAverage: avgOrNull(stats?.avg_product_quality),
+      communicationAverage: avgOrNull(stats?.avg_communication),
+      shippingAverage: avgOrNull(stats?.avg_shipping),
     },
   };
 }

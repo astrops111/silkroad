@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
-  TrendingUp,
   FileText,
   Truck,
   MessageSquare,

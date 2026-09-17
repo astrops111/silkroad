@@ -105,7 +105,9 @@ export const ugandaEfrisProvider: InvoiceProvider = {
     }
   },
 
-  async voidInvoice(invoiceNumber: string, reason: string) {
+  // Params are declared by the InvoiceProvider interface but unused in this
+  // not-yet-implemented stub.
+  async voidInvoice() {
     // EFRIS credit note flow
     return { success: false, error: "EFRIS void not yet implemented — issue credit note instead" };
   },

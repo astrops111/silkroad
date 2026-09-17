@@ -1441,6 +1441,9 @@ function MoaBanner({
         {activeCountry === "CN" && (
           <span className="font-medium text-[var(--text-primary)]"> {t("moaBannerCnFreight")}</span>
         )}
+        {activeCountry === "TW" && (
+          <span className="font-medium text-[var(--text-primary)]"> {t("moaBannerTwFreight")}</span>
+        )}
         {!activeCountry && (
           <>
             {t("moaBannerAll")}

@@ -12,9 +12,7 @@ import {
   AlertTriangle,
   Shield,
   Crown,
-  TrendingUp,
   Clock,
-  MapPin,
   Target,
   Package,
 } from "lucide-react";

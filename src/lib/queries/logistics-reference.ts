@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { shippingModeToMethod } from "@/lib/logistics/rates/config";
 import type { Enums, Tables } from "@/lib/supabase/database.types";
 
 export type PortType = Enums<"port_type">;
@@ -111,6 +112,89 @@ export async function listTariffRates(filters: TariffRateListFilters = {}): Prom
     return [];
   }
   return (data ?? []) as TariffRateRowView[];
+}
+
+// ============================================================
+// Shipping rate cards — the rates checkout actually charges.
+// Keyed by (origin_country, shipping_method); origin_country NULL is the
+// global default. There is no hardcoded fallback in the order route, so a
+// lane with no card here cannot be checked out.
+// ============================================================
+
+export type ShippingRateRow = Tables<"shipping_rates">;
+
+export interface ShippingRateListFilters {
+  originCountry?: string;
+  shippingMethod?: ShippingMethodDb;
+  includeInactive?: boolean;
+}
+
+export async function listShippingRates(
+  filters: ShippingRateListFilters = {}
+): Promise<ShippingRateRow[]> {
+  const supabase = await createClient();
+  let q = supabase.from("shipping_rates").select("*");
+
+  if (!filters.includeInactive) q = q.eq("is_active", true);
+  if (filters.originCountry) q = q.eq("origin_country", filters.originCountry);
+  if (filters.shippingMethod) q = q.eq("shipping_method", filters.shippingMethod);
+
+  const { data, error } = await q
+    .order("origin_country", { nullsFirst: true })
+    .order("shipping_method")
+    .limit(500);
+  if (error) {
+    console.error("listShippingRates failed", error);
+    return [];
+  }
+  return data ?? [];
+}
+
+export interface MissingRateCard {
+  originCountry: string;
+  shippingMethod: ShippingMethodDb;
+  productCount: number;
+}
+
+/**
+ * Every (origin country, shipping method) combination that has active
+ * products behind it but no active rate card — i.e. the lanes that will
+ * reject checkout until ops enters a rate. Drives the alert on the
+ * logistics reference page so the gap is visible before a buyer hits it.
+ */
+export async function listOriginsMissingRateCards(): Promise<MissingRateCard[]> {
+  const supabase = await createClient();
+
+  const [{ data: rates }, { data: suppliers }] = await Promise.all([
+    supabase.from("shipping_rates").select("origin_country, shipping_method").eq("is_active", true),
+    supabase.from("companies").select("id, country_code").not("country_code", "is", null),
+  ]);
+
+  const covered = new Set(
+    (rates ?? []).map((r) => `${r.origin_country ?? "*"}::${r.shipping_method}`)
+  );
+  const countryBySupplier = new Map((suppliers ?? []).map((s) => [s.id, s.country_code]));
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("supplier_id, shipping_mode")
+    .eq("is_active", true)
+    .limit(20000);
+
+  const counts = new Map<string, MissingRateCard>();
+  for (const p of products ?? []) {
+    const origin = countryBySupplier.get(p.supplier_id);
+    if (!origin) continue;
+    const method = shippingModeToMethod(p.shipping_mode) as ShippingMethodDb;
+    if (covered.has(`${origin}::${method}`) || covered.has(`*::${method}`)) continue;
+
+    const key = `${origin}::${method}`;
+    const existing = counts.get(key);
+    if (existing) existing.productCount += 1;
+    else counts.set(key, { originCountry: origin, shippingMethod: method, productCount: 1 });
+  }
+
+  return [...counts.values()].sort((a, b) => b.productCount - a.productCount);
 }
 
 export async function listPortCountries(): Promise<string[]> {

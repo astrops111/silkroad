@@ -1,11 +1,10 @@
-import { createHash, createDecipheriv, createSign, randomBytes } from "crypto";
+import { createDecipheriv, createSign, randomBytes } from "crypto";
 import type {
   PaymentGateway,
   CreatePaymentParams,
   PaymentResult,
   PaymentStatusResult,
   RefundResult,
-  TransferResult,
 } from "../types";
 
 /**
@@ -61,18 +60,6 @@ function decryptResource(resource: { ciphertext: string; nonce: string; associat
   return JSON.parse(decrypted.toString("utf-8"));
 }
 
-/**
- * Generate V2 sign (for some legacy endpoints)
- */
-function signV2(params: Record<string, string>): string {
-  const sorted = Object.keys(params)
-    .filter((k) => params[k] && k !== "sign")
-    .sort()
-    .map((k) => `${k}=${params[k]}`)
-    .join("&");
-  const stringSignTemp = `${sorted}&key=${process.env.WECHAT_API_KEY}`;
-  return createHash("md5").update(stringSignTemp).digest("hex").toUpperCase();
-}
 
 async function wechatRequest(
   method: string,

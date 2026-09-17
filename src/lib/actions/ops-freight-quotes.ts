@@ -22,7 +22,6 @@ import {
 } from "@/lib/logistics/landed-cost";
 import type { Json, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 import type {
-  OpsFreightQuoteRow,
   OpsQuoteRequesterType,
   OpsQuoteStatus,
 } from "@/lib/queries/ops-freight-quotes";

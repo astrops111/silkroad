@@ -222,10 +222,10 @@ export const flutterwaveGateway: PaymentGateway = {
   },
 
   // ── Webhook handler ───────────────────────────────────────────────────────
-  async handleWebhook(
-    payload: unknown,
-    _signature?: string
-  ): Promise<PaymentStatusResult> {
+  // NOTE: the PaymentGateway interface passes a signature, but this handler
+  // does not verify it — callers must authenticate the webhook before
+  // delegating here. Left off the signature rather than silently discarded.
+  async handleWebhook(payload: unknown): Promise<PaymentStatusResult> {
     const data = payload as Record<string, unknown>;
     const event = data.event as string;
     const tx = data.data as Record<string, unknown>;

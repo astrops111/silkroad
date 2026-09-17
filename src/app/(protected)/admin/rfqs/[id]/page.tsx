@@ -9,6 +9,7 @@ import {
   Search, Plus, Trash2, UserCheck, PenLine, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { RfqShippingConfirmForm } from "@/components/admin/rfq/RfqShippingConfirmForm";
 
 /* ------------------------------------------------------------------ */
 /*  Types — matches the shape returned by GET /api/rfqs/[id]           */
@@ -422,6 +423,10 @@ export default function AdminRfqDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Shipping rates & expenses — ops confirms freight for this RFQ
+              once it has been received; drafts have nothing to price yet. */}
+          {rfq.status !== "draft" && <RfqShippingConfirmForm rfqId={rfq.id} />}
         </div>
 
         {/* Right: buyer, suppliers, lifecycle */}

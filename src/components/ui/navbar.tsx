@@ -210,15 +210,13 @@ export function Navbar() {
     // have conversations to count.
     if (!currentUser) return;
     let cancelled = false;
-    fetch("/api/messages")
+    // unreadOnly returns just the summed counter — no conversation
+    // list/embeds, and not capped by the list endpoint's pagination.
+    fetch("/api/messages?unreadOnly=1")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.conversations) return;
-        const total = data.conversations.reduce(
-          (sum: number, c: { unreadCount?: number }) => sum + (c.unreadCount ?? 0),
-          0
-        );
-        setUnreadMessages(total);
+      .then((data: { totalUnread?: number } | null) => {
+        if (cancelled || !data) return;
+        setUnreadMessages(data.totalUnread ?? 0);
       })
       .catch(() => {});
     return () => {

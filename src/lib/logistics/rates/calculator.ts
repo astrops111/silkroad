@@ -22,6 +22,37 @@ export interface ShippingCostResult {
   estimatedDaysMin?: number;
   estimatedDaysMax?: number;
   breakdown: string;
+  /** Weight actually billed — request weight floored to the carrier minimum. */
+  chargeableWeightKg: number;
+  /** Repack cartons the rebox fee was charged on (0 when the rate has none). */
+  cartonCount: number;
+}
+
+/**
+ * A rate card. The first five fields are the original zone-rate shape; the
+ * optional ones below describe air-freight-style lanes (Taiwan) that bill a
+ * minimum chargeable weight plus fixed per-carton and per-shipment fees.
+ * Omitting them reproduces the original behaviour exactly.
+ */
+export interface ShippingRate {
+  baseRate: number;
+  perKgRate: number;
+  perCbmRate: number;
+  minCharge: number;
+  freeShippingThreshold: number | null;
+  /** Carrier minimum billable weight, e.g. air freight's MIN 100 KG. */
+  minChargeableKg?: number;
+  /** Round chargeable weight up to a whole kg before pricing (air freight). */
+  roundUpChargeableKg?: boolean;
+  /** Consolidation repack fee, per carton. Requires cartonVolumeCbm. */
+  reboxFeePerCarton?: number;
+  /** Volume of one repack carton, used to derive the carton count. */
+  cartonVolumeCbm?: number;
+  /** Flat customs-declaration charge, once per shipment. */
+  documentationFee?: number;
+  estimatedDaysMin?: number;
+  estimatedDaysMax?: number;
+  currency: string;
 }
 
 // Surcharge rates
@@ -36,16 +67,7 @@ const HAZARDOUS_SURCHARGE_RATE = 0.25;   // +25% for hazardous
  */
 export function calculateShippingCost(
   request: ShippingCostRequest,
-  rate: {
-    baseRate: number;
-    perKgRate: number;
-    perCbmRate: number;
-    minCharge: number;
-    freeShippingThreshold: number | null;
-    estimatedDaysMin?: number;
-    estimatedDaysMax?: number;
-    currency: string;
-  }
+  rate: ShippingRate
 ): ShippingCostResult {
   // Free shipping check
   if (
@@ -63,14 +85,27 @@ export function calculateShippingCost(
       estimatedDaysMin: rate.estimatedDaysMin,
       estimatedDaysMax: rate.estimatedDaysMax,
       breakdown: "Free shipping (order above threshold)",
+      chargeableWeightKg: 0,
+      cartonCount: 0,
     };
   }
 
   // Base cost
   const baseCost = rate.baseRate;
 
+  // Chargeable weight — the caller passes max(actual, volumetric); the rate
+  // card can floor it to a carrier minimum (air freight bills MIN 100 KG even
+  // on a lighter shipment) and round it up to a whole kg.
+  let chargeableWeightKg = Math.max(
+    request.totalWeightKg,
+    rate.minChargeableKg ?? 0
+  );
+  if (rate.roundUpChargeableKg) {
+    chargeableWeightKg = Math.ceil(chargeableWeightKg);
+  }
+
   // Weight charge
-  const weightCharge = Math.round(request.totalWeightKg * rate.perKgRate);
+  const weightCharge = Math.round(chargeableWeightKg * rate.perKgRate);
 
   // Volume charge (for freight — charged by cubic meter)
   const volumeCharge = request.totalVolumeCbm
@@ -100,6 +135,24 @@ export function calculateShippingCost(
     surcharges.push({ name: "Hazardous goods", amount });
   }
 
+  // Fixed pass-through fees. Added after the percentage surcharges above so
+  // those percentages apply to the freight only, never to the flat fees.
+
+  // Repack into the consolidator's own cartons, charged per carton. The count
+  // comes from cargo volume, so it needs product dimensions to be non-zero.
+  let cartonCount = 0;
+  if (rate.reboxFeePerCarton && rate.cartonVolumeCbm && request.totalVolumeCbm) {
+    cartonCount = Math.ceil(request.totalVolumeCbm / rate.cartonVolumeCbm);
+    surcharges.push({
+      name: "Rebox",
+      amount: cartonCount * rate.reboxFeePerCarton,
+    });
+  }
+
+  if (rate.documentationFee) {
+    surcharges.push({ name: "Documentation", amount: rate.documentationFee });
+  }
+
   const totalSurcharges = surcharges.reduce((sum, s) => sum + s.amount, 0);
   const totalCost = subtotalCost + totalSurcharges;
 
@@ -116,6 +169,8 @@ export function calculateShippingCost(
     totalCost,
     currency: rate.currency,
     isFreeShipping: false,
+    chargeableWeightKg,
+    cartonCount,
     estimatedDaysMin: rate.estimatedDaysMin,
     estimatedDaysMax: rate.estimatedDaysMax,
     breakdown: parts.join(" + ") + ` = ${totalCost} ${rate.currency}`,

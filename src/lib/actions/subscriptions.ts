@@ -77,12 +77,9 @@ export async function createSubscription(
 ): Promise<ActionResult<{ checkoutUrl: string }>> {
   const supabase = await createClient();
 
-  // Get supplier's Stripe account info
-  const { data: profile } = await supabase
-    .from("supplier_profiles")
-    .select("stripe_account_id")
-    .eq("company_id", companyId)
-    .single();
+  // NOTE: supplier_profiles.stripe_account_id was fetched here and never used.
+  // If payouts are meant to route through a connected account, that wiring is
+  // still missing — the dead query was removed rather than left implying it.
 
   // Get company email
   const { data: members } = await supabase

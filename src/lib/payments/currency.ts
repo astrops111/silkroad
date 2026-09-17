@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { isZeroDecimal, toDisplayAmount, toStoredAmount } from "./currency-config";
+import { toDisplayAmount, toStoredAmount } from "./currency-config";
 
 /**
  * Country → local currency mapping

@@ -272,6 +272,10 @@ export default function ImageUploader({
             >
               {/* Image */}
               {(f.preview || f.url) ? (
+                // Either a local blob:/data: preview created before the upload
+                // finishes, or the uploaded URL — neither has known dimensions
+                // and next/image cannot optimise a blob: source.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={f.preview || f.url}
                   alt={f.fileName}

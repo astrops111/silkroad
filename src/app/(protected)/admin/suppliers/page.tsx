@@ -129,7 +129,9 @@ export default function SuppliersPage() {
   useEffect(() => {
     const debounce = setTimeout(fetchSuppliers, search ? 300 : 0);
     return () => clearTimeout(debounce);
-  }, [fetchSuppliers]);
+    // `search` only picks the debounce delay here; it already re-creates
+    // fetchSuppliers, so listing it changes nothing but satisfies the rule.
+  }, [fetchSuppliers, search]);
 
   async function handleInvite() {
     if (!inviteEmail.trim()) return;

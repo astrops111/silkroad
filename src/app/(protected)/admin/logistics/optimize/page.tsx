@@ -11,7 +11,6 @@ import {
   Package,
   Users,
   Zap,
-  ArrowRight,
   ChevronDown,
   ChevronRight,
   CheckCircle2,

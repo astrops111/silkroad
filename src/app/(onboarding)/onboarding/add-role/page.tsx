@@ -53,7 +53,6 @@ function AddRoleForm() {
     typeParam === "supplier" ? "supplier" : "buyer_org";
   const roleLabel = companyType === "supplier" ? "Supplier" : "Buyer";
   const Icon = companyType === "supplier" ? Factory : ShoppingCart;
-  const postRedirect = companyType === "supplier" ? "/supplier/dashboard" : "/dashboard";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -218,6 +218,9 @@ export function PodCapturePanel({ shipmentId, shipmentStatus, existing }: Props)
           <label className="flex h-[180px] cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-muted/30 text-sm text-muted-foreground hover:bg-muted/50">
             <Camera className="size-6" />
             {photoDataUrl ? (
+              // In-memory data: URI from the camera/file capture — next/image
+              // cannot optimise a data URI, so this stays a plain <img>.
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={photoDataUrl} alt="Captured" className="max-h-[150px] rounded" />
             ) : (
               <span>Click to upload (or use phone camera)</span>
@@ -261,6 +264,9 @@ function Artefact({ label, url }: { label: string; url: string }) {
     <div className="rounded-md border p-3">
       <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        {/* Signed URL from the private documents bucket — the signature expires
+            and the dimensions are unknown, so next/image is a poor fit. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt={label} className="max-h-[200px] w-full rounded border bg-white object-contain" />
       </a>
     </div>

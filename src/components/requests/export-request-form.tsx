@@ -110,7 +110,8 @@ export function ExportRequestForm() {
   function toggleCommodity(value: string) {
     setSelectedCommodities((prev) => {
       const next = new Set(prev);
-      next.has(value) ? next.delete(value) : next.add(value);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
       return next;
     });
   }
@@ -118,7 +119,8 @@ export function ExportRequestForm() {
   function toggleCountry(code: string) {
     setSelectedCountries((prev) => {
       const next = new Set(prev);
-      next.has(code) ? next.delete(code) : next.add(code);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
       return next;
     });
   }

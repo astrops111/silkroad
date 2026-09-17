@@ -82,6 +82,20 @@ export default async function HelpPage() {
                     </a>
                   </div>
                 </li>
+                <li className="flex items-center gap-3">
+                  <MessageCircle className="w-4 h-4 text-[var(--amber-dark)]" />
+                  <div>
+                    <div className="text-xs text-[var(--text-tertiary)]">{t("whatsappLabel")}</div>
+                    <a
+                      href="https://whatsapp.com/channel/0029VbELZGvBlHpl6vNeDX38"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--amber-dark)]"
+                    >
+                      {t("whatsappLabel")}
+                    </a>
+                  </div>
+                </li>
               </ul>
             </div>
 

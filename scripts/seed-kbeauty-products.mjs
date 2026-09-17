@@ -218,7 +218,12 @@ let imagesFailed = 0;
 
 for (let i = 0; i < toInsert.length; i += BATCH) {
   const batch = toInsert.slice(i, i + BATCH);
-  const rows = batch.map(({ _images, ...p }) => p);
+  // _images is a scratch field for the image step — strip it before insert.
+  const rows = batch.map((p) => {
+    const row = { ...p };
+    delete row._images;
+    return row;
+  });
 
   const { data: created, error } = await admin
     .from("products")

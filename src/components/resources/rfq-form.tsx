@@ -42,12 +42,8 @@ interface Props {
 }
 
 const INCOTERMS = ["fob", "cif", "cpt", "fca", "dap", "exw"] as const;
-const INSTRUMENTS = [
-  "lc_at_sight",
-  "lc_usance",
-  "tt_advance",
-  "tt_against_docs",
-] as const;
+// Type-only: nothing iterates these, so a union avoids shipping a dead array.
+type Instrument = "lc_at_sight" | "lc_usance" | "tt_advance" | "tt_against_docs";
 
 export function ResourceRfqForm({
   buyerCompanies,
@@ -75,7 +71,7 @@ export function ResourceRfqForm({
     portOfDischarge: "",
     shipmentWindowStart: "",
     shipmentWindowEnd: "",
-    paymentInstrument: "lc_at_sight" as (typeof INSTRUMENTS)[number],
+    paymentInstrument: "lc_at_sight" as Instrument,
   });
 
   function setField<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {

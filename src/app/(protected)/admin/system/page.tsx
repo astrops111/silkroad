@@ -24,7 +24,6 @@ import {
   Flame,
   Bug,
   Zap,
-  TrendingUp,
   Server,
   Wrench,
 } from "lucide-react";
@@ -363,7 +362,6 @@ function ActivitiesTab() {
   const [data, setData] = useState<{ data: Record<string, unknown>[]; count: number }>({ data: [], count: 0 });
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ActivityFilter>({ page: 1, pageSize: 30 });
-  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -63,15 +63,14 @@ export async function GET(request: NextRequest) {
   let productCounts: Record<string, number> = {};
 
   if (supplierIds.length > 0) {
-    const { data: products } = await supabase
-      .from("products")
-      .select("supplier_id")
-      .in("supplier_id", supplierIds);
+    const { data: counts } = await supabase.rpc("supplier_product_counts", {
+      p_supplier_ids: supplierIds,
+    });
 
-    if (products) {
-      productCounts = products.reduce(
-        (acc: Record<string, number>, p: { supplier_id: string }) => {
-          acc[p.supplier_id] = (acc[p.supplier_id] || 0) + 1;
+    if (counts) {
+      productCounts = counts.reduce(
+        (acc: Record<string, number>, c: { supplier_id: string; product_count: number }) => {
+          acc[c.supplier_id] = Number(c.product_count) || 0;
           return acc;
         },
         {}

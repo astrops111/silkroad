@@ -3,10 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 
-interface ConversationSummary {
-  unreadCount?: number;
-}
-
 /**
  * Total unread message count across all of the current user's conversations.
  * Recomputed on mount and whenever a visible conversation row changes
@@ -20,14 +16,12 @@ export function useUnreadMessagesCount() {
 
     const fetchCount = async () => {
       try {
-        const res = await fetch("/api/messages");
+        // unreadOnly returns just the summed counter — no conversation
+        // list/embeds, and not capped by the list endpoint's pagination.
+        const res = await fetch("/api/messages?unreadOnly=1");
         if (!res.ok) return;
-        const data = await res.json();
-        const total = ((data.conversations || []) as ConversationSummary[]).reduce(
-          (sum, c) => sum + (c.unreadCount || 0),
-          0
-        );
-        if (!cancelled) setCount(total);
+        const data = (await res.json()) as { totalUnread?: number };
+        if (!cancelled) setCount(data.totalUnread ?? 0);
       } catch {
         // Silently fail
       }

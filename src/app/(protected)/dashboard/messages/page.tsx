@@ -278,6 +278,9 @@ export default function BuyerMessagesPage() {
                   >
                     {/* Avatar */}
                     {conv.otherParty.logo_url ? (
+                      // Remote company logo of unknown intrinsic size — next/image
+                      // would need remotePatterns plus a fixed-size wrapper here.
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={conv.otherParty.logo_url}
                         alt={conv.otherParty.name}

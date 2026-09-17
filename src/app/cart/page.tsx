@@ -10,6 +10,7 @@ import {
   PLATFORM_MIN_GROUP_ORDER_VALUE,
   shippingModeLabel,
 } from "@/lib/logistics/rates/config";
+import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
@@ -115,10 +116,17 @@ function CartPageContent() {
   // The cart drawer's "View Quote" links here with ?rfq=1 to land the buyer
   // straight on the request-for-quote form.
   const wantsRfq = searchParams.get("rfq") === "1";
+  // Self-serve checkout is temporarily off — the cart's only exit is an RFQ.
+  const checkoutEnabled = CHECKOUT_FEATURES.checkout;
   const { items, removeItem, updateQuantity, getTotal, clearCart, getItemsByShippingGroup } =
     useCartStore();
 
   // Recompute only when items change, not on every re-render (qty updates etc.)
+  // `items` looks redundant to the linter, but getItemsByShippingGroup is a
+  // zustand store method with a stable identity that reads get().items
+  // internally. Drop `items` and the dep array never changes, so the memo
+  // would go stale the moment the cart does.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const shippingGroups = useMemo(() => getItemsByShippingGroup(), [items, getItemsByShippingGroup]);
   const anyBelowMinimum = shippingGroups.some((g) => !g.meetsMinimum);
 
@@ -319,6 +327,9 @@ function CartPageContent() {
                     className="w-16 h-16 rounded-lg bg-[var(--surface-tertiary)] flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
                   >
                     {item.imageUrl ? (
+                      // Remote product image of unknown intrinsic size — next/image
+                      // would need remotePatterns plus a fixed-size wrapper here.
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.imageUrl}
                         alt={item.productName}
@@ -404,7 +415,9 @@ function CartPageContent() {
         </div>
 
         <p className="text-xs text-[var(--text-tertiary)] mb-4">
-          Shipping and taxes calculated at checkout
+          {checkoutEnabled
+            ? "Shipping and taxes calculated at checkout"
+            : "Freight, duties and taxes are confirmed on your quotation before anything is payable."}
         </p>
 
         {anyBelowMinimum && (
@@ -418,18 +431,35 @@ function CartPageContent() {
           </div>
         )}
 
-        {anyBelowMinimum ? (
-          <Button className="w-full" disabled>
-            {t("checkout")}
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        ) : (
-          <Link href="/checkout">
-            <Button className="w-full">
+        {/* Self-serve checkout is switched off (CHECKOUT_FEATURES.checkout) —
+            an RFQ is the only way out of the cart, so the quote request takes
+            the primary slot the checkout button would otherwise hold. */}
+        {checkoutEnabled ? (
+          anyBelowMinimum ? (
+            <Button className="w-full" disabled>
               {t("checkout")}
               <ArrowRight className="w-4 h-4" />
             </Button>
-          </Link>
+          ) : (
+            <Link href="/checkout">
+              <Button className="w-full">
+                {t("checkout")}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          )
+        ) : (
+          !rfqOpen &&
+          rfqStatus !== "success" && (
+            <Button
+              className="w-full"
+              onClick={() => setRfqOpen(true)}
+              disabled={anyBelowMinimum}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Request a quotation
+            </Button>
+          )
         )}
 
         {/* RFQ panel */}
@@ -635,14 +665,18 @@ function CartPageContent() {
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setRfqOpen(true)}
-              disabled={anyBelowMinimum}
-              className="w-full text-sm text-[var(--text-secondary)] flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-[var(--border-default)] hover:border-[var(--amber)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border-default)] disabled:hover:text-[var(--text-secondary)]"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Request quotes from suppliers instead
-            </button>
+            // With checkout off the primary button above already opens this
+            // panel — a second trigger saying "instead" would be nonsense.
+            checkoutEnabled && (
+              <button
+                onClick={() => setRfqOpen(true)}
+                disabled={anyBelowMinimum}
+                className="w-full text-sm text-[var(--text-secondary)] flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-[var(--border-default)] hover:border-[var(--amber)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border-default)] disabled:hover:text-[var(--text-secondary)]"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Request quotes from suppliers instead
+              </button>
+            )
           )}
 
           {/* Always reachable for account holders. Hidden for guests, whose

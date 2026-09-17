@@ -103,6 +103,7 @@ import {
   chargeableWeightKg,
   PLATFORM_MIN_GROUP_ORDER_VALUE,
 } from "@/lib/logistics/rates/config";
+import { CHECKOUT_FEATURES } from "@/lib/payments/checkout-feature-flags";
 import { randomBytes } from "crypto";
 
 /**
@@ -115,6 +116,20 @@ import { randomBytes } from "crypto";
  * Shipping cost and CBM are computed per group using the rate for that group's shipping method.
  */
 export async function POST(request: NextRequest) {
+  // Self-serve ordering is switched off — buyers go through an RFQ so ops
+  // prices freight before anything is payable. Enforced here, not just by
+  // hiding the button, so a direct POST can't create an order either.
+  if (!CHECKOUT_FEATURES.checkout) {
+    return NextResponse.json(
+      {
+        error:
+          "Online checkout is temporarily unavailable. Send a quotation request from your cart and our team will price it for you.",
+        code: "checkout_disabled",
+      },
+      { status: 403 }
+    );
+  }
+
   const supabase = await createClient();
 
   const {
@@ -224,33 +239,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── Fetch all active shipping rates upfront (keyed by shipping_method) ───
+  // ── Fetch all active shipping rates upfront ──────────────────────────────
+  // Rates are keyed by (origin_country, shipping_method). An origin-specific
+  // row wins over the origin_country IS NULL global default, so lanes priced
+  // per origin — Taiwan air freight, for one — don't leak onto other origins.
   const { data: rateRows } = await supabase
     .from("shipping_rates")
     .select(
-      "shipping_method, base_rate, per_kg_rate, per_cbm_rate, min_charge, free_shipping_threshold, estimated_days_min, estimated_days_max, currency"
+      "origin_country, shipping_method, base_rate, per_kg_rate, per_cbm_rate, min_charge, min_chargeable_kg, round_up_chargeable_kg, rebox_fee_per_carton, carton_volume_cbm, documentation_fee, free_shipping_threshold, estimated_days_min, estimated_days_max, currency"
     )
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
-  const ratesByMethod: Record<string, typeof rateRows extends (infer R)[] | null ? R : never> = {};
+  type RateRow = NonNullable<typeof rateRows>[number];
+  const ratesByOriginMethod: Record<string, RateRow> = {};
+  const rateKey = (origin: string | null, method: string) => `${origin ?? "*"}::${method}`;
   for (const row of rateRows ?? []) {
-    if (!ratesByMethod[row.shipping_method]) {
-      ratesByMethod[row.shipping_method] = row;
+    const key = rateKey(row.origin_country, row.shipping_method);
+    if (!ratesByOriginMethod[key]) {
+      ratesByOriginMethod[key] = row;
     }
   }
 
-  function getRateForMethod(method: string) {
-    const row = ratesByMethod[method];
+  // Returns null when no rate card covers this origin+method. There is
+  // deliberately NO hardcoded fallback: freight must come from a rate card
+  // ops entered off a real forwarder quote. Guessing a rate silently
+  // mis-charges the buyer, so an uncovered lane blocks the order instead.
+  function getRateForOriginMethod(originCountry: string, method: string) {
+    const row =
+      ratesByOriginMethod[rateKey(originCountry, method)] ??
+      ratesByOriginMethod[rateKey(null, method)];
+    if (!row) return null;
     return {
-      baseRate: row?.base_rate ?? 500,
-      perKgRate: row?.per_kg_rate ?? 150,
-      perCbmRate: row?.per_cbm_rate ?? 0,
-      minCharge: row?.min_charge ?? 500,
-      freeShippingThreshold: row?.free_shipping_threshold ?? 100000,
-      estimatedDaysMin: row?.estimated_days_min ?? undefined,
-      estimatedDaysMax: row?.estimated_days_max ?? undefined,
-      currency: row?.currency ?? currency,
+      baseRate: row.base_rate ?? 0,
+      perKgRate: row.per_kg_rate ?? 0,
+      perCbmRate: row.per_cbm_rate ?? 0,
+      minCharge: row.min_charge ?? 0,
+      minChargeableKg: row.min_chargeable_kg ?? 0,
+      roundUpChargeableKg: row.round_up_chargeable_kg ?? false,
+      reboxFeePerCarton: row.rebox_fee_per_carton ?? 0,
+      cartonVolumeCbm: row.carton_volume_cbm ?? undefined,
+      documentationFee: row.documentation_fee ?? 0,
+      // NULL means "freight is never waived on this lane".
+      freeShippingThreshold: row.free_shipping_threshold,
+      estimatedDaysMin: row.estimated_days_min ?? undefined,
+      estimatedDaysMax: row.estimated_days_max ?? undefined,
+      currency: row.currency ?? currency,
     };
   }
 
@@ -264,6 +298,37 @@ export async function POST(request: NextRequest) {
   const supplierCountry: Record<string, string> = {};
   for (const row of supplierRows ?? []) {
     supplierCountry[row.id] = row.country_code;
+  }
+
+  // ── Validate every group has a rate card ─────────────────────────────────
+  // Freight is only ever priced from a rate card ops entered off a real
+  // forwarder quote. If a lane isn't covered yet, refuse the order rather
+  // than invent a number — ops adds the rate card at
+  // /admin/logistics/reference → Shipping rates, then the buyer retries.
+  const missingRates: { groupKey: string; originCountry: string; shippingMethod: string }[] = [];
+  for (const group of Object.values(shippingGroups)) {
+    const originCountry = supplierCountry[group.supplierId];
+    const shippingMethod = shippingModeToMethod(group.shippingMode);
+    if (!originCountry || !getRateForOriginMethod(originCountry, shippingMethod)) {
+      missingRates.push({
+        groupKey: group.groupKey,
+        originCountry: originCountry ?? "unknown",
+        shippingMethod,
+      });
+    }
+  }
+  if (missingRates.length > 0) {
+    console.error("[orders] No shipping rate card for", missingRates);
+    return NextResponse.json(
+      {
+        error:
+          "Shipping is not yet priced for one or more items in this order. " +
+          "Our team is confirming freight rates — please try again shortly or request a quotation.",
+        code: "missing_shipping_rate",
+        groups: missingRates,
+      },
+      { status: 409 }
+    );
   }
 
   // ── Generate order number ─────────────────────────────────────────────────
@@ -305,7 +370,9 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    const originCountry = supplierCountry[supplierId] ?? "CN";
+    // Guaranteed present — the missingRates check above rejects the order
+    // when a supplier has no country code.
+    const originCountry = supplierCountry[supplierId]!;
 
     // Tax
     const taxResult = calculateOrderTax({
@@ -331,7 +398,8 @@ export async function POST(request: NextRequest) {
     }
 
     const shippingMethod = shippingModeToMethod(shippingMode);
-    const rate = getRateForMethod(shippingMethod);
+    // Non-null by the missingRates pre-flight check above.
+    const rate = getRateForOriginMethod(originCountry, shippingMethod)!;
 
     const shippingResult = calculateShippingCost(
       {

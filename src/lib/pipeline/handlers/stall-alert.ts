@@ -14,7 +14,8 @@ const OPS_NOTIFICATION_EMAIL =
  *
  * Ops must manually intervene. Handler records the alert in the activity log.
  */
-export const handler: EventHandler = async (event, _supabase) => {
+// EventHandler also supplies a supabase client; this handler uses its own.
+export const handler: EventHandler = async (event) => {
   const isShipmentStall = event.event_type === "shipment.stalled";
   const isDemurrageWarn = event.event_type === "customs.demurrage_warning";
 

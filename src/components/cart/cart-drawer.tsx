@@ -93,6 +93,10 @@ export function CartDrawer() {
                           className="w-12 h-12 rounded-lg bg-[var(--surface-tertiary)] flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
                         >
                           {item.imageUrl ? (
+                            // Remote product image of unknown intrinsic size —
+                            // next/image would need remotePatterns plus a
+                            // fixed-size wrapper here.
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={item.imageUrl}
                               alt={item.productName}

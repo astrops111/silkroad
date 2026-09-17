@@ -141,9 +141,9 @@ export class ShipaFreightAdapter implements CarrierAdapter {
   // ============================================================
   // Webhook event mapping — Shipa pushes shipment status events.
   // ============================================================
+  // The interface supplies headers too; this adapter reads only the payload.
   parseWebhookPayload(
     payload: unknown,
-    _headers: Record<string, string>,
   ): TrackingEventIngestion | TrackingEventIngestion[] | null {
     if (!payload || typeof payload !== "object") return null;
     const p = payload as Record<string, unknown>;

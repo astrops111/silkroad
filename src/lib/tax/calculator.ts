@@ -21,7 +21,6 @@ export function calculateOrderTax(
     subtotal,
     supplierCountry,
     buyerCountry,
-    items,
     buyerTaxExempt,
   } = request;
 

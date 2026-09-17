@@ -14,6 +14,16 @@ export type ProductWithDetails = Tables<"products"> & {
   companies: Pick<Tables<"companies">, "id" | "name" | "slug" | "logo_url" | "verification_status" | "country_code"> | null;
 };
 
+/** Row shape for the supplier catalog table — only what that page renders. */
+export type SupplierProductListRow = Pick<
+  Tables<"products">,
+  "id" | "name" | "brand" | "base_price" | "currency" | "moq" | "moderation_status" | "is_active"
+> & {
+  categories: Pick<Tables<"categories">, "id" | "name"> | null;
+  product_images: Pick<Tables<"product_images">, "id" | "url" | "alt_text" | "is_primary">[];
+  product_variants: Pick<Tables<"product_variants">, "id" | "stock_quantity">[];
+};
+
 export async function getSupplierProducts(
   companyId: string,
   options?: {
@@ -28,21 +38,15 @@ export async function getSupplierProducts(
   const limit = options?.limit ?? 20;
   const offset = (page - 1) * limit;
 
+  // Narrow projection: the supplier products table only renders these
+  // columns (variants are summed for stock; pricing tiers are not shown).
   let query = supabase
     .from("products")
     .select(
-      `
-      *,
-      categories (*),
-      product_images (*),
-      product_variants (*),
-      product_pricing_tiers (*)
-    `,
+      "id, name, brand, base_price, currency, moq, moderation_status, is_active, categories (id, name), product_images (id, url, alt_text, is_primary), product_variants (id, stock_quantity)",
       { count: "exact" }
     )
-    .eq("supplier_id", companyId)
-    .order("name", { ascending: true })
-    .range(offset, offset + limit - 1);
+    .eq("supplier_id", companyId);
 
   if (options?.status) {
     query = query.eq("moderation_status", options.status);
@@ -52,10 +56,14 @@ export async function getSupplierProducts(
     query = query.ilike("name", `%${options.search}%`);
   }
 
-  const { data, count, error } = await query;
+  const { data, count, error } = await query
+    .order("name", { ascending: true })
+    .range(offset, offset + limit - 1);
 
   return {
-    products: (data ?? []) as ProductWithDetails[],
+    // category_id is a to-one FK, so PostgREST returns an object (or null) here;
+    // the select-string type inference guesses an array, hence the unknown hop.
+    products: (data ?? []) as unknown as SupplierProductListRow[],
     total: count ?? 0,
     error: error?.message,
   };

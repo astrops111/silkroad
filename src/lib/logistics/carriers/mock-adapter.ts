@@ -67,11 +67,13 @@ export class MockCarrierAdapter implements CarrierAdapter {
   //     event_id?: string,
   //   }
   // ============================================================
-  verifyWebhookSignature(_rawBody: string, _headers: Record<string, string>): boolean {
+  // The CarrierAdapter interface supplies the raw body and headers; the mock
+  // ignores both, so they are left off the implementation signature.
+  verifyWebhookSignature(): boolean {
     return true; // mock accepts anything
   }
 
-  parseWebhookPayload(payload: unknown, _headers: Record<string, string>): TrackingEventIngestion | null {
+  parseWebhookPayload(payload: unknown): TrackingEventIngestion | null {
     if (!payload || typeof payload !== "object") return null;
     const p = payload as Record<string, unknown>;
     const trackingNumber = typeof p.tracking_number === "string" ? p.tracking_number : undefined;

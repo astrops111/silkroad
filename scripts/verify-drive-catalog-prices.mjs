@@ -64,7 +64,8 @@ for (const file of files) {
   const csvRows = parseCSV(text).slice(1);
 
   for (const row of csvRows) {
-    const [barcode, koreanName, englishName, volume, pcsPerBoxRaw, priceRaw] = row;
+    // 4th column (volume) is skipped — the hole keeps the later indices right.
+    const [barcode, koreanName, englishName, , pcsPerBoxRaw, priceRaw] = row;
     if (!englishName || !barcode) continue;
 
     const price = parseFloat(priceRaw);

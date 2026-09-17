@@ -58,7 +58,6 @@ export function RegionProvider({ children }: { children: ReactNode }) {
     } catch {
       // localStorage unavailable or corrupted — stick with defaults.
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
 

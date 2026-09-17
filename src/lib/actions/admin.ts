@@ -45,7 +45,7 @@ export async function approveProduct(productId: string, moderatedBy: string): Pr
   return { success: true };
 }
 
-export async function rejectProduct(productId: string, moderatedBy: string, reason?: string): Promise<ActionResult> {
+export async function rejectProduct(productId: string, moderatedBy: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
@@ -84,7 +84,7 @@ export async function verifySupplier(companyId: string, verifiedBy: string): Pro
   return { success: true };
 }
 
-export async function rejectVerification(companyId: string, reason: string): Promise<ActionResult> {
+export async function rejectVerification(companyId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("companies")

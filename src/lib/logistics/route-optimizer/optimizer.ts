@@ -4,7 +4,6 @@ import type {
   OptimizedRoute,
   PendingShipment,
   AvailableVehicle,
-  AvailableDriver,
   RouteStop,
   GeoPoint,
   OptimizationStrategy,
@@ -87,7 +86,9 @@ export function optimizeRoutes(req: OptimizationRequest): OptimizationResult {
     const needsColdChain = cluster.some(
       (s) => s.shipment.requires_cold_chain
     );
-    const needsHazardous = cluster.some((s) => s.shipment.is_hazardous);
+    // NOTE: hazardous cargo is deliberately NOT part of vehicle matching yet —
+    // unlike cold chain, no vehicle capability flag exists for it. Reinstate a
+    // `cluster.some((s) => s.shipment.is_hazardous)` check here once one does.
 
     const vehicleIdx = sortedVehicles.findIndex((v) => {
       const fits =

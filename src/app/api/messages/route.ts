@@ -42,15 +42,18 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl;
   const conversationId = searchParams.get("conversationId");
+  // Messages page at 50; the conversation inbox defaults to the 100 cap so
+  // existing (unparameterised) inbox consumers keep seeing their full list.
+  const defaultLimit = conversationId ? 50 : 100;
+  const rawLimit = parseInt(searchParams.get("limit") || String(defaultLimit), 10);
+  const rawOffset = parseInt(searchParams.get("offset") || "0", 10);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : defaultLimit;
+  const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
 
   if (conversationId) {
     if (!isUuid(conversationId)) {
       return NextResponse.json({ error: "Invalid conversationId" }, { status: 400 });
     }
-    const rawLimit = parseInt(searchParams.get("limit") || "50", 10);
-    const rawOffset = parseInt(searchParams.get("offset") || "0", 10);
-    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 50;
-    const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
 
     const { data: messages, error, count } = await supabase
       .from("messages")
@@ -100,7 +103,29 @@ export async function GET(request: NextRequest) {
   const companyIds = (companies || []).map((c) => c.company_id).filter(isUuid);
 
   if (companyIds.length === 0) {
-    return NextResponse.json({ conversations: [], total: 0 });
+    return NextResponse.json({ conversations: [], total: 0, totalUnread: 0 });
+  }
+
+  const memberFilter = `buyer_company_id.in.(${companyIds.join(",")}),supplier_company_id.in.(${companyIds.join(",")})`;
+
+  // Lightweight badge mode: the navbar/unread hook only need the SUM of
+  // unread counters, not the (embedded, paginated) conversation list. Only
+  // conversations with something unread are fetched, and just 4 columns.
+  if (searchParams.get("unreadOnly") === "1") {
+    const { data: unreadRows, error: unreadError } = await supabase
+      .from("conversations")
+      .select("buyer_company_id, supplier_company_id, buyer_unread_count, supplier_unread_count")
+      .or(memberFilter)
+      .or("buyer_unread_count.gt.0,supplier_unread_count.gt.0");
+    if (unreadError) {
+      console.error("[messages] unread count failed:", unreadError);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+    const totalUnread = (unreadRows || []).reduce((sum, c) => {
+      const isBuyer = companyIds.includes(c.buyer_company_id);
+      return sum + ((isBuyer ? c.buyer_unread_count : c.supplier_unread_count) || 0);
+    }, 0);
+    return NextResponse.json({ conversations: [], total: 0, totalUnread });
   }
 
   const { data: conversations, error, count } = await supabase
@@ -115,8 +140,9 @@ export async function GET(request: NextRequest) {
     `,
       { count: "exact" }
     )
-    .or(`buyer_company_id.in.(${companyIds.join(",")}),supplier_company_id.in.(${companyIds.join(",")})`)
-    .order("last_message_at", { ascending: false, nullsFirst: false });
+    .or(memberFilter)
+    .order("last_message_at", { ascending: false, nullsFirst: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error('[messages] fetch conversations failed:', error);
