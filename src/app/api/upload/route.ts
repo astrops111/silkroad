@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeStoragePath } from "@/lib/security/sanitize";
+import { uploadToR2 } from "@/lib/storage/r2";
 
 /**
- * POST /api/upload — Upload a file to Supabase Storage
+ * POST /api/upload — Upload a file
  *
  * Supports: product images, chat attachments, business docs, RFQ specs, POD photos
  *
@@ -11,6 +12,9 @@ import { sanitizeStoragePath } from "@/lib/security/sanitize";
  *   file     — the file to upload
  *   bucket   — storage bucket: "products", "messages", "documents", "invoices"
  *   folder   — optional subfolder path (e.g., "supplier-123/")
+ *
+ * "products" uploads go to Cloudflare R2 (public, zero egress fees); the rest
+ * stay on Supabase Storage (private, low-traffic).
  *
  * Returns: { url, path, fileName, fileType, fileSize }
  */
@@ -80,6 +84,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Folder path too long" }, { status: 400 });
   }
   const path = `${safeFolder}${safeName}`;
+
+  if (bucket === "products") {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let url: string;
+    try {
+      url = await uploadToR2(path, buf, file.type);
+    } catch (err) {
+      return NextResponse.json(
+        { error: `Upload failed: ${err instanceof Error ? err.message : "R2 error"}` },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({
+      url,
+      path,
+      bucket,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    });
+  }
 
   // Upload to Supabase Storage
   const { data, error } = await supabase.storage

@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/queries/user";
 import { productSchema, type ProductInput } from "@/lib/validators/product";
 import type { TradeTerm } from "@/lib/supabase/database.types";
 import { canSupply, findSupplierMembership } from "@/lib/company-access";
+import { uploadToR2 } from "@/lib/storage/r2";
 
 // Listed price = COGS × this markup. COGS is supplier-internal; buyers see base_price only.
 const COGS_MARKUP = 1.0;
@@ -364,13 +365,12 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/gif",
 ]);
 
-// Fetches an image URL and stores it in the products bucket. Returns the
-// public URL on success, or null on any failure (bad URL, non-image response,
-// oversized, upload error). Never throws — we want partial-success imports.
+// Fetches an image URL and stores it in R2. Returns the public URL on
+// success, or null on any failure (bad URL, non-image response, oversized,
+// upload error). Never throws — we want partial-success imports.
 async function downloadAndStoreImage(
   url: string,
-  companyId: string,
-  supabase: Awaited<ReturnType<typeof createClient>>
+  companyId: string
 ): Promise<string | null> {
   try {
     const res = await fetch(url, { redirect: "follow" });
@@ -383,12 +383,7 @@ async function downloadAndStoreImage(
     const path = `supplier-${companyId}/bulk-${Date.now()}-${Math.random()
       .toString(36)
       .slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage
-      .from("products")
-      .upload(path, buf, { contentType, upsert: false });
-    if (error) return null;
-    const { data } = supabase.storage.from("products").getPublicUrl(path);
-    return data.publicUrl || null;
+    return await uploadToR2(path, buf, contentType);
   } catch {
     return null;
   }
@@ -483,7 +478,7 @@ export async function bulkCreateProducts(
     if (imageUrls && imageUrls.length > 0) {
       const storedUrls: string[] = [];
       for (const imgUrl of imageUrls) {
-        const publicUrl = await downloadAndStoreImage(imgUrl, gate.companyId, supabase);
+        const publicUrl = await downloadAndStoreImage(imgUrl, gate.companyId);
         if (publicUrl) {
           storedUrls.push(publicUrl);
           result.imagesDownloaded += 1;
