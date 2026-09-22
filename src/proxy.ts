@@ -114,7 +114,46 @@ function generateNonce(): string {
 
 const STRICT_CSP_ENABLED = process.env.DISABLE_STRICT_CSP !== "true";
 
+// Crawlers refused outright. `meta-externalagent` (Meta's AI-training
+// crawler) was measured at up to 1.67M requests/day from ~72 IPs, ignoring
+// robots.txt and enumerating every faceted /marketplace?brand= combination —
+// each an uncached SSR render against Supabase — which saturated the database
+// (2026-09-22/23). Matched case-insensitively as a substring of User-Agent.
+// Note: `facebookexternalhit` (link previews) is deliberately NOT in this list.
+// Override with a comma-separated BLOCKED_USER_AGENTS env var.
+const BLOCKED_USER_AGENTS = (process.env.BLOCKED_USER_AGENTS ?? "meta-externalagent")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+function isBlockedUserAgent(request: NextRequest): boolean {
+  const ua = request.headers.get("user-agent")?.toLowerCase() ?? "";
+  return ua !== "" && BLOCKED_USER_AGENTS.some((needle) => ua.includes(needle));
+}
+
 export async function proxy(request: NextRequest) {
+  // Cheapest possible rejection: no session lookup, no render, no DB hit.
+  // Runs before the prefetch pass-through below on purpose: the crawler
+  // executes JS, so Next's <Link> prefetches (`?_rsc=…` + Next-Router-Prefetch
+  // header) were slipping past a matcher-level exemption and still rendering
+  // full faceted pages server-side.
+  if (isBlockedUserAgent(request)) {
+    return new NextResponse("Forbidden", {
+      status: 403,
+      headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
+    });
+  }
+
+  // Router prefetches skip session refresh / auth redirects (same behaviour
+  // the matcher's former `missing` clause provided, now applied after the
+  // UA block).
+  if (
+    request.headers.has("next-router-prefetch") ||
+    request.headers.get("purpose") === "prefetch"
+  ) {
+    return NextResponse.next();
+  }
+
   const nonce = STRICT_CSP_ENABLED ? generateNonce() : null;
   const csp = nonce ? buildCspHeader(nonce) : null;
 
@@ -176,10 +215,8 @@ export const config = {
     {
       source:
         "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest\\.json|sw\\.js|icons/.*|fonts/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json|ico|woff2?|ttf)$).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
+      // Prefetch requests are no longer excluded here — the blocked-UA check
+      // must see them too. proxy() short-circuits them right after that check.
     },
   ],
 };

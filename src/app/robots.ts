@@ -17,6 +17,14 @@ export default function robots(): MetadataRoute.Robots {
 
   return {
     rules: [
+      // Meta's AI-training crawler ignored the wildcard rules below and
+      // enumerated every faceted marketplace URL (up to 1.67M req/day),
+      // saturating the database. It is also hard-blocked (403) in
+      // src/proxy.ts; this rule is the polite version for the record.
+      {
+        userAgent: "meta-externalagent",
+        disallow: "/",
+      },
       {
         userAgent: "*",
         allow: "/",
