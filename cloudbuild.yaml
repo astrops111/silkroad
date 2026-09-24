@@ -44,7 +44,12 @@ steps:
       # (CRON_SECRET, ANTHROPIC_API_KEY, MAIL_PW_*, RESEND_API_KEY, ...);
       # --set-env-vars would wipe them on every deploy.
       - '--update-env-vars'
-      - 'NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY},NEXT_PUBLIC_APP_URL=https://silkroad-africa-798904783325.asia-east1.run.app,NEXT_PUBLIC_APP_NAME="SilkRoad Africa"'
+      # NEXT_PUBLIC_APP_URL must match the build-arg above: it is inlined into
+      # the client bundle at build time AND read at runtime by robots/sitemap,
+      # email links and payment return/webhook URLs. Pass the public domain
+      # (https://silkroad.africa) — advertising the raw run.app host in
+      # robots.txt/sitemap is how crawlers found a path around Cloudflare.
+      - 'NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY},NEXT_PUBLIC_APP_URL=${_NEXT_PUBLIC_APP_URL},NEXT_PUBLIC_APP_NAME="SilkRoad Africa"'
       # The service previously had these as plain --update-env-vars; Cloud Run
       # refuses to flip an existing env var to a secret reference in place
       # ("already been set with a different type"), so drop the old plain
