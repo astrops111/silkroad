@@ -53,12 +53,20 @@ export async function syncMailbox(
     secure: true,
     auth: { user: mailbox.username, pass: password },
     logger: false,
+    // The shared host is occasionally slow to greet; the library default
+    // (16s) trips on that under momentary load. One retry below absorbs a
+    // single blip instead of waiting for the next 5-minute cron tick.
+    greetingTimeout: 30_000,
   });
 
   const results: FolderSyncResult[] = [];
 
   try {
-    await client.connect();
+    try {
+      await client.connect();
+    } catch {
+      await client.connect();
+    }
 
     for (const folder of SYNC_FOLDERS) {
       try {
