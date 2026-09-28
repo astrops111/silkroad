@@ -167,13 +167,48 @@ function isBlockedIp(request: NextRequest): boolean {
   return BLOCKED_IP_PREFIXES.some((prefix) => ip.startsWith(prefix));
 }
 
+// Synthetic-URL block for the faceted marketplace listing. The third crawler
+// wave (2026-09-27/28) came through Cloudflare with browser UAs from
+// unlisted addresses, so neither check above matched — but every one of its
+// ~50k URLs carried `featured=1`, a parameter nothing in this app emits.
+// Any /marketplace request with a query key outside the set the listing
+// page actually reads (see marketplace-client.tsx) is therefore fabricated
+// and refused before it costs a render. Common ad/analytics click IDs are
+// tolerated so marketing links keep working; add more via the
+// comma-separated MARKETPLACE_EXTRA_PARAMS env var. Scoped to the exact
+// `/marketplace` path — product and category pages take no filters.
+const MARKETPLACE_PARAMS = new Set([
+  "q", "category", "sub", "country", "group", "brand", "use", "page", "sort", "limit",
+  "_rsc", // Next.js router-fetch marker
+  "fbclid", "gclid", "msclkid", "ttclid", "ref",
+  ...(process.env.MARKETPLACE_EXTRA_PARAMS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+]);
+
+function hasSyntheticMarketplaceQuery(request: NextRequest): boolean {
+  const { pathname, searchParams } = request.nextUrl;
+  if (pathname !== "/marketplace") return false;
+  for (const key of searchParams.keys()) {
+    if (MARKETPLACE_PARAMS.has(key)) continue;
+    if (key.startsWith("utm_")) continue;
+    return true;
+  }
+  return false;
+}
+
 export async function proxy(request: NextRequest) {
   // Cheapest possible rejection: no session lookup, no render, no DB hit.
   // Runs before the prefetch pass-through below on purpose: the crawler
   // executes JS, so Next's <Link> prefetches (`?_rsc=…` + Next-Router-Prefetch
   // header) were slipping past a matcher-level exemption and still rendering
   // full faceted pages server-side.
-  if (isBlockedUserAgent(request) || isBlockedIp(request)) {
+  if (
+    isBlockedUserAgent(request) ||
+    isBlockedIp(request) ||
+    hasSyntheticMarketplaceQuery(request)
+  ) {
     return new NextResponse("Forbidden", {
       status: 403,
       headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
