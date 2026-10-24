@@ -24,6 +24,9 @@ function verifyCronSecret(authHeader: string | null): boolean {
 /** Skip a mailbox if another invocation synced it moments ago. */
 const FRESHNESS_WINDOW_MS = 2 * 60 * 1000;
 
+/** Don't start another mailbox after this long, so runs end before the next 5-min tick. */
+const RUN_BUDGET_MS = 3 * 60 * 1000;
+
 /**
  * GET /api/cron/mail-sync
  *
@@ -55,7 +58,16 @@ export async function GET(request: NextRequest) {
   let totalFetched = 0;
   const errors: string[] = [];
 
+  const startedAt = Date.now();
+
   for (const mailbox of mailboxes ?? []) {
+    // Leave the rest for the next tick rather than overlapping it — parallel
+    // runs open extra connections to the same slow shared IMAP host.
+    if (Date.now() - startedAt > RUN_BUDGET_MS) {
+      results[mailbox.address] = { skipped: "run time budget exhausted" };
+      continue;
+    }
+
     // Concurrency guard: another invocation may still be working this box.
     if (!onlyMailboxId) {
       const { data: recent } = await supabase

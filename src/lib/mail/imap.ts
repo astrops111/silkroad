@@ -47,25 +47,47 @@ export async function syncMailbox(
     }));
   }
 
-  const client = new ImapFlow({
-    host: mailbox.imap_host,
-    port: mailbox.imap_port,
-    secure: true,
-    auth: { user: mailbox.username, pass: password },
-    logger: false,
-    // The shared host is occasionally slow to greet; the library default
-    // (16s) trips on that under momentary load. One retry below absorbs a
-    // single blip instead of waiting for the next 5-minute cron tick.
-    greetingTimeout: 30_000,
-  });
+  const createClient = () => {
+    const c = new ImapFlow({
+      host: mailbox.imap_host,
+      port: mailbox.imap_port,
+      secure: true,
+      auth: { user: mailbox.username, pass: password },
+      logger: false,
+      // The shared host is occasionally slow to greet; the library default
+      // (16s) trips on that under momentary load. One retry below absorbs a
+      // single blip instead of waiting for the next 5-minute cron tick.
+      greetingTimeout: 30_000,
+      // Default is 5 min; a stalled socket would otherwise hold the cron
+      // run open long enough to overlap the next ticks.
+      socketTimeout: 60_000,
+    });
+    // ImapFlow emits 'error' on post-connect socket failures; with no
+    // listener that is an uncaught exception that kills the whole server
+    // process. The in-flight command still rejects, so just swallow here.
+    c.on("error", () => {});
+    return c;
+  };
+
+  // ImapFlow instances are single-use: a failed connect() cannot be retried
+  // on the same object ("Can not re-use ImapFlow instance").
+  let client = createClient();
 
   const results: FolderSyncResult[] = [];
 
   try {
     try {
       await client.connect();
-    } catch {
-      await client.connect();
+    } catch (firstErr) {
+      await client.logout().catch(() => {});
+      client = createClient();
+      try {
+        await client.connect();
+      } catch (retryErr) {
+        const first = firstErr instanceof Error ? firstErr.message : String(firstErr);
+        const retry = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        throw new Error(`IMAP connect failed twice: ${first} / retry: ${retry}`);
+      }
     }
 
     for (const folder of SYNC_FOLDERS) {
