@@ -26,6 +26,10 @@ export default function robots(): MetadataRoute.Robots {
         disallow: "/",
       },
       {
+        userAgent: "Lightpanda",
+        disallow: "/",
+      },
+      {
         userAgent: "*",
         allow: "/",
         disallow: [

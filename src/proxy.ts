@@ -124,9 +124,12 @@ const STRICT_CSP_ENABLED = process.env.DISABLE_STRICT_CSP !== "true";
 // robots.txt and enumerating every faceted /marketplace?brand= combination —
 // each an uncached SSR render against Supabase — which saturated the database
 // (2026-09-22/23). Matched case-insensitively as a substring of User-Agent.
+// `lightpanda` (headless scraping browser) arrived via Cloudflare on
+// 2026-10-24 at 5k+ req/min, starving the instances badly enough that the
+// in-process mail-sync cron timed out on every IMAP handshake.
 // Note: `facebookexternalhit` (link previews) is deliberately NOT in this list.
 // Override with a comma-separated BLOCKED_USER_AGENTS env var.
-const BLOCKED_USER_AGENTS = (process.env.BLOCKED_USER_AGENTS ?? "meta-externalagent")
+const BLOCKED_USER_AGENTS = (process.env.BLOCKED_USER_AGENTS ?? "meta-externalagent,lightpanda")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
@@ -179,6 +182,7 @@ function isBlockedIp(request: NextRequest): boolean {
 // `/marketplace` path — product and category pages take no filters.
 const MARKETPLACE_PARAMS = new Set([
   "q", "category", "sub", "country", "group", "brand", "use", "page", "sort", "limit",
+  "region", // footer region links (footer.tsx) — not read by the listing, but emitted
   "_rsc", // Next.js router-fetch marker
   "fbclid", "gclid", "msclkid", "ttclid", "ref",
   ...(process.env.MARKETPLACE_EXTRA_PARAMS ?? "")
