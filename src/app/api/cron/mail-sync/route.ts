@@ -51,7 +51,8 @@ function shouldAlert(failures: number): boolean {
  * GET /api/cron/mail-sync
  *
  * Incrementally syncs every active hosted mailbox over IMAP.
- * Vercel Cron schedule: every 5 minutes.
+ * Scheduled by Supabase pg_cron → public.app_cron_call() (see
+ * supabase/migrations/00102_pg_cron_schedules.sql; live schedule in cron.job). Every 5 min.
  * Optional query: ?mailboxId=<uuid> to sync a single mailbox
  * (used by the admin "Sync now" button).
  */

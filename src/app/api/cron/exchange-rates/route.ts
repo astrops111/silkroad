@@ -18,12 +18,12 @@ function verifyCronSecret(authHeader: string | null): boolean {
 /**
  * GET /api/cron/exchange-rates — Update exchange rates from external API
  *
- * Called by pg_cron or Vercel Cron every hour.
+ * Called by pg_cron every hour.
  * Uses Open Exchange Rates (free tier: 1000 req/month = ~1.4/hour)
  * Fallback: ExchangeRate-API or hardcoded stale rates
  *
- * Cron config (vercel.json):
- *   { "crons": [{ "path": "/api/cron/exchange-rates", "schedule": "0 * * * *" }] }
+ * Scheduled by Supabase pg_cron → public.app_cron_call() (see
+ * supabase/migrations/00102_pg_cron_schedules.sql; live schedule in cron.job).
  */
 
 const SUPPORTED_CURRENCIES = [

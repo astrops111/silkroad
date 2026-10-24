@@ -26,7 +26,8 @@ function verifyCronSecret(authHeader: string | null): boolean {
  * not been processed yet (skill_processed_at IS NULL). Decoupled from
  * mail-sync by that queue column. No-ops while the 'email_skills'
  * feature flag is disabled.
- * Vercel Cron schedule: every 5 minutes.
+ * Scheduled by Supabase pg_cron → public.app_cron_call() (see
+ * supabase/migrations/00102_pg_cron_schedules.sql; live schedule in cron.job). Every 5 min.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

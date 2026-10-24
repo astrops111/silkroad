@@ -26,7 +26,9 @@ const BATCH_SIZE = 20;
  * GET /api/cron/pipeline-processor
  *
  * Processes pending pipeline events in batches of 20.
- * Vercel Cron schedule: every minute ("* * * * *").
+ * Scheduled by Supabase pg_cron → public.app_cron_call() (see
+ * supabase/migrations/00102_pg_cron_schedules.sql; live schedule in cron.job).
+ * Designed for every minute; prod currently runs it daily at 03:00 UTC.
  *
  * Uses claim_pipeline_events() RPC (FOR UPDATE SKIP LOCKED) so
  * concurrent invocations never double-process the same event.

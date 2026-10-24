@@ -22,9 +22,9 @@ function verifyCronSecret(authHeader: string | null): boolean {
  * GET /api/cron/email-sequences
  *
  * Enrolls due subjects into active email sequences and advances chains
- * whose next step is due. Intended cadence: hourly — the vercel.json
- * cron entry is intentionally absent while automated crons are paused;
- * trigger manually with the CRON_SECRET bearer header.
+ * whose next step is due.
+ * Scheduled by Supabase pg_cron → public.app_cron_call() (see
+ * supabase/migrations/00102_pg_cron_schedules.sql; live schedule in cron.job). Daily 18:00 UTC.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

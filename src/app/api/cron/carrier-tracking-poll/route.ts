@@ -8,8 +8,8 @@ import { runCarrierTrackingPoll } from "@/lib/logistics/tracking/poll-runner";
  * for new container milestones across active shipments. Mirrors the
  * auth + observability pattern used by /api/cron/exchange-rates.
  *
- * Cron config (vercel.json):
- *   { "path": "/api/cron/carrier-tracking-poll", "schedule": "*\u002F30 * * * *" }
+ * Scheduled by Supabase pg_cron → public.app_cron_call() (see
+ * supabase/migrations/00102_pg_cron_schedules.sql; live schedule in cron.job). Every 30 min.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
