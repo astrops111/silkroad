@@ -5458,10 +5458,13 @@ export type Database = {
           imap_host: string
           imap_port: number
           is_active: boolean
+          last_sync_error: string | null
           mailbox_type: string
           owner_user_id: string | null
           smtp_host: string
           smtp_port: number
+          sync_failure_count: number
+          sync_retry_after: string | null
           username: string
         }
         Insert: {
@@ -5476,10 +5479,13 @@ export type Database = {
           imap_host?: string
           imap_port?: number
           is_active?: boolean
+          last_sync_error?: string | null
           mailbox_type?: string
           owner_user_id?: string | null
           smtp_host?: string
           smtp_port?: number
+          sync_failure_count?: number
+          sync_retry_after?: string | null
           username: string
         }
         Update: {
@@ -5494,10 +5500,13 @@ export type Database = {
           imap_host?: string
           imap_port?: number
           is_active?: boolean
+          last_sync_error?: string | null
           mailbox_type?: string
           owner_user_id?: string | null
           smtp_host?: string
           smtp_port?: number
+          sync_failure_count?: number
+          sync_retry_after?: string | null
           username?: string
         }
         Relationships: [

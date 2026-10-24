@@ -58,6 +58,10 @@ export async function syncMailbox(
       // (16s) trips on that under momentary load. One retry below absorbs a
       // single blip instead of waiting for the next 5-minute cron tick.
       greetingTimeout: 30_000,
+      // Default is 90s; when the host firewall drops our SYNs every attempt
+      // (and its retry) sat out the full wait. The route's backoff handles
+      // persistent outages, so fail fast here.
+      connectionTimeout: 20_000,
       // Default is 5 min; a stalled socket would otherwise hold the cron
       // run open long enough to overlap the next ticks.
       socketTimeout: 60_000,
