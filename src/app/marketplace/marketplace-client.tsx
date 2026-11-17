@@ -14,6 +14,7 @@ import { useSavedStore } from "@/stores/saved";
 import { useCartStore } from "@/stores/cart";
 import { regionMeta, tradeMeta } from "@/lib/product-labels";
 import { MARKETPLACE_COUNTRIES } from "@/lib/countries";
+import { MAX_MARKETPLACE_BRANDS } from "@/lib/marketplace-limits";
 import { useRegion } from "@/lib/providers/region-provider";
 import { convertSync } from "@/lib/currency/formatter";
 import { getSupportedCurrencies } from "@/lib/currency/converter";
@@ -864,6 +865,22 @@ function FilterSidebar({
               <div className="space-y-1 max-h-64 overflow-y-auto">
                 {sortedBrands.map(([brand, count]) => {
                   const checked = activeBrands.has(brand);
+                  // At the cap, unchecked brands are shown but not selectable
+                  // (the proxy refuses URLs with more brands than this).
+                  if (!checked && activeBrands.size >= MAX_MARKETPLACE_BRANDS) {
+                    return (
+                      <div
+                        key={brand}
+                        aria-disabled="true"
+                        title={`Select up to ${MAX_MARKETPLACE_BRANDS} brands`}
+                        className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--text-secondary)] rounded-lg opacity-40 cursor-not-allowed"
+                      >
+                        <div className="w-4 h-4 rounded border border-[var(--border-strong)] shrink-0" />
+                        <span className="flex-1 truncate">{brand}</span>
+                        <span className="text-xs text-[var(--text-tertiary)]">{count}</span>
+                      </div>
+                    );
+                  }
                   return (
                     <Link
                       key={brand}

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { MAX_MARKETPLACE_BRANDS, parseBrandParam } from "@/lib/marketplace-limits";
 
 const publicRoutes = [
   "/",
@@ -199,6 +200,9 @@ function hasSyntheticMarketplaceQuery(request: NextRequest): boolean {
     if (key.startsWith("utm_")) continue;
     return true;
   }
+  // Brand-combination enumeration (2026-11-17 wave): 4–8 brands per URL, each a
+  // distinct uncached render. The sidebar never offers more than the cap.
+  if (parseBrandParam(searchParams.get("brand")).length > MAX_MARKETPLACE_BRANDS) return true;
   return false;
 }
 

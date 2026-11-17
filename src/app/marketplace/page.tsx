@@ -9,6 +9,7 @@ import {
 import { applyMarkup } from "@/lib/pricing";
 import { buildProductPath } from "@/lib/product-url";
 import { isMarketplaceCountry } from "@/lib/countries";
+import { normalizeBrands } from "@/lib/marketplace-limits";
 import {
   MarketplaceClient,
   type MarketplaceProduct,
@@ -67,7 +68,9 @@ export default async function MarketplacePage({
   // Slugs are globally unique, so one param covers both depths.
   const activeSubSlug = sp.sub ?? null;
   const activeCountry = isMarketplaceCountry(sp.country) ? sp.country.toUpperCase() : null;
-  const activeBrands = sp.brand ? sp.brand.split(",").filter(Boolean) : undefined;
+  // De-duplicated, sorted and capped so equivalent requests share one cache
+  // entry (see marketplace-limits.ts).
+  const activeBrands = normalizeBrands(sp.brand);
   const activeUseCases = sp.use ? sp.use.split(",").filter(Boolean) : undefined;
   const activeGroupId =
     sp.group && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sp.group)
