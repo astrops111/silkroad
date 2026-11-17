@@ -200,11 +200,20 @@ function hasSyntheticMarketplaceQuery(request: NextRequest): boolean {
     if (key.startsWith("utm_")) continue;
     return true;
   }
-  // Brand-combination enumeration (2026-11-17 wave): 4–8 brands per URL, each a
-  // distinct uncached render. The sidebar never offers more than the cap.
-  if (parseBrandParam(searchParams.get("brand")).length > MAX_MARKETPLACE_BRANDS) return true;
   return false;
 }
+
+// Brand-combination enumeration (2026-11-17 wave): 4–8 brands per URL, each a
+// distinct uncached render. The sidebar never offers more than the cap, so this
+// is a stale bookmark or a crawler. Answered with a tiny static page (no render,
+// no DB) that gives a real visitor a way forward, instead of a bare 403.
+function hasTooManyBrands(request: NextRequest): boolean {
+  const { pathname, searchParams } = request.nextUrl;
+  if (pathname !== "/marketplace") return false;
+  return parseBrandParam(searchParams.get("brand")).length > MAX_MARKETPLACE_BRANDS;
+}
+
+const TOO_MANY_BRANDS_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Too many brands selected</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem;color:#1a1a1a}a{color:#b45309}</style></head><body><h1>Too many brands selected</h1><p>You can filter by up to ${MAX_MARKETPLACE_BRANDS} brands at a time. Please choose fewer brands.</p><p><a href="/marketplace">Back to the marketplace</a></p></body></html>`;
 
 export async function proxy(request: NextRequest) {
   // Cheapest possible rejection: no session lookup, no render, no DB hit.
@@ -220,6 +229,17 @@ export async function proxy(request: NextRequest) {
     return new NextResponse("Forbidden", {
       status: 403,
       headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
+    });
+  }
+
+  if (hasTooManyBrands(request)) {
+    return new NextResponse(TOO_MANY_BRANDS_HTML, {
+      status: 422,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
     });
   }
 
